@@ -129,25 +129,36 @@ export default function VoiceRecording1({ candidateId, onComplete }: Props) {
         <>
           <div className="mt-6 rounded-lg border border-gray-200 bg-card p-6">
             <p className="text-sm text-text/80">
-              Read the following passage out loud clearly and at a natural pace.
-              You have 30 seconds to read it silently before your recording
-              begins automatically. You have one take — there is no re-record
-              option. Take a breath and speak clearly.
+              You will be shown a passage to read out loud clearly and at a natural pace.
             </p>
+            <ul className="mt-4 space-y-2 text-sm text-text/70">
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">1</span>
+                Click the button below to reveal the passage and start a <strong>30-second silent reading</strong> countdown.
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">2</span>
+                After 30 seconds, your <strong>microphone will activate automatically</strong> and recording begins.
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">3</span>
+                Read the passage out loud. You have <strong>90 seconds maximum</strong>. There is no re-record option.
+              </li>
+            </ul>
           </div>
-          <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-6">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text/40">
-              Passage to Read Aloud
-            </h3>
-            <p className="text-sm leading-relaxed text-text/80">
-              {ORAL_PASSAGE}
+          <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-amber-800 flex items-center gap-2">
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              The passage is hidden until you click Start. Your 30-second silent read begins the moment you click.
             </p>
           </div>
           <button
             onClick={startSilentRead}
             className="mt-6 w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark transition-colors"
           >
-            Start 30-Second Silent Read
+            Start Silent Read — Reveal Passage
           </button>
         </>
       )}
