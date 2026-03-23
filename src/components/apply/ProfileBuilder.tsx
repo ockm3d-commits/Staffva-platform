@@ -1,370 +1,894 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { CandidateData } from "@/app/(main)/apply/page";
 
-const TIER_LABELS: Record<string, string> = {
-  exceptional: "Exceptional",
-  proficient: "Proficient",
-  competent: "Competent",
-};
-
-const MAX_PORTFOLIO_ITEMS = 3;
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-
-interface PortfolioEntry {
-  file: File;
-  description: string;
-}
-
-interface Props {
-  candidate: CandidateData;
+interface ProfileBuilderProps {
+  candidateId: string;
+  candidateData: {
+    full_name: string;
+    display_name?: string;
+    role_category: string;
+    monthly_rate: number;
+    bio?: string;
+    english_written_tier?: string;
+    speaking_level?: string;
+  };
   onComplete: () => void;
 }
 
-export default function ProfileBuilder({ candidate, onComplete }: Props) {
-  const [availability, setAvailability] = useState("available_now");
-  const [availabilityDate, setAvailabilityDate] = useState("");
-  const [monthlyRate, setMonthlyRate] = useState(
-    candidate.monthly_rate.toString()
-  );
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [payoutMethod, setPayoutMethod] = useState("");
-  const [portfolioItems, setPortfolioItems] = useState<PortfolioEntry[]>([]);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+type BuilderStep = 1 | 2 | 3 | 4 | 5 | 6;
 
-  function addPortfolioItem(file: File) {
-    if (portfolioItems.length >= MAX_PORTFOLIO_ITEMS) return;
-    const ext = file.name.split(".").pop()?.toLowerCase() || "";
-    const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext);
-    const isPdf = ext === "pdf";
-    if (!isImage && !isPdf) {
-      setError("Portfolio items must be PDF or image files (JPG, PNG, GIF, WebP).");
+interface WorkEntry {
+  role_title: string;
+  industry: string;
+  duration: string;
+  description: string;
+}
+
+interface PortfolioItem {
+  file: File | null;
+  description: string;
+}
+
+const TOOLS_BY_ROLE: Record<string, string[]> = {
+  Paralegal: [
+    "Clio", "MyCase", "PracticePanther", "LexisNexis", "Westlaw",
+    "Microsoft Word", "Adobe Acrobat", "Outlook", "Dropbox", "Zoom",
+  ],
+  "Legal Assistant": [
+    "Clio", "MyCase", "PracticePanther", "LexisNexis", "Westlaw",
+    "Microsoft Word", "Adobe Acrobat", "Outlook", "Dropbox", "Zoom",
+  ],
+  "Bookkeeping/AP": [
+    "QuickBooks", "Xero", "FreshBooks", "Bill.com", "Gusto",
+    "Excel", "NetSuite", "Sage", "Expensify", "Stripe",
+  ],
+  Admin: [
+    "Google Workspace", "Microsoft 365", "Asana", "Trello", "Notion",
+    "Slack", "Zoom", "Calendly", "HubSpot", "Salesforce",
+  ],
+  VA: [
+    "Google Workspace", "Microsoft 365", "Asana", "Trello", "Notion",
+    "Slack", "Zoom", "Calendly", "HubSpot", "Salesforce",
+  ],
+  Scheduling: [
+    "Calendly", "Acuity", "Google Calendar", "Outlook", "Mindbody",
+    "Jane App", "OpenDental", "Dentrix",
+  ],
+  "Customer Support": [
+    "Zendesk", "Intercom", "Freshdesk", "Gorgias", "HubSpot",
+    "Salesforce", "Slack", "LiveChat",
+  ],
+};
+
+const INDUSTRIES = [
+  "Legal",
+  "Accounting & Finance",
+  "Healthcare",
+  "Real Estate",
+  "Technology",
+  "E-commerce",
+  "Other",
+];
+
+const DURATIONS = [
+  "Less than 1 year",
+  "1 to 2 years",
+  "2 to 5 years",
+  "5+ years",
+];
+
+export default function ProfileBuilder({
+  candidateId,
+  candidateData,
+  onComplete,
+}: ProfileBuilderProps) {
+  const [currentStep, setCurrentStep] = useState<BuilderStep>(1);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  // Step 1 — Photo and Basic Info
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [tagline, setTagline] = useState("");
+  const [monthlyRate, setMonthlyRate] = useState(candidateData.monthly_rate || 0);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // Step 2 — About
+  const [bio, setBio] = useState(candidateData.bio || "");
+
+  // Step 3 — Tools
+  const roleTools = TOOLS_BY_ROLE[candidateData.role_category] || TOOLS_BY_ROLE["Admin"];
+  const [selectedTools, setSelectedTools] = useState<string[]>([]);
+
+  // Step 4 — Work Experience
+  const [workEntries, setWorkEntries] = useState<WorkEntry[]>([
+    { role_title: "", industry: "", duration: "", description: "" },
+  ]);
+
+  // Step 5 — Portfolio and Resume
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
+  const [payoutMethod, setPayoutMethod] = useState("");
+
+  // Step 6 — Availability
+  const [availability, setAvailability] = useState<string>("");
+  const [availabilityDate, setAvailabilityDate] = useState("");
+
+  const firstName = candidateData.full_name?.split(" ")[0] || "";
+  const lastInitial = candidateData.full_name?.split(" ")[1]?.[0] || "";
+  const displayName = `${firstName} ${lastInitial}.`;
+
+  const handlePhotoChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Please upload an image file (JPG, PNG, etc.)");
       return;
     }
-    if (file.size > MAX_FILE_SIZE) {
-      setError("Each portfolio file must be under 5MB.");
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Photo must be under 5MB");
       return;
     }
-    setError("");
-    setPortfolioItems((prev) => [...prev, { file, description: "" }]);
+
+    const img = new window.Image();
+    img.onload = () => {
+      if (img.width < 200 || img.height < 200) {
+        setError("Photo must be at least 200x200 pixels");
+        return;
+      }
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+      setError("");
+    };
+    img.src = URL.createObjectURL(file);
+  }, []);
+
+  function toggleTool(tool: string) {
+    setSelectedTools((prev) => {
+      if (prev.includes(tool)) {
+        return prev.filter((t) => t !== tool);
+      }
+      if (prev.length >= 8) return prev;
+      return [...prev, tool];
+    });
+  }
+
+  function addWorkEntry() {
+    if (workEntries.length >= 3) return;
+    setWorkEntries([
+      ...workEntries,
+      { role_title: "", industry: "", duration: "", description: "" },
+    ]);
+  }
+
+  function removeWorkEntry(index: number) {
+    setWorkEntries(workEntries.filter((_, i) => i !== index));
+  }
+
+  function updateWorkEntry(index: number, field: keyof WorkEntry, value: string) {
+    const updated = [...workEntries];
+    updated[index] = { ...updated[index], [field]: value };
+    setWorkEntries(updated);
+  }
+
+  function addPortfolioItem() {
+    if (portfolioItems.length >= 3) return;
+    setPortfolioItems([...portfolioItems, { file: null, description: "" }]);
   }
 
   function removePortfolioItem(index: number) {
-    setPortfolioItems((prev) => prev.filter((_, i) => i !== index));
+    setPortfolioItems(portfolioItems.filter((_, i) => i !== index));
   }
 
-  function updatePortfolioDescription(index: number, desc: string) {
-    setPortfolioItems((prev) =>
-      prev.map((item, i) =>
-        i === index ? { ...item, description: desc } : item
-      )
-    );
+  function validateStep(): boolean {
+    setError("");
+    switch (currentStep) {
+      case 1:
+        if (!photoFile && !photoPreview) {
+          setError("Profile photo is required");
+          return false;
+        }
+        if (!tagline.trim()) {
+          setError("Tagline is required");
+          return false;
+        }
+        if (monthlyRate < 100) {
+          setError("Monthly rate must be at least $100");
+          return false;
+        }
+        return true;
+      case 2:
+        if (!bio.trim()) {
+          setError("Bio is required");
+          return false;
+        }
+        return true;
+      case 3:
+        if (selectedTools.length === 0) {
+          setError("Select at least one tool");
+          return false;
+        }
+        return true;
+      case 4: {
+        const validEntries = workEntries.filter((e) => e.role_title.trim());
+        if (validEntries.length === 0) {
+          setError("Add at least one work experience entry");
+          return false;
+        }
+        for (const entry of validEntries) {
+          if (!entry.industry || !entry.duration) {
+            setError("Complete all fields for each work experience entry");
+            return false;
+          }
+        }
+        return true;
+      }
+      case 5:
+        if (!resumeFile) {
+          setError("Resume is required");
+          return false;
+        }
+        if (!payoutMethod) {
+          setError("Payout method is required");
+          return false;
+        }
+        return true;
+      case 6:
+        if (!availability) {
+          setError("Select your availability");
+          return false;
+        }
+        if (availability === "available_by_date" && !availabilityDate) {
+          setError("Select a date");
+          return false;
+        }
+        return true;
+      default:
+        return true;
+    }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function nextStep() {
+    if (!validateStep()) return;
+    setCurrentStep((prev) => Math.min(prev + 1, 6) as BuilderStep);
+    setError("");
+  }
+
+  function prevStep() {
+    setCurrentStep((prev) => Math.max(prev - 1, 1) as BuilderStep);
+    setError("");
+  }
+
+  async function handleSubmit() {
+    if (!validateStep()) return;
+
+    setSaving(true);
     setError("");
 
-    if (!payoutMethod) {
-      setError("Please select a payout method before submitting.");
-      return;
-    }
+    try {
+      const supabase = createClient();
 
-    setLoading(true);
-    const supabase = createClient();
+      // Upload profile photo
+      let photoUrl = "";
+      if (photoFile) {
+        const ext = photoFile.name.split(".").pop();
+        const path = `${candidateId}/photo-${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("profile-photos")
+          .upload(path, photoFile);
 
-    // Upload resume
-    let resumeUrl = candidate.resume_url;
-    if (resumeFile) {
-      if (resumeFile.type !== "application/pdf") {
-        setError("Only PDF files are accepted for resume.");
-        setLoading(false);
-        return;
-      }
-      if (resumeFile.size > MAX_FILE_SIZE) {
-        setError("Resume must be under 5MB.");
-        setLoading(false);
-        return;
+        if (uploadError) throw new Error("Failed to upload photo: " + uploadError.message);
+
+        const { data: urlData } = supabase.storage
+          .from("profile-photos")
+          .getPublicUrl(path);
+        photoUrl = urlData.publicUrl;
       }
 
-      const fileName = `${candidate.id}/resume-${Date.now()}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from("resumes")
-        .upload(fileName, resumeFile);
+      // Upload resume
+      let resumeUrl = "";
+      if (resumeFile) {
+        const path = `${candidateId}/resume-${Date.now()}.pdf`;
+        const { error: uploadError } = await supabase.storage
+          .from("resumes")
+          .upload(path, resumeFile);
 
-      if (uploadError) {
-        setError("Failed to upload resume: " + uploadError.message);
-        setLoading(false);
-        return;
+        if (uploadError) throw new Error("Failed to upload resume: " + uploadError.message);
+
+        const { data: urlData } = supabase.storage
+          .from("resumes")
+          .getPublicUrl(path);
+        resumeUrl = urlData.publicUrl;
       }
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("resumes").getPublicUrl(fileName);
-      resumeUrl = publicUrl;
-    }
+      // Upload portfolio items
+      for (let i = 0; i < portfolioItems.length; i++) {
+        const item = portfolioItems[i];
+        if (!item.file) continue;
 
-    // Upload portfolio items
-    for (let i = 0; i < portfolioItems.length; i++) {
-      const item = portfolioItems[i];
-      const ext = item.file.name.split(".").pop()?.toLowerCase() || "pdf";
-      const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext);
-      const fileType = isImage ? "image" : "pdf";
-      const fileName = `${candidate.id}/portfolio-${i}-${Date.now()}.${ext}`;
+        const ext = item.file.name.split(".").pop();
+        const path = `${candidateId}/portfolio-${i}-${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("portfolio")
+          .upload(path, item.file);
 
-      const { error: uploadError } = await supabase.storage
-        .from("portfolio")
-        .upload(fileName, item.file);
+        if (uploadError) throw new Error("Failed to upload portfolio item: " + uploadError.message);
 
-      if (uploadError) {
-        setError(`Failed to upload portfolio item ${i + 1}: ${uploadError.message}`);
-        setLoading(false);
-        return;
-      }
+        const { data: urlData } = supabase.storage
+          .from("portfolio")
+          .getPublicUrl(path);
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("portfolio").getPublicUrl(fileName);
-
-      const { error: insertError } = await supabase
-        .from("portfolio_items")
-        .insert({
-          candidate_id: candidate.id,
-          file_url: publicUrl,
-          file_type: fileType,
+        await supabase.from("portfolio_items").insert({
+          candidate_id: candidateId,
+          file_url: urlData.publicUrl,
+          file_type: item.file.type.includes("pdf") ? "pdf" : "image",
           description: item.description || null,
           display_order: i,
         });
-
-      if (insertError) {
-        setError(`Failed to save portfolio item ${i + 1}: ${insertError.message}`);
-        setLoading(false);
-        return;
       }
-    }
 
-    // Update candidate record
-    const { error: updateError } = await supabase
-      .from("candidates")
-      .update({
+      // Filter valid work entries
+      const validWorkEntries = workEntries.filter((e) => e.role_title.trim());
+
+      // Update candidate record
+      const updateData: Record<string, unknown> = {
+        tagline,
+        monthly_rate: monthlyRate,
+        bio,
+        tools: selectedTools,
+        work_experience: validWorkEntries,
+        payout_method: payoutMethod,
         availability_status: availability,
         availability_date:
           availability === "available_by_date" ? availabilityDate : null,
-        monthly_rate: parseInt(monthlyRate),
-        resume_url: resumeUrl,
-        payout_method: payoutMethod,
         admin_status: "pending_speaking_review",
-      })
-      .eq("id", candidate.id);
+        profile_completed_at: new Date().toISOString(),
+      };
 
-    if (updateError) {
-      setError(updateError.message);
-      setLoading(false);
-      return;
+      if (photoUrl) updateData.profile_photo_url = photoUrl;
+      if (resumeUrl) updateData.resume_url = resumeUrl;
+
+      const { error: updateError } = await supabase
+        .from("candidates")
+        .update(updateData)
+        .eq("id", candidateId);
+
+      if (updateError) throw new Error("Failed to save profile: " + updateError.message);
+
+      // Notify admin
+      try {
+        await fetch("/api/candidate/notify-admin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ candidateId }),
+        });
+      } catch {
+        // Non-critical
+      }
+
+      onComplete();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+      setSaving(false);
     }
-
-    // Notify admin
-    await fetch("/api/candidate/notify-admin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ candidateId: candidate.id }),
-    });
-
-    onComplete();
   }
+
+  const stepLabels = [
+    "Photo & Info",
+    "About",
+    "Tools",
+    "Experience",
+    "Resume",
+    "Availability",
+  ];
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-12">
-      <h1 className="text-2xl font-bold text-text">Complete Your Profile</h1>
-      <p className="mt-2 text-sm text-text/60">
-        Finalize your profile details below. All fields marked as required must
-        be completed before your profile can be submitted for review.
+      <h1 className="text-2xl font-bold text-text">Build Your Profile</h1>
+      <p className="mt-1 text-sm text-text/60">
+        Complete your profile so clients can find and hire you.
       </p>
 
-      {/* Locked badges */}
-      <div className="mt-6 grid grid-cols-2 gap-4">
-        {candidate.english_written_tier && (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-text/40">
-              English Written Level
+      {/* Step indicators */}
+      <div className="mt-8 flex items-center gap-1">
+        {stepLabels.map((label, i) => (
+          <div key={label} className="flex-1">
+            <div
+              className={`h-2 rounded-full transition-colors ${
+                i + 1 <= currentStep ? "bg-primary" : "bg-gray-200"
+              }`}
+            />
+            <p
+              className={`mt-1 text-xs ${
+                i + 1 === currentStep
+                  ? "font-semibold text-primary"
+                  : "text-text/40"
+              }`}
+            >
+              {label}
             </p>
-            <p className="mt-1 text-lg font-semibold text-primary">
-              {TIER_LABELS[candidate.english_written_tier] ||
-                candidate.english_written_tier}
-            </p>
-            <p className="mt-1 text-xs text-text/40">Locked</p>
           </div>
-        )}
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-text/40">
-            Speaking Level
-          </p>
-          <p className="mt-1 text-sm font-medium text-text/60">
-            Pending Review
-          </p>
-          <p className="mt-1 text-xs text-text/40">
-            Assigned after recording review
-          </p>
-        </div>
+        ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-        {/* Availability */}
-        <div>
-          <label className="block text-sm font-medium text-text">
-            Availability
-          </label>
-          <select
-            value={availability}
-            onChange={(e) => setAvailability(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="available_now">Available now</option>
-            <option value="available_by_date">Available by date</option>
-            <option value="not_available">Not available</option>
-          </select>
-        </div>
+      {error && (
+        <p className="mt-4 text-sm font-medium text-red-600">{error}</p>
+      )}
 
-        {availability === "available_by_date" && (
-          <div>
-            <label className="block text-sm font-medium text-text">
-              Available From
-            </label>
-            <input
-              type="date"
-              required
-              value={availabilityDate}
-              onChange={(e) => setAvailabilityDate(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+      <div className="mt-8">
+        {/* ───────── STEP 1: Photo & Basic Info ───────── */}
+        {currentStep === 1 && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-text">
+                Profile Photo <span className="text-red-500">*</span>
+              </label>
+              <p className="text-xs text-text/50">
+                Min 200×200px. JPG or PNG. Max 5MB.
+              </p>
+              <div className="mt-3 flex items-center gap-6">
+                <div
+                  onClick={() => photoInputRef.current?.click()}
+                  className="flex h-24 w-24 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-primary"
+                >
+                  {photoPreview ? (
+                    <img
+                      src={photoPreview}
+                      alt="Preview"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-2xl text-gray-400">📷</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-text hover:bg-gray-50"
+                >
+                  {photoPreview ? "Change Photo" : "Upload Photo"}
+                </button>
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="hidden"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text">
+                Display Name
+              </label>
+              <p className="mt-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-text/70">
+                {displayName}
+              </p>
+              <p className="mt-1 text-xs text-text/40">
+                Auto-generated for privacy. Clients see first name + last initial.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="tagline" className="block text-sm font-medium text-text">
+                Tagline <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="tagline"
+                type="text"
+                maxLength={80}
+                value={tagline}
+                onChange={(e) => setTagline(e.target.value)}
+                placeholder="e.g. Paralegal with 5 years US client experience"
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+              />
+              <p className="mt-1 text-xs text-text/40">{tagline.length}/80</p>
+            </div>
+
+            <div>
+              <label htmlFor="rate" className="block text-sm font-medium text-text">
+                Monthly Rate (USD) <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="rate"
+                type="number"
+                min={100}
+                value={monthlyRate || ""}
+                onChange={(e) => setMonthlyRate(parseInt(e.target.value) || 0)}
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+              />
+            </div>
           </div>
         )}
 
-        {/* Monthly Rate */}
-        <div>
-          <label className="block text-sm font-medium text-text">
-            Confirm Monthly Rate (USD)
-          </label>
-          <input
-            type="number"
-            required
-            min="1"
-            value={monthlyRate}
-            onChange={(e) => setMonthlyRate(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-        </div>
+        {/* ───────── STEP 2: About ───────── */}
+        {currentStep === 2 && (
+          <div className="space-y-6">
+            <div>
+              <label htmlFor="bio" className="block text-sm font-medium text-text">
+                About You <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                id="bio"
+                maxLength={300}
+                rows={5}
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Tell clients about your background and what you bring to the role."
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+              />
+              <p className="mt-1 text-xs text-text/40">{bio.length}/300</p>
+            </div>
+          </div>
+        )}
 
-        {/* Payout Method */}
-        <div>
-          <label className="block text-sm font-medium text-text">
-            Payout Method <span className="text-red-500">*</span>
-          </label>
-          <p className="mt-0.5 text-xs text-text/40">
-            How you want to receive payments from clients. Required.
-          </p>
-          <select
-            required
-            value={payoutMethod}
-            onChange={(e) => setPayoutMethod(e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="">Select payout method</option>
-            <option value="payoneer">Payoneer</option>
-            <option value="wise">Wise</option>
-            <option value="bank_transfer">Local Bank Transfer</option>
-          </select>
-        </div>
+        {/* ───────── STEP 3: Tools & Software ───────── */}
+        {currentStep === 3 && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-medium text-text">
+                Tools & Software <span className="text-red-500">*</span>
+              </h3>
+              <p className="text-xs text-text/50">
+                Select up to 8 tools you actively use. ({selectedTools.length}/8 selected)
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {roleTools.map((tool) => {
+                const selected = selectedTools.includes(tool);
+                return (
+                  <button
+                    key={tool}
+                    type="button"
+                    onClick={() => toggleTool(tool)}
+                    className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                      selected
+                        ? "border-primary bg-primary text-white"
+                        : "border-gray-300 bg-white text-text hover:border-primary hover:text-primary"
+                    } ${
+                      !selected && selectedTools.length >= 8
+                        ? "cursor-not-allowed opacity-40"
+                        : ""
+                    }`}
+                  >
+                    {tool}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-        {/* Resume */}
-        <div>
-          <label className="block text-sm font-medium text-text">
-            Resume (PDF only, max 5MB)
-          </label>
-          <input
-            type="file"
-            accept=".pdf"
-            onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-            className="mt-1 block w-full text-sm text-text/60 file:mr-4 file:rounded-lg file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary hover:file:bg-primary/20"
-          />
-        </div>
-
-        {/* Portfolio */}
-        <div>
-          <label className="block text-sm font-medium text-text">
-            Portfolio Items{" "}
-            <span className="text-text/40 font-normal">
-              (optional, up to {MAX_PORTFOLIO_ITEMS} items)
-            </span>
-          </label>
-          <p className="mt-0.5 text-xs text-text/40">
-            Upload PDF or image files (max 5MB each) with a short description.
-          </p>
-
-          {/* Existing items */}
-          {portfolioItems.map((item, idx) => (
-            <div
-              key={idx}
-              className="mt-3 flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3"
-            >
-              <div className="flex-1">
-                <p className="text-sm font-medium text-text truncate">
-                  {item.file.name}
-                </p>
+        {/* ───────── STEP 4: Work Experience ───────── */}
+        {currentStep === 4 && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-sm font-medium text-text">
+                Work Experience <span className="text-red-500">*</span>
+              </h3>
+              <p className="text-xs text-text/50">Add up to 3 entries.</p>
+            </div>
+            {workEntries.map((entry, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-gray-200 bg-white p-5 space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-text">
+                    Entry {i + 1}
+                  </span>
+                  {workEntries.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeWorkEntry(i)}
+                      className="text-xs text-red-500 hover:text-red-700"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
-                  maxLength={100}
-                  placeholder="Brief description (optional)"
-                  value={item.description}
+                  placeholder="Role title (e.g. Senior Paralegal)"
+                  value={entry.role_title}
                   onChange={(e) =>
-                    updatePortfolioDescription(idx, e.target.value)
+                    updateWorkEntry(i, "role_title", e.target.value)
                   }
-                  className="mt-1 block w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-text focus:border-primary focus:outline-none"
+                  className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                 />
+                <div className="grid grid-cols-2 gap-3">
+                  <select
+                    value={entry.industry}
+                    onChange={(e) =>
+                      updateWorkEntry(i, "industry", e.target.value)
+                    }
+                    className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Industry</option>
+                    {INDUSTRIES.map((ind) => (
+                      <option key={ind} value={ind}>
+                        {ind}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={entry.duration}
+                    onChange={(e) =>
+                      updateWorkEntry(i, "duration", e.target.value)
+                    }
+                    className="rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Duration</option>
+                    {DURATIONS.map((dur) => (
+                      <option key={dur} value={dur}>
+                        {dur}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <input
+                  type="text"
+                  maxLength={120}
+                  placeholder="One sentence description (max 120 characters)"
+                  value={entry.description}
+                  onChange={(e) =>
+                    updateWorkEntry(i, "description", e.target.value)
+                  }
+                  className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+                <p className="text-right text-xs text-text/40">
+                  {entry.description.length}/120
+                </p>
               </div>
+            ))}
+            {workEntries.length < 3 && (
               <button
                 type="button"
-                onClick={() => removePortfolioItem(idx)}
-                className="shrink-0 text-xs text-red-500 hover:text-red-700"
+                onClick={addWorkEntry}
+                className="w-full rounded-lg border-2 border-dashed border-gray-300 py-3 text-sm font-medium text-text/50 hover:border-primary hover:text-primary transition-colors"
               >
-                Remove
+                + Add Work Experience
               </button>
-            </div>
-          ))}
+            )}
+          </div>
+        )}
 
-          {/* Add button */}
-          {portfolioItems.length < MAX_PORTFOLIO_ITEMS && (
-            <label className="mt-3 flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 px-4 py-3 hover:border-primary/30 hover:bg-primary/5 transition-colors">
-              <span className="text-sm text-text/60">
-                + Add portfolio item ({portfolioItems.length}/{MAX_PORTFOLIO_ITEMS})
-              </span>
+        {/* ───────── STEP 5: Portfolio & Resume ───────── */}
+        {currentStep === 5 && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-text">
+                Resume <span className="text-red-500">*</span>
+              </label>
+              <p className="text-xs text-text/50">PDF only. Max 10MB.</p>
               <input
                 type="file"
-                accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
-                className="hidden"
+                accept=".pdf"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) addPortfolioItem(file);
-                  e.target.value = "";
+                  if (file && file.size > 10 * 1024 * 1024) {
+                    setError("Resume must be under 10MB");
+                    return;
+                  }
+                  setResumeFile(file || null);
+                  setError("");
                 }}
+                className="mt-2 block w-full text-sm text-text/70 file:mr-4 file:rounded-lg file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary hover:file:bg-primary/20"
               />
-            </label>
-          )}
-        </div>
+              {resumeFile && (
+                <p className="mt-1 text-xs text-green-600">
+                  ✓ {resumeFile.name}
+                </p>
+              )}
+            </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+            <div>
+              <h3 className="text-sm font-medium text-text">
+                Portfolio Items{" "}
+                <span className="text-text/40 font-normal">(optional)</span>
+              </h3>
+              <p className="text-xs text-text/50">
+                Up to 3 items. PDF or image, max 5MB each.
+              </p>
+              {portfolioItems.map((item, i) => (
+                <div
+                  key={i}
+                  className="mt-3 flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-4"
+                >
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="file"
+                      accept=".pdf,image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file && file.size > 5 * 1024 * 1024) {
+                          setError("Portfolio file must be under 5MB");
+                          return;
+                        }
+                        const updated = [...portfolioItems];
+                        updated[i] = { ...updated[i], file: file || null };
+                        setPortfolioItems(updated);
+                        setError("");
+                      }}
+                      className="block w-full text-sm text-text/70"
+                    />
+                    <input
+                      type="text"
+                      maxLength={100}
+                      placeholder="One-line description"
+                      value={item.description}
+                      onChange={(e) => {
+                        const updated = [...portfolioItems];
+                        updated[i] = {
+                          ...updated[i],
+                          description: e.target.value,
+                        };
+                        setPortfolioItems(updated);
+                      }}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removePortfolioItem(i)}
+                    className="text-xs text-red-500 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              {portfolioItems.length < 3 && (
+                <button
+                  type="button"
+                  onClick={addPortfolioItem}
+                  className="mt-3 w-full rounded-lg border-2 border-dashed border-gray-300 py-3 text-sm font-medium text-text/50 hover:border-primary hover:text-primary transition-colors"
+                >
+                  + Add Portfolio Item
+                </button>
+              )}
+            </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary-dark transition-colors disabled:opacity-50"
-        >
-          {loading ? "Publishing..." : "Submit Profile for Review"}
-        </button>
-      </form>
+            <div>
+              <label htmlFor="payout" className="block text-sm font-medium text-text">
+                Payout Method <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="payout"
+                value={payoutMethod}
+                onChange={(e) => setPayoutMethod(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Select payout method</option>
+                <option value="payoneer">Payoneer</option>
+                <option value="wise">Wise</option>
+                <option value="bank_transfer">Local Bank Transfer</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* ───────── STEP 6: Availability ───────── */}
+        {currentStep === 6 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-text">
+              When can you start? <span className="text-red-500">*</span>
+            </h3>
+            <div className="grid gap-4">
+              <button
+                type="button"
+                onClick={() => setAvailability("available_now")}
+                className={`rounded-xl border-2 p-5 text-left transition-colors ${
+                  availability === "available_now"
+                    ? "border-green-500 bg-green-50"
+                    : "border-gray-200 bg-white hover:border-green-300"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🟢</span>
+                  <div>
+                    <p className="font-semibold text-text">Available Now</p>
+                    <p className="text-xs text-text/50">
+                      Ready to start immediately
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAvailability("available_by_date")}
+                className={`rounded-xl border-2 p-5 text-left transition-colors ${
+                  availability === "available_by_date"
+                    ? "border-yellow-500 bg-yellow-50"
+                    : "border-gray-200 bg-white hover:border-yellow-300"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🟡</span>
+                  <div>
+                    <p className="font-semibold text-text">
+                      Available From a Specific Date
+                    </p>
+                    <p className="text-xs text-text/50">
+                      I can start on a future date
+                    </p>
+                  </div>
+                </div>
+              </button>
+              {availability === "available_by_date" && (
+                <input
+                  type="date"
+                  value={availabilityDate}
+                  onChange={(e) => setAvailabilityDate(e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="ml-12 w-auto rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              )}
+
+              <button
+                type="button"
+                onClick={() => setAvailability("not_available")}
+                className={`rounded-xl border-2 p-5 text-left transition-colors ${
+                  availability === "not_available"
+                    ? "border-gray-500 bg-gray-50"
+                    : "border-gray-200 bg-white hover:border-gray-400"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">⚪</span>
+                  <div>
+                    <p className="font-semibold text-text">
+                      Not Available Currently
+                    </p>
+                    <p className="text-xs text-text/50">
+                      I&apos;m not ready to take on work right now
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation buttons */}
+      <div className="mt-10 flex items-center justify-between">
+        {currentStep > 1 ? (
+          <button
+            type="button"
+            onClick={prevStep}
+            className="rounded-lg border border-gray-300 px-6 py-3 text-sm font-medium text-text hover:bg-gray-50 transition-colors"
+          >
+            Back
+          </button>
+        ) : (
+          <div />
+        )}
+
+        {currentStep < 6 ? (
+          <button
+            type="button"
+            onClick={nextStep}
+            className="rounded-lg bg-primary px-8 py-3 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+          >
+            Continue
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={saving}
+            className="rounded-lg bg-primary px-8 py-3 text-sm font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
+          >
+            {saving ? "Submitting..." : "Submit Profile"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

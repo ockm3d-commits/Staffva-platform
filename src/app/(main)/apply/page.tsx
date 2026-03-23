@@ -28,6 +28,7 @@ export type ApplicationStep =
 export interface CandidateData {
   id: string;
   full_name: string;
+  display_name: string | null;
   email: string;
   country: string;
   role_category: string;
@@ -42,11 +43,13 @@ export interface CandidateData {
   english_comprehension_score: number | null;
   english_percentile: number | null;
   english_written_tier: string | null;
+  speaking_level: string | null;
   admin_status: string;
   id_verification_status: string;
   voice_recording_1_url: string | null;
   voice_recording_2_url: string | null;
   resume_url: string | null;
+  payout_method: string | null;
   availability_status: string;
   permanently_blocked: boolean;
   retake_count: number;
@@ -235,7 +238,16 @@ export default function ApplyPage() {
       )}
       {step === "profile_builder" && candidateData && (
         <ProfileBuilder
-          candidate={candidateData}
+          candidateId={candidateData.id}
+          candidateData={{
+            full_name: candidateData.full_name,
+            display_name: candidateData.display_name,
+            role_category: candidateData.role_category,
+            monthly_rate: candidateData.monthly_rate,
+            bio: candidateData.bio,
+            english_written_tier: candidateData.english_written_tier,
+            speaking_level: candidateData.speaking_level,
+          }}
           onComplete={handleProfileComplete}
         />
       )}
