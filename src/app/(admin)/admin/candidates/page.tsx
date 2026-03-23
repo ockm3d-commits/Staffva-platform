@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import AudioPlayer from "@/components/AudioPlayer";
 import CandidatePreviewModal from "@/components/admin/CandidatePreviewModal";
+import InterviewPanel from "@/components/admin/InterviewPanel";
 
 const TIER_LABELS: Record<string, string> = {
   exceptional: "Exceptional",
@@ -292,7 +293,7 @@ export default function CandidateReviewPage() {
                   <div className="border-t border-gray-200">
                     {/* Tabs */}
                     <div className="flex border-b border-gray-200 px-6">
-                      {["overview", "recordings", "profile", "test"].map((t) => (
+                      {["overview", "recordings", "interviews", "profile", "test"].map((t) => (
                         <button
                           key={t}
                           onClick={() => setTab(c.id, t)}
@@ -474,6 +475,14 @@ export default function CandidateReviewPage() {
                             </div>
                           )}
                         </div>
+                      )}
+
+                      {/* ── INTERVIEWS TAB ── */}
+                      {tab === "interviews" && (
+                        <InterviewPanel
+                          candidateId={c.id}
+                          candidateName={c.full_name}
+                        />
                       )}
 
                       {/* ── PROFILE TAB ── */}

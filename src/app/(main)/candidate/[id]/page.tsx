@@ -3,6 +3,35 @@ import { getUser } from "@/lib/auth";
 import Link from "next/link";
 import MessageButton from "@/components/browse/MessageButton";
 
+async function InterviewNotesPDF({ path }: { path: string }) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  let pdfUrl = path;
+  if (!path.startsWith("http")) {
+    const { data } = await supabase.storage
+      .from("interview-notes")
+      .createSignedUrl(path, 3600);
+    pdfUrl = data?.signedUrl || "";
+  }
+
+  if (!pdfUrl) return null;
+
+  return (
+    <a
+      href={pdfUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-3 inline-flex items-center gap-2 rounded-lg border border-purple-200 bg-white px-4 py-2 text-xs font-medium text-purple-700 hover:bg-purple-50 transition-colors"
+    >
+      <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-600">PDF</span>
+      Download Interview Notes
+    </a>
+  );
+}
+
 async function AudioPlayerServer({ bucket, path, label }: { bucket: string; path: string; label: string }) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -159,6 +188,16 @@ export default async function CandidateProfilePage({
     }
   }
 
+  // Fetch completed interviews
+  const { data: completedInterviews } = await supabase
+    .from("candidate_interviews")
+    .select("*")
+    .eq("candidate_id", id)
+    .eq("status", "completed")
+    .order("interview_number");
+
+  const interviewCount = completedInterviews?.length || 0;
+
   const tier = candidate.english_written_tier ? TIER_CONFIG[candidate.english_written_tier] : null;
   const speaking = candidate.speaking_level ? SPEAKING_CONFIG[candidate.speaking_level] : null;
   const hasUSExperience = candidate.us_client_experience === "full_time" || candidate.us_client_experience === "part_time_contract";
@@ -296,6 +335,11 @@ export default async function CandidateProfilePage({
                       US Experience
                     </span>
                   )}
+                  {interviewCount > 0 && (
+                    <span className="rounded-full bg-purple-600 px-3 py-1 text-xs font-semibold text-white">
+                      {interviewCount === 1 ? "Interviewed Once by StaffVA" : "Interviewed Twice by StaffVA"}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -420,6 +464,52 @@ export default async function CandidateProfilePage({
                       </p>
                       {entry.description && (
                         <p className="mt-1 text-sm text-text/70">{entry.description}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Interview Notes — visible to logged-in clients and admin only */}
+            {(canViewGated || isAdmin) && completedInterviews && completedInterviews.length > 0 && (
+              <div className="rounded-xl border border-purple-200 bg-white p-6">
+                <h2 className="text-sm font-semibold text-text/40 uppercase tracking-wider flex items-center gap-2">
+                  <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 3h1a2.25 2.25 0 012.25 2.25c0 .232-.035.45-.1.664M13.5 3c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664" />
+                  </svg>
+                  StaffVA Interview Notes
+                </h2>
+                <div className="mt-4 space-y-4">
+                  {completedInterviews.map((interview: { interview_number: number; conducted_at: string; communication_score: number; demeanor_score: number; role_knowledge_score: number; speaking_level_updated_to: string; notes_pdf_url: string | null }) => (
+                    <div key={interview.interview_number} className="rounded-lg bg-purple-50 border border-purple-100 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-text">
+                          Interview {interview.interview_number}
+                        </h3>
+                        <span className="text-xs text-text/40">
+                          {interview.conducted_at ? new Date(interview.conducted_at).toLocaleDateString() : ""}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3 mb-3">
+                        <div className="rounded bg-white p-2 text-center border border-purple-100">
+                          <p className="text-[10px] text-text/40 uppercase">Communication</p>
+                          <p className="text-lg font-bold text-purple-700">{interview.communication_score}/5</p>
+                        </div>
+                        <div className="rounded bg-white p-2 text-center border border-purple-100">
+                          <p className="text-[10px] text-text/40 uppercase">Demeanor</p>
+                          <p className="text-lg font-bold text-purple-700">{interview.demeanor_score}/5</p>
+                        </div>
+                        <div className="rounded bg-white p-2 text-center border border-purple-100">
+                          <p className="text-[10px] text-text/40 uppercase">Role Knowledge</p>
+                          <p className="text-lg font-bold text-purple-700">{interview.role_knowledge_score}/5</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-text/50">
+                        Speaking level assessed: <span className="font-medium capitalize text-text">{interview.speaking_level_updated_to}</span>
+                      </p>
+                      {interview.notes_pdf_url && (
+                        <InterviewNotesPDF path={interview.notes_pdf_url} />
                       )}
                     </div>
                   ))}
