@@ -3,6 +3,39 @@ import { getUser } from "@/lib/auth";
 import Link from "next/link";
 import MessageButton from "@/components/browse/MessageButton";
 
+async function AudioPlayerServer({ bucket, path, label }: { bucket: string; path: string; label: string }) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  let audioUrl = path;
+
+  // If it's a storage path (not a full URL), generate a signed URL
+  if (!path.startsWith("http")) {
+    const { data } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(path, 3600);
+    audioUrl = data?.signedUrl || "";
+  }
+
+  if (!audioUrl) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <p className="text-xs font-semibold text-text/40 uppercase tracking-wider mb-3">{label}</p>
+        <p className="text-xs text-text/40 italic">Audio unavailable</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <p className="text-xs font-semibold text-text/40 uppercase tracking-wider mb-3">{label}</p>
+      <audio controls src={audioUrl} className="w-full h-10" preload="metadata" />
+    </div>
+  );
+}
+
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -261,23 +294,21 @@ export default async function CandidateProfilePage({
 
       {/* ═══════════ AUDIO PLAYERS ═══════════ */}
       <div className="mx-auto max-w-5xl px-6 -mt-6">
-        {canViewGated ? (
+        {(canViewGated || isOwnProfile || isAdmin) ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {candidate.voice_recording_1_url && (
-              <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold text-text/40 uppercase tracking-wider mb-3">
-                  Oral Reading Assessment
-                </p>
-                <audio controls src={candidate.voice_recording_1_url} className="w-full h-10" />
-              </div>
+              <AudioPlayerServer
+                bucket="voice-recordings"
+                path={candidate.voice_recording_1_url}
+                label="Oral Reading Assessment"
+              />
             )}
             {candidate.voice_recording_2_url && (
-              <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-semibold text-text/40 uppercase tracking-wider mb-3">
-                  Professional Introduction
-                </p>
-                <audio controls src={candidate.voice_recording_2_url} className="w-full h-10" />
-              </div>
+              <AudioPlayerServer
+                bucket="voice-recordings"
+                path={candidate.voice_recording_2_url}
+                label="Professional Introduction"
+              />
             )}
           </div>
         ) : (candidate.voice_recording_1_url || candidate.voice_recording_2_url) ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import AudioPlayer from "@/components/AudioPlayer";
 
 const TIER_LABELS: Record<string, string> = {
   exceptional: "Exceptional",
@@ -353,26 +354,14 @@ export default function CandidateReviewPage() {
                       {tab === "recordings" && (
                         <div className="space-y-5">
                           <div className="grid grid-cols-2 gap-4">
-                            <div className="rounded-lg border border-gray-200 p-4">
-                              <p className="text-xs font-semibold text-text/40 uppercase tracking-wider mb-3">
-                                Oral Reading
-                              </p>
-                              {c.voice_recording_1_url ? (
-                                <audio controls src={c.voice_recording_1_url} className="w-full" />
-                              ) : (
-                                <p className="text-xs text-text/40 italic">Not recorded</p>
-                              )}
-                            </div>
-                            <div className="rounded-lg border border-gray-200 p-4">
-                              <p className="text-xs font-semibold text-text/40 uppercase tracking-wider mb-3">
-                                Self Introduction
-                              </p>
-                              {c.voice_recording_2_url ? (
-                                <audio controls src={c.voice_recording_2_url} className="w-full" />
-                              ) : (
-                                <p className="text-xs text-text/40 italic">Not recorded</p>
-                              )}
-                            </div>
+                            <AudioPlayer
+                              storagePath={c.voice_recording_1_url}
+                              label="Oral Reading"
+                            />
+                            <AudioPlayer
+                              storagePath={c.voice_recording_2_url}
+                              label="Self Introduction"
+                            />
                           </div>
 
                           {/* Speaking level selector + actions */}

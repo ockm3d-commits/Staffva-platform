@@ -99,16 +99,15 @@ export default function VoiceRecording1({ candidateId, onComplete }: Props) {
       return;
     }
 
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("voice-recordings").getPublicUrl(fileName);
+    // Store the file path (not a full URL) so we can generate signed URLs later
+    const storagePath = fileName;
 
     await supabase
       .from("candidates")
-      .update({ voice_recording_1_url: publicUrl })
+      .update({ voice_recording_1_url: storagePath })
       .eq("id", candidateId);
 
-    onComplete(publicUrl);
+    onComplete(storagePath);
   }
 
   function stopRecording() {
