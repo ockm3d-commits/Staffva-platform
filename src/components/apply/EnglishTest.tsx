@@ -29,6 +29,8 @@ export default function EnglishTest({ candidateId, onComplete }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [flagCount, setFlagCount] = useState(0);
   const [showWarning, setShowWarning] = useState(false);
+  const [showComprehensionTransition, setShowComprehensionTransition] = useState(false);
+  const [timerPaused, setTimerPaused] = useState(false);
   const questionStartTime = useRef(Date.now());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -40,9 +42,9 @@ export default function EnglishTest({ candidateId, onComplete }: Props) {
     };
   }, []);
 
-  // Start timer
+  // Start timer (pause during comprehension transition)
   useEffect(() => {
-    if (!loading && questions.length > 0) {
+    if (!loading && questions.length > 0 && !timerPaused) {
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
@@ -57,7 +59,7 @@ export default function EnglishTest({ candidateId, onComplete }: Props) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [loading, questions.length]);
+  }, [loading, questions.length, timerPaused]);
 
   // Anti-cheat: mouse leave, tab switch, paste, fullscreen
   useEffect(() => {
@@ -210,10 +212,29 @@ export default function EnglishTest({ candidateId, onComplete }: Props) {
     questionStartTime.current = Date.now();
 
     if (currentIndex < questions.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
+      const nextIndex = currentIndex + 1;
+      const nextQuestion = questions[nextIndex];
+      const currentQuestion = questions[currentIndex];
+
+      // Show comprehension transition when moving from grammar to comprehension
+      if (currentQuestion.section === "grammar" && nextQuestion.section === "comprehension") {
+        setTimerPaused(true);
+        if (timerRef.current) clearInterval(timerRef.current);
+        setShowComprehensionTransition(true);
+        setCurrentIndex(nextIndex);
+        return;
+      }
+
+      setCurrentIndex(nextIndex);
     } else {
       submitTest();
     }
+  }
+
+  function handleComprehensionContinue() {
+    setShowComprehensionTransition(false);
+    setTimerPaused(false);
+    questionStartTime.current = Date.now();
   }
 
   const formatTime = (seconds: number) => {
@@ -232,7 +253,54 @@ export default function EnglishTest({ candidateId, onComplete }: Props) {
 
   const question = questions[currentIndex];
   const isComprehension = question?.section === "comprehension";
+  const firstComprehensionIndex = questions.findIndex((q) => q.section === "comprehension");
+  const isFirstComprehension = currentIndex === firstComprehensionIndex;
   const progress = ((currentIndex + 1) / questions.length) * 100;
+
+  // Comprehension transition screen
+  if (showComprehensionTransition) {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="mx-auto max-w-2xl px-6 py-16 text-center">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
+            <svg className="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-text">
+            Read carefully — this passage will only appear once
+          </h1>
+          <div className="mt-6 mx-auto max-w-lg text-left space-y-4">
+            <p className="text-text/70">
+              The following passage will be visible during the <strong>first question only</strong>.
+              All remaining questions are about this same passage.
+            </p>
+            <p className="text-text/70">
+              You <strong>cannot go back</strong> to re-read it.
+            </p>
+            <p className="text-text/70">
+              Take your time reading the passage carefully when it appears. The timer will resume
+              when you click Continue.
+            </p>
+          </div>
+          <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Timer paused — {formatTime(timeLeft)} remaining
+          </div>
+          <div className="mt-8">
+            <button
+              onClick={handleComprehensionContinue}
+              className="rounded-lg bg-primary px-8 py-3 text-sm font-semibold text-white hover:bg-primary/90 transition-colors"
+            >
+              Continue to Reading Passage
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -241,6 +309,9 @@ export default function EnglishTest({ candidateId, onComplete }: Props) {
         <div className="mx-auto flex max-w-3xl items-center justify-between">
           <span className="text-sm text-text/60">
             Question {currentIndex + 1} of {questions.length}
+            {isComprehension && (
+              <span className="ml-2 text-xs text-primary font-medium">• Comprehension</span>
+            )}
           </span>
           <span
             className={`font-mono text-lg font-bold ${
@@ -268,14 +339,28 @@ export default function EnglishTest({ candidateId, onComplete }: Props) {
       )}
 
       <div className="mx-auto max-w-3xl px-6 py-8">
-        {/* Comprehension passage */}
-        {isComprehension && currentIndex === questions.findIndex((q) => q.section === "comprehension") && (
-          <div className="mb-8 rounded-lg border border-gray-200 bg-gray-50 p-6">
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-text/40">
-              Reading Passage
-            </h3>
+        {/* Comprehension passage — only on first comprehension question */}
+        {isComprehension && isFirstComprehension && (
+          <div className="mb-8 rounded-lg border border-amber-200 bg-amber-50 p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <svg className="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-amber-700">
+                Reading Passage — visible on this question only
+              </h3>
+            </div>
             <p className="text-sm leading-relaxed text-text/80">
               {COMPREHENSION_PASSAGE}
+            </p>
+          </div>
+        )}
+
+        {/* Reminder for subsequent comprehension questions */}
+        {isComprehension && !isFirstComprehension && (
+          <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+            <p className="text-xs text-text/50 italic">
+              Answer based on the passage you read in the previous question. You cannot go back.
             </p>
           </div>
         )}
