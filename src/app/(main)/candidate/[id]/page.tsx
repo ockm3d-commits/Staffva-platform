@@ -100,6 +100,21 @@ export default async function CandidateProfilePage({
     }
   }
 
+  // If candidate is trying to view someone else's profile, block it
+  if (isCandidate && !isOwnProfile && !candidate) {
+    return (
+      <div className="flex min-h-[calc(100vh-73px)] items-center justify-center bg-background">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-text">Access Restricted</h1>
+          <p className="mt-2 text-sm text-text/60">Candidate accounts cannot view other profiles.</p>
+          <Link href="/apply" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition-colors">
+            Go to My Application
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   // If not found and user is admin, show any candidate
   if (!candidate && isAdmin) {
     const { data: adminCandidate } = await supabase
@@ -149,7 +164,7 @@ export default async function CandidateProfilePage({
   const hasUSExperience = candidate.us_client_experience === "full_time" || candidate.us_client_experience === "part_time_contract";
   const isLocked = candidate.lock_status === "locked";
   const displayedName = isLockingClient ? candidate.full_name : candidate.display_name;
-  const canViewGated = isLoggedIn && isClient;
+  const canViewGated = isLoggedIn && (isClient || isOwnProfile || isAdmin);
   const tools: string[] = candidate.tools || [];
   const workExperience: { role_title: string; industry: string; duration: string; description: string }[] = candidate.work_experience || [];
 
@@ -459,24 +474,45 @@ export default async function CandidateProfilePage({
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-4">
 
-              {/* CTA Card */}
-              <div className="rounded-xl border border-gray-200 bg-white p-6">
-                <p className="text-center text-2xl font-bold text-primary">
-                  ${candidate.monthly_rate?.toLocaleString()}
-                  <span className="text-sm font-normal text-text/40">/mo</span>
-                </p>
-                <p className="mt-1 text-center text-xs text-text/40">+ 10% platform fee</p>
-                <div className="mt-5">
-                  <MessageButton
-                    candidateId={candidate.id}
-                    candidateName={candidate.display_name}
-                    isLoggedIn={isLoggedIn}
-                    isLocked={isLocked}
-                    isLockingClient={isLockingClient}
-                    clientId={clientId}
-                  />
+              {/* CTA Card — different for candidates vs clients */}
+              {isOwnProfile ? (
+                <div className="rounded-xl border border-gray-200 bg-white p-6">
+                  <p className="text-center text-2xl font-bold text-primary">
+                    ${candidate.monthly_rate?.toLocaleString()}
+                    <span className="text-sm font-normal text-text/40">/mo</span>
+                  </p>
+                  <p className="mt-1 text-center text-xs text-text/40">Your listed rate</p>
+                  <div className="mt-5">
+                    <Link
+                      href="/apply"
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                      </svg>
+                      Edit Profile
+                    </Link>
+                  </div>
                 </div>
-              </div>
+              ) : !isCandidate ? (
+                <div className="rounded-xl border border-gray-200 bg-white p-6">
+                  <p className="text-center text-2xl font-bold text-primary">
+                    ${candidate.monthly_rate?.toLocaleString()}
+                    <span className="text-sm font-normal text-text/40">/mo</span>
+                  </p>
+                  <p className="mt-1 text-center text-xs text-text/40">+ 10% platform fee</p>
+                  <div className="mt-5">
+                    <MessageButton
+                      candidateId={candidate.id}
+                      candidateName={candidate.display_name}
+                      isLoggedIn={isLoggedIn}
+                      isLocked={isLocked}
+                      isLockingClient={isLockingClient}
+                      clientId={clientId}
+                    />
+                  </div>
+                </div>
+              ) : null}
 
               {/* Verified info card */}
               <div className="rounded-xl border border-gray-200 bg-white p-6 space-y-3">
@@ -607,30 +643,32 @@ export default async function CandidateProfilePage({
         </div>
       </div>
 
-      {/* ═══════════ BOTTOM CTA ═══════════ */}
-      <div className="border-t border-gray-200 bg-white">
-        <div className="mx-auto max-w-5xl px-6 py-6">
-          {!isLoggedIn ? (
-            <div className="text-center">
-              <Link
-                href="/signup/client"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-8 py-3 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
-              >
-                Sign in to message {candidate.display_name?.split(" ")[0]}
-              </Link>
-            </div>
-          ) : isLocked && !isLockingClient ? (
-            <div className="text-center">
-              <button
-                disabled
-                className="inline-flex items-center gap-2 rounded-lg bg-gray-200 px-8 py-3 text-sm font-semibold text-gray-500 cursor-not-allowed"
-              >
-                Not Available — Currently Engaged
-              </button>
-            </div>
-          ) : null}
+      {/* ═══════════ BOTTOM CTA — hidden for candidates ═══════════ */}
+      {!isCandidate && (
+        <div className="border-t border-gray-200 bg-white">
+          <div className="mx-auto max-w-5xl px-6 py-6">
+            {!isLoggedIn ? (
+              <div className="text-center">
+                <Link
+                  href="/signup/client"
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-8 py-3 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+                >
+                  Sign in to message {candidate.display_name?.split(" ")[0]}
+                </Link>
+              </div>
+            ) : isLocked && !isLockingClient ? (
+              <div className="text-center">
+                <button
+                  disabled
+                  className="inline-flex items-center gap-2 rounded-lg bg-gray-200 px-8 py-3 text-sm font-semibold text-gray-500 cursor-not-allowed"
+                >
+                  Not Available — Currently Engaged
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
