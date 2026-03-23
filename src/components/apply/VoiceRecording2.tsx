@@ -198,6 +198,29 @@ export default function VoiceRecording2({ candidateId, onComplete }: Props) {
           <p className="mt-1 text-sm text-text/60">
             Speak clearly and cover all four points.
           </p>
+          <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-6 text-left">
+            <p className="text-xs font-semibold uppercase tracking-wider text-text/40 mb-3">
+              Cover these points:
+            </p>
+            <ol className="space-y-2 text-sm text-text/70">
+              <li className="flex gap-2">
+                <span className="font-semibold text-primary shrink-0">1.</span>
+                Your name and the country you are based in
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold text-primary shrink-0">2.</span>
+                The type of role you are applying for and how many years of experience you have
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold text-primary shrink-0">3.</span>
+                One specific example of a task or project you handled professionally
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold text-primary shrink-0">4.</span>
+                Your availability and what you are looking for in a working relationship
+              </li>
+            </ol>
+          </div>
           {recordingTime >= 10 && (
             <button
               onClick={stopRecording}
