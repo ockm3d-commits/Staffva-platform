@@ -288,9 +288,9 @@ export default function ApplyPage() {
             display_name: candidateData.display_name ?? undefined,
             role_category: candidateData.role_category,
             monthly_rate: candidateData.monthly_rate,
-            bio: candidateData.bio,
-            english_written_tier: candidateData.english_written_tier,
-            speaking_level: candidateData.speaking_level,
+            bio: candidateData.bio ?? undefined,
+            english_written_tier: candidateData.english_written_tier ?? undefined,
+            speaking_level: candidateData.speaking_level ?? undefined,
             skills: candidateData.skills || [],
             tools: candidateData.tools || [],
           }}
