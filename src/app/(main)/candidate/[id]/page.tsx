@@ -307,9 +307,6 @@ export default async function CandidateProfilePage({
 
               <div>
                 <h1 className="text-2xl font-bold text-white">{displayedName}</h1>
-                {isLockingClient && (
-                  <p className="text-xs text-primary font-medium">Full name visible to you only</p>
-                )}
                 <p className="mt-0.5 text-white/50">{candidate.country}</p>
                 {candidate.tagline && (
                   <p className="mt-2 text-sm text-white/70">{candidate.tagline}</p>

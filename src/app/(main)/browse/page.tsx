@@ -119,7 +119,7 @@ function BrowseContent() {
     setTier("any");
     setSpeakingLevel("any");
     setUsExperience("");
-    setLockStatus("");
+    // lockStatus removed
     setSort("newest");
     setPage(1);
     router.replace("/browse");
