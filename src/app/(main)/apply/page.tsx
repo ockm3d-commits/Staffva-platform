@@ -96,18 +96,13 @@ export default function ApplyPage() {
       return;
     }
 
-    if (candidate.admin_status === "pending_speaking_review") {
+    // Profile fully built (has payout method = finished profile builder)
+    if (candidate.payout_method) {
       setStep("complete");
       return;
     }
 
-    // Has resume = profile built, waiting for review
-    if (candidate.resume_url) {
-      setStep("complete");
-      return;
-    }
-
-    // Has both recordings = go to profile builder
+    // Has both recordings = go to profile builder (regardless of admin status)
     if (candidate.voice_recording_1_url && candidate.voice_recording_2_url) {
       setStep("profile_builder");
       return;
@@ -119,7 +114,7 @@ export default function ApplyPage() {
       return;
     }
 
-    // Has test scores = check pass/fail, then ID verification, then recordings
+    // Has test scores = check pass/fail, then recordings
     if (candidate.english_mc_score !== null) {
       const passed =
         candidate.english_mc_score >= 70 &&
@@ -131,15 +126,8 @@ export default function ApplyPage() {
         return;
       }
 
-      // Passed test — check ID verification status
-      if (
-        candidate.id_verification_status !== "passed"
-      ) {
-        setStep("id_verification");
-        return;
-      }
-
-      // ID verified — go to recordings
+      // Passed test — skip ID verification for now (auto-pass),
+      // go straight to voice recordings
       setStep("voice_recording_1");
       return;
     }
@@ -168,8 +156,8 @@ export default function ApplyPage() {
     setCandidateData(updatedCandidate);
     setTestPassed(passed);
     if (passed) {
-      // v5: after passing test, go to ID verification (not recordings)
-      setStep("id_verification");
+      // Skip ID verification for now, go straight to voice recordings
+      setStep("voice_recording_1");
     } else {
       setStep("test_result");
     }
