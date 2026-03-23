@@ -25,7 +25,18 @@ interface CandidateCardData {
   us_client_experience: string;
   bio: string | null;
   total_earnings_usd: number;
-  lock_status: string;
+  committed_hours: number;
+}
+
+function getAvailabilityDisplay(committedHours: number) {
+  if (!committedHours || committedHours === 0) {
+    return { dot: "bg-green-500", text: "Available", textColor: "text-green-600", status: "available" };
+  }
+  if (committedHours < 40) {
+    const remaining = 50 - committedHours;
+    return { dot: "bg-amber-500", text: `Available — ${remaining} hrs/week remaining`, textColor: "text-amber-600", status: "partial" };
+  }
+  return { dot: "bg-gray-400", text: "Not Available — Currently Engaged", textColor: "text-gray-400", status: "unavailable" };
 }
 
 interface Props {
@@ -44,16 +55,12 @@ export default function CandidateCard({ candidate }: Props) {
     candidate.us_client_experience === "part_time_contract";
   const hasInternational =
     candidate.us_client_experience === "international_only";
-  const isLocked = candidate.lock_status === "locked";
+  const avail = getAvailabilityDisplay(candidate.committed_hours || 0);
 
   return (
     <Link
       href={`/candidate/${candidate.id}`}
-      className={`block rounded-xl border bg-card p-5 transition-all ${
-        isLocked
-          ? "border-gray-200 opacity-75"
-          : "border-gray-200 hover:border-primary/30 hover:shadow-md"
-      }`}
+      className="block rounded-xl border border-gray-200 bg-card p-5 transition-all hover:border-primary/30 hover:shadow-md"
     >
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -67,6 +74,14 @@ export default function CandidateCard({ candidate }: Props) {
           ${candidate.monthly_rate.toLocaleString()}
           <span className="text-xs font-normal text-text/40">/mo</span>
         </p>
+      </div>
+
+      {/* Availability status */}
+      <div className="mt-2 flex items-center gap-1.5">
+        <span className={`h-2 w-2 rounded-full ${avail.dot}`} />
+        <span className={`text-xs font-medium ${avail.textColor}`}>
+          {avail.text}
+        </span>
       </div>
 
       {/* Badges */}
@@ -109,27 +124,6 @@ export default function CandidateCard({ candidate }: Props) {
 
       {/* Footer */}
       <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
-        {isLocked ? (
-          <span className="text-xs font-medium text-gray-400">
-            Not Available — Currently Engaged
-          </span>
-        ) : (
-          <span
-            className={`text-xs font-medium ${
-              candidate.availability_status === "available_now"
-                ? "text-green-600"
-                : candidate.availability_status === "not_available"
-                ? "text-red-500"
-                : "text-amber-600"
-            }`}
-          >
-            {candidate.availability_status === "available_now"
-              ? "Available now"
-              : candidate.availability_status === "available_by_date"
-              ? "Available soon"
-              : "Not available"}
-          </span>
-        )}
         <span className="text-xs text-primary font-medium">
           View Profile &rarr;
         </span>

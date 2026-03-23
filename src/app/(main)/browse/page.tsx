@@ -50,7 +50,7 @@ interface CandidateResult {
   us_client_experience: string;
   bio: string | null;
   total_earnings_usd: number;
-  lock_status: string;
+  committed_hours: number;
 }
 
 function BrowseContent() {
@@ -75,7 +75,7 @@ function BrowseContent() {
   const [tier, setTier] = useState("any");
   const [speakingLevel, setSpeakingLevel] = useState("any");
   const [usExperience, setUsExperience] = useState("");
-  const [lockStatus, setLockStatus] = useState("");
+  // lockStatus removed — availability computed from committed_hours
   const [sort, setSort] = useState("newest");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -92,7 +92,7 @@ function BrowseContent() {
     if (tier !== "any") params.set("tier", tier);
     if (speakingLevel !== "any") params.set("speakingLevel", speakingLevel);
     if (usExperience) params.set("usExperience", usExperience);
-    if (lockStatus) params.set("lockStatus", lockStatus);
+    // lockStatus removed
     params.set("sort", sort);
     params.set("page", page.toString());
 
@@ -103,7 +103,7 @@ function BrowseContent() {
     setTotal(data.total || 0);
     setTotalPages(data.totalPages || 1);
     setLoading(false);
-  }, [search, role, country, minRate, maxRate, availability, tier, speakingLevel, usExperience, lockStatus, sort, page]);
+  }, [search, role, country, minRate, maxRate, availability, tier, speakingLevel, usExperience, sort, page]);
 
   useEffect(() => {
     fetchCandidates();
@@ -140,7 +140,6 @@ function BrowseContent() {
     tier !== "any",
     speakingLevel !== "any",
     usExperience,
-    lockStatus,
   ].filter(Boolean).length;
 
   return (
@@ -346,8 +345,8 @@ function BrowseContent() {
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">All</option>
-                  <option value="available_now">Available Now</option>
-                  <option value="within_30">Within 30 Days</option>
+                  <option value="available">Available Now</option>
+                  <option value="partially_available">Partially Available</option>
                 </select>
               </div>
 
@@ -412,23 +411,7 @@ function BrowseContent() {
                 </select>
               </div>
 
-              {/* Show only available */}
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={lockStatus === "available"}
-                    onChange={(e) => {
-                      setLockStatus(e.target.checked ? "available" : "");
-                      setPage(1);
-                    }}
-                    className="rounded border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <span className="text-sm text-text">
-                    Available only
-                  </span>
-                </label>
-              </div>
+              {/* Lock status checkbox removed — availability now computed from committed_hours */}
             </div>
           </aside>
 

@@ -20,7 +20,6 @@ export async function GET(request: Request) {
   const tier = searchParams.get("tier");
   const speakingLevel = searchParams.get("speakingLevel");
   const usExperience = searchParams.get("usExperience");
-  const lockStatus = searchParams.get("lockStatus");
   const sort = searchParams.get("sort") || "newest";
   const page = parseInt(searchParams.get("page") || "1");
   const limit = 24;
@@ -31,12 +30,12 @@ export async function GET(request: Request) {
   let query = supabase
     .from("candidates")
     .select(
-      "id, display_name, country, role_category, monthly_rate, english_written_tier, speaking_level, availability_status, availability_date, us_client_experience, bio, total_earnings_usd, lock_status, created_at",
+      "id, display_name, country, role_category, monthly_rate, english_written_tier, speaking_level, availability_status, availability_date, us_client_experience, bio, total_earnings_usd, committed_hours, created_at",
       { count: "exact" }
     )
     .eq("admin_status", "approved");
 
-  // Text search — matches role_category, display_name, country, or bio
+  // Text search
   if (search) {
     query = query.or(
       `role_category.ilike.%${search}%,display_name.ilike.%${search}%,country.ilike.%${search}%,bio.ilike.%${search}%`
@@ -59,14 +58,13 @@ export async function GET(request: Request) {
     query = query.lte("monthly_rate", parseInt(maxRate));
   }
 
-  if (availability === "available_now") {
-    query = query.eq("availability_status", "available_now");
-  } else if (availability === "within_30") {
-    query = query.in("availability_status", [
-      "available_now",
-      "available_by_date",
-    ]);
+  // Availability filter based on committed_hours
+  if (availability === "available") {
+    query = query.eq("committed_hours", 0);
+  } else if (availability === "partially_available") {
+    query = query.gt("committed_hours", 0).lt("committed_hours", 40);
   }
+  // "all" shows everyone including not available
 
   if (tier && tier !== "any") {
     query = query.eq("english_written_tier", tier);
@@ -77,16 +75,9 @@ export async function GET(request: Request) {
   }
 
   if (usExperience === "yes") {
-    query = query.in("us_client_experience", [
-      "full_time",
-      "part_time_contract",
-    ]);
+    query = query.in("us_client_experience", ["full_time", "part_time_contract"]);
   } else if (usExperience === "no") {
     query = query.in("us_client_experience", ["international_only", "none"]);
-  }
-
-  if (lockStatus === "available") {
-    query = query.eq("lock_status", "available");
   }
 
   // Sorting

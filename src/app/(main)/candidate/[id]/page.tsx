@@ -3,6 +3,7 @@ import { getUser } from "@/lib/auth";
 import Link from "next/link";
 import MessageButton from "@/components/browse/MessageButton";
 import InterviewRequestSection from "@/components/InterviewRequestSection";
+import NotifyButton from "@/components/browse/NotifyButton";
 
 async function InterviewNotesPDF({ path }: { path: string }) {
   const supabase = createClient(
@@ -175,7 +176,6 @@ export default async function CandidateProfilePage({
     );
   }
   let clientId: string | null = null;
-  let isLockingClient = false;
 
   if (isClient) {
     const { data: client } = await supabase
@@ -185,9 +185,17 @@ export default async function CandidateProfilePage({
       .single();
     if (client) {
       clientId = client.id;
-      isLockingClient = candidate.locked_by_client_id === client.id;
     }
   }
+
+  // Compute availability from committed_hours
+  const committedHours = candidate.committed_hours || 0;
+  const availabilityComputed = committedHours === 0
+    ? "available"
+    : committedHours < 40
+    ? "partial"
+    : "unavailable";
+  const remainingHours = 50 - committedHours;
 
   // Fetch completed interviews
   const { data: completedInterviews } = await supabase
@@ -202,8 +210,7 @@ export default async function CandidateProfilePage({
   const tier = candidate.english_written_tier ? TIER_CONFIG[candidate.english_written_tier] : null;
   const speaking = candidate.speaking_level ? SPEAKING_CONFIG[candidate.speaking_level] : null;
   const hasUSExperience = candidate.us_client_experience === "full_time" || candidate.us_client_experience === "part_time_contract";
-  const isLocked = candidate.lock_status === "locked";
-  const displayedName = isLockingClient ? candidate.full_name : candidate.display_name;
+  const displayedName = candidate.display_name || candidate.full_name;
   const canViewGated = isLoggedIn && (isClient || isOwnProfile || isAdmin);
   const tools: string[] = candidate.tools || [];
   const workExperience: { role_title: string; industry: string; duration: string; description: string }[] = candidate.work_experience || [];
@@ -277,15 +284,7 @@ export default async function CandidateProfilePage({
         </div>
 
         <div className="mx-auto max-w-5xl px-6 pb-10">
-          {/* Lock banner */}
-          {isLocked && !isLockingClient && (
-            <div className="mb-6 flex items-center gap-2 rounded-lg bg-white/10 px-4 py-3 text-sm text-white/70">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              Currently engaged with another client
-            </div>
-          )}
+          {/* No lock banner — profiles always visible */}
 
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
             <div className="flex items-start gap-5">
@@ -351,26 +350,26 @@ export default async function CandidateProfilePage({
                 ${candidate.monthly_rate?.toLocaleString()}
               </p>
               <p className="text-xs text-white/40 mt-1">per month</p>
-              {!isLocked && (
-                <div className="mt-3">
-                  <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
-                    candidate.availability_status === "available_now"
-                      ? "bg-green-500/20 text-green-400"
-                      : candidate.availability_status === "available_by_date"
-                      ? "bg-amber-500/20 text-amber-400"
-                      : "bg-white/10 text-white/50"
-                  }`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${
-                      candidate.availability_status === "available_now" ? "bg-green-400" : "bg-amber-400"
-                    }`} />
-                    {candidate.availability_status === "available_now"
-                      ? "Available Now"
-                      : candidate.availability_status === "available_by_date"
-                      ? `Available ${new Date(candidate.availability_date).toLocaleDateString()}`
-                      : "Not Available"}
-                  </span>
-                </div>
-              )}
+              <div className="mt-3">
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+                  availabilityComputed === "available"
+                    ? "bg-green-500/20 text-green-400"
+                    : availabilityComputed === "partial"
+                    ? "bg-amber-500/20 text-amber-400"
+                    : "bg-white/10 text-white/50"
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${
+                    availabilityComputed === "available" ? "bg-green-400"
+                    : availabilityComputed === "partial" ? "bg-amber-400"
+                    : "bg-gray-400"
+                  }`} />
+                  {availabilityComputed === "available"
+                    ? "Available"
+                    : availabilityComputed === "partial"
+                    ? `Available — ${remainingHours} hrs/week remaining`
+                    : "Not Available — Currently Engaged"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -629,14 +628,18 @@ export default async function CandidateProfilePage({
                   </p>
                   <p className="mt-1 text-center text-xs text-text/40">+ 10% platform fee</p>
                   <div className="mt-5">
-                    <MessageButton
-                      candidateId={candidate.id}
-                      candidateName={candidate.display_name}
-                      isLoggedIn={isLoggedIn}
-                      isLocked={isLocked}
-                      isLockingClient={isLockingClient}
-                      clientId={clientId}
-                    />
+                    {availabilityComputed === "unavailable" ? (
+                      <NotifyButton candidateId={candidate.id} isLoggedIn={isLoggedIn} />
+                    ) : (
+                      <MessageButton
+                        candidateId={candidate.id}
+                        candidateName={candidate.display_name}
+                        isLoggedIn={isLoggedIn}
+                        isLocked={false}
+                        isLockingClient={false}
+                        clientId={clientId}
+                      />
+                    )}
                   </div>
                 </div>
               ) : null}
@@ -750,7 +753,7 @@ export default async function CandidateProfilePage({
                   <svg className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
-                  <p className="text-xs text-text/60">English proficiency locked by StaffVA</p>
+                  <p className="text-xs text-text/60">English proficiency verified by StaffVA</p>
                 </div>
                 <div className="flex items-start gap-2">
                   <svg className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -782,15 +785,6 @@ export default async function CandidateProfilePage({
                 >
                   Sign in to message {candidate.display_name?.split(" ")[0]}
                 </Link>
-              </div>
-            ) : isLocked && !isLockingClient ? (
-              <div className="text-center">
-                <button
-                  disabled
-                  className="inline-flex items-center gap-2 rounded-lg bg-gray-200 px-8 py-3 text-sm font-semibold text-gray-500 cursor-not-allowed"
-                >
-                  Not Available — Currently Engaged
-                </button>
               </div>
             ) : null}
           </div>
