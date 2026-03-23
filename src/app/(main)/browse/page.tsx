@@ -51,6 +51,7 @@ interface CandidateResult {
   bio: string | null;
   total_earnings_usd: number;
   committed_hours: number;
+  profile_photo_url: string | null;
 }
 
 function BrowseContent() {
