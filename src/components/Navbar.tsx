@@ -15,22 +15,33 @@ export default async function Navbar() {
         </Link>
 
         <div className="flex items-center gap-4">
-          <Link
-            href="/browse"
-            className="text-sm font-medium text-text hover:text-primary transition-colors"
-          >
-            Browse Talent
-          </Link>
+          {/* Browse Talent — visible to everyone except candidates */}
+          {role !== "candidate" && (
+            <Link
+              href="/browse"
+              className="text-sm font-medium text-text hover:text-primary transition-colors"
+            >
+              Browse Talent
+            </Link>
+          )}
 
           {user ? (
             <>
               {role === "candidate" && (
-                <Link
-                  href="/apply"
-                  className="text-sm font-medium text-text hover:text-primary transition-colors"
-                >
-                  My Application
-                </Link>
+                <>
+                  <Link
+                    href="/apply"
+                    className="text-sm font-medium text-text hover:text-primary transition-colors"
+                  >
+                    My Application
+                  </Link>
+                  <Link
+                    href="/candidate/me"
+                    className="text-sm font-medium text-text hover:text-primary transition-colors"
+                  >
+                    My Profile
+                  </Link>
+                </>
               )}
               {role === "client" && (
                 <>
