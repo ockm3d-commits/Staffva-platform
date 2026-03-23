@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import AudioPlayer from "@/components/AudioPlayer";
+import CandidatePreviewModal from "@/components/admin/CandidatePreviewModal";
 
 const TIER_LABELS: Record<string, string> = {
   exceptional: "Exceptional",
@@ -85,6 +86,7 @@ export default function CandidateReviewPage() {
   const [activeTab, setActiveTab] = useState<Record<string, string>>({});
   const [revisionNotes, setRevisionNotes] = useState<Record<string, string>>({});
   const [showRevisionForm, setShowRevisionForm] = useState<Record<string, boolean>>({});
+  const [previewCandidate, setPreviewCandidate] = useState<Candidate | null>(null);
 
   useEffect(() => {
     loadCandidates();
@@ -247,6 +249,15 @@ export default function CandidateReviewPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPreviewCandidate(c);
+                      }}
+                      className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                    >
+                      Preview Profile
+                    </button>
                     {c.score_mismatch_flag && (
                       <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
                         Mismatch
@@ -605,6 +616,27 @@ export default function CandidateReviewPage() {
             );
           })}
         </div>
+      )}
+      {/* Preview Modal */}
+      {previewCandidate && (
+        <CandidatePreviewModal
+          candidate={previewCandidate}
+          onClose={() => setPreviewCandidate(null)}
+          onAction={(candidateId, action) => {
+            handleAction(candidateId, action);
+            setPreviewCandidate(null);
+          }}
+          speakingLevel={speakingLevels[previewCandidate.id] || ""}
+          onSpeakingLevelChange={(level) =>
+            setSpeakingLevels((prev) => ({ ...prev, [previewCandidate.id]: level }))
+          }
+          revisionNote={revisionNotes[previewCandidate.id] || ""}
+          onRevisionNoteChange={(note) =>
+            setRevisionNotes((prev) => ({ ...prev, [previewCandidate.id]: note }))
+          }
+          actionLoading={actionLoading === previewCandidate.id}
+          showActions={filter === "pending_speaking_review" || filter === "revision_required"}
+        />
       )}
     </div>
   );
