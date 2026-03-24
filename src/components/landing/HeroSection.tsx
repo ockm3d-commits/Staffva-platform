@@ -48,7 +48,7 @@ export default function HeroSection({ heroPreview }: Props) {
 
   return (
     <section className="relative bg-white overflow-hidden">
-      <div className="mx-auto max-w-7xl px-6 pt-28 pb-20 lg:pt-36 lg:pb-28">
+      <div className="mx-auto max-w-7xl px-6 pt-16 pb-20 lg:pt-20 lg:pb-28">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Left column — text + search */}
           <div>

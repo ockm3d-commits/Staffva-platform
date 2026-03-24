@@ -8,7 +8,7 @@ export default async function LandingNavbar() {
   return (
     <DropdownNavbar
       user={user ? { role } : null}
-      variant="dark"
+      variant="light"
     />
   );
 }

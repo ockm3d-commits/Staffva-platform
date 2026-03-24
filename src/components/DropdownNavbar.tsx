@@ -44,8 +44,8 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
   const isLoggedIn = !!user;
   const isDark = variant === "dark";
 
-  const textColor = isDark ? "text-white/80 hover:text-white" : "text-text hover:text-primary";
-  const bgColor = isDark ? "bg-transparent" : "bg-card border-b border-gray-200";
+  const textColor = isDark ? "text-white/80 hover:text-white" : "text-[#1C1B1A] hover:text-primary";
+  const bgColor = isDark ? "bg-transparent" : "bg-white border-b border-[#E0E0E0]";
   const logoClass = isDark ? "brightness-0 invert" : "";
 
   // Close on outside click
@@ -110,7 +110,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
             </button>
 
             <div className={`absolute left-1/2 -translate-x-1/2 top-full pt-2 transition-all duration-150 ${activeDropdown === "hire-staff" ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}>
-              <div className="w-[640px] rounded-xl bg-white shadow-xl border border-gray-200 overflow-hidden">
+              <div className="w-[640px] rounded-xl bg-white shadow-xl border border-[#E0E0E0] overflow-hidden">
                 <div className="grid grid-cols-2 p-6 gap-8">
                   {/* By Role */}
                   <div>
@@ -208,7 +208,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
             </button>
 
             <div className={`absolute left-1/2 -translate-x-1/2 top-full pt-2 transition-all duration-150 ${activeDropdown === "hire-freelancer" ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}>
-              <div className="w-[560px] rounded-xl bg-white shadow-xl border border-gray-200 overflow-hidden">
+              <div className="w-[560px] rounded-xl bg-white shadow-xl border border-[#E0E0E0] overflow-hidden">
                 <div className="grid grid-cols-2 p-6 gap-8">
                   {/* By Service */}
                   <div>
@@ -312,7 +312,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
             </button>
 
             <div className={`absolute left-1/2 -translate-x-1/2 top-full pt-2 transition-all duration-150 ${activeDropdown === "for-professionals" ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}>
-              <div className="w-[280px] rounded-xl bg-white shadow-xl border border-gray-200 overflow-hidden p-4 space-y-1">
+              <div className="w-[280px] rounded-xl bg-white shadow-xl border border-[#E0E0E0] overflow-hidden p-4 space-y-1">
                 <Link
                   href="/apply"
                   onClick={() => setActiveDropdown(null)}
@@ -371,7 +371,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
                   className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
                     isDark
                       ? "border-white/30 text-white hover:bg-white/10"
-                      : "border-gray-300 text-text hover:bg-gray-50"
+                      : "border-[#1C1B1A] text-[#1C1B1A] hover:border-primary hover:text-primary"
                   }`}
                 >
                   Sign Out
@@ -382,13 +382,13 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
             <>
               <Link
                 href="/login"
-                className="rounded-lg border border-primary px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/5 transition-colors"
+                className="rounded-lg border border-[#1C1B1A] px-4 py-2 text-sm font-semibold text-[#1C1B1A] hover:border-primary hover:text-primary transition-colors"
               >
                 Sign In
               </Link>
               <Link
                 href="/signup/client"
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors"
               >
                 Get Started
               </Link>
