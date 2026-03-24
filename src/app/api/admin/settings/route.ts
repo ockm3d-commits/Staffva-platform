@@ -41,7 +41,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const { activationFeeEnabled, activationFeeAmount } = await request.json();
+  const body = await request.json();
+  const { activationFeeEnabled, activationFeeAmount, cheat_flag_threshold } = body;
 
   const supabase = getAdminClient();
 
@@ -62,6 +63,9 @@ export async function POST(request: Request) {
   }
   if (typeof activationFeeAmount === "number" && activationFeeAmount > 0) {
     updateData.activation_fee_amount = activationFeeAmount;
+  }
+  if (typeof cheat_flag_threshold === "number" && cheat_flag_threshold >= 1) {
+    updateData.cheat_flag_threshold = cheat_flag_threshold;
   }
 
   const { data: updated } = await supabase

@@ -108,6 +108,23 @@ export default function CandidateReviewPage() {
   const [earningsValue, setEarningsValue] = useState("");
   const [actionsOpen, setActionsOpen] = useState<string | null>(null);
   const [photoReviewCandidate, setPhotoReviewCandidate] = useState<Candidate | null>(null);
+  const [cheatFlagThreshold, setCheatFlagThreshold] = useState(3);
+
+  // Load cheat flag threshold from settings
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await fetch("/api/admin/settings");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.settings?.cheat_flag_threshold) {
+            setCheatFlagThreshold(data.settings.cheat_flag_threshold);
+          }
+        }
+      } catch { /* silent */ }
+    }
+    loadSettings();
+  }, []);
 
   const loadCandidates = useCallback(async () => {
     setLoading(true);
@@ -358,6 +375,14 @@ export default function CandidateReviewPage() {
                                   <path d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586a1 1 0 01-.707-.293l-1.121-1.121A2 2 0 0011.172 3H8.828a2 2 0 00-1.414.586L6.293 4.707A1 1 0 015.586 5H4zm6 9a3 3 0 100-6 3 3 0 000 6z" />
                                 </svg>
                               </button>
+                            )}
+                            {Array.isArray(c.test_events) && c.test_events.length >= cheatFlagThreshold && (
+                              <span
+                                className="ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700"
+                                title={`${c.test_events.length} cheat flag events detected during test`}
+                              >
+                                ⚠ High Flag Count ({c.test_events.length})
+                              </span>
                             )}
                           </p>
                           <p className="text-xs text-text/40">{c.country}</p>
