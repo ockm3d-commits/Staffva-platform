@@ -47,7 +47,7 @@ export default function HeroSection({ heroPreview }: Props) {
   }
 
   return (
-    <section className="relative bg-[#1C1B1A] overflow-hidden">
+    <section className="relative bg-white overflow-hidden">
       <div className="mx-auto max-w-7xl px-6 pt-28 pb-20 lg:pt-36 lg:pb-28">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Left column — text + search */}
@@ -55,11 +55,11 @@ export default function HeroSection({ heroPreview }: Props) {
             <span className="inline-block text-sm font-semibold text-primary tracking-wide uppercase">
               Pre-vetted offshore professionals
             </span>
-            <h1 className="mt-4 text-4xl sm:text-5xl lg:text-[3.5rem] font-bold leading-tight text-white">
+            <h1 className="mt-4 text-4xl sm:text-5xl lg:text-[3.5rem] font-bold leading-tight text-[#1C1B1A]">
               Find your next great hire.{" "}
               <span className="text-primary">Already vetted. Ready now.</span>
             </h1>
-            <p className="mt-6 text-lg text-gray-400 leading-relaxed max-w-xl">
+            <p className="mt-6 text-lg text-[#666666] leading-relaxed max-w-xl">
               Browse pre-vetted offshore paralegals, bookkeepers, admins, and
               legal assistants. Every candidate passed a human English and
               speaking assessment. Free to browse. You only pay when you hire.
@@ -72,7 +72,7 @@ export default function HeroSection({ heroPreview }: Props) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder='Try "paralegal" or "bookkeeper"...'
-                className="flex-1 rounded-lg bg-white px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
+                className="flex-1 rounded-lg bg-white border border-[#E0E0E0] px-4 py-3.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               />
               <button
                 type="submit"
@@ -85,11 +85,11 @@ export default function HeroSection({ heroPreview }: Props) {
             {/* Audience labels */}
             <div className="mt-6 flex items-center gap-6 max-w-lg">
               <div className="flex items-center gap-2">
-                <span className="h-px w-6 bg-gray-600" />
-                <span className="text-xs text-gray-500">For businesses</span>
+                <span className="h-px w-6 bg-gray-300" />
+                <span className="text-xs text-[#666666]">For businesses</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">For professionals</span>
+                <span className="text-xs text-[#666666]">For professionals</span>
                 <a
                   href="/apply"
                   className="text-xs font-semibold text-primary underline underline-offset-2 hover:text-primary-dark transition-colors"
@@ -109,7 +109,7 @@ export default function HeroSection({ heroPreview }: Props) {
                       `/browse?role=${encodeURIComponent(role)}`
                     )
                   }
-                  className="rounded-full border border-primary/40 px-3.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                  className="rounded-full border border-[#1C1B1A]/30 px-3.5 py-1.5 text-xs font-medium text-[#1C1B1A] hover:bg-primary hover:text-white hover:border-primary transition-colors"
                 >
                   {role}
                 </button>
@@ -117,7 +117,7 @@ export default function HeroSection({ heroPreview }: Props) {
             </div>
 
             {/* Trust badges */}
-            <div className="mt-6 flex flex-wrap gap-6 text-sm text-gray-500">
+            <div className="mt-6 flex flex-wrap gap-6 text-sm text-[#1C1B1A]">
               <span className="flex items-center gap-1.5">
                 <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -133,7 +133,7 @@ export default function HeroSection({ heroPreview }: Props) {
             </div>
           </div>
 
-          {/* Right column — floating candidate cards */}
+          {/* Right column — floating candidate cards (dark cards on white bg) */}
           <div className="hidden lg:block relative h-[420px]">
             {heroPreview.length > 0 ? (
               heroPreview.map((c, i) => {
@@ -150,7 +150,7 @@ export default function HeroSection({ heroPreview }: Props) {
                 return (
                   <div
                     key={c.id}
-                    className="absolute w-72 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 p-5 shadow-2xl animate-fade-in-up"
+                    className="absolute w-72 rounded-xl bg-[#1C1B1A] border border-white/10 p-5 shadow-2xl animate-fade-in-up"
                     style={{
                       top: pos.top,
                       right: pos.right,
@@ -200,7 +200,6 @@ export default function HeroSection({ heroPreview }: Props) {
                 );
               })
             ) : (
-              // Placeholder cards when no candidates exist
               <>
                 {[0, 1, 2].map((i) => {
                   const offsets = [
@@ -217,7 +216,7 @@ export default function HeroSection({ heroPreview }: Props) {
                   return (
                     <div
                       key={i}
-                      className="absolute w-72 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 p-5 shadow-2xl animate-fade-in-up"
+                      className="absolute w-72 rounded-xl bg-[#1C1B1A] border border-white/10 p-5 shadow-2xl animate-fade-in-up"
                       style={{
                         top: pos.top,
                         right: pos.right,
