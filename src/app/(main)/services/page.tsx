@@ -648,7 +648,7 @@ export default function MyServicesPage() {
                   <p className="mt-0.5 text-sm text-text/60">
                     {role === "candidate"
                       ? `Client: ${order.clients?.full_name || "Unknown"}`
-                      : `By: ${(order as Record<string, unknown> & { candidates?: { display_name: string } })?.candidates?.display_name || "Unknown"}`}
+                      : `By: ${((order as unknown as { candidates?: { display_name: string } })?.candidates?.display_name) || "Unknown"}`}
                   </p>
                 </div>
                 <div className="text-right">
