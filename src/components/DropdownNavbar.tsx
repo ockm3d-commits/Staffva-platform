@@ -45,7 +45,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
   const isDark = variant === "dark";
 
   const textColor = isDark ? "text-white/80 hover:text-white" : "text-[#1C1B1A] hover:text-primary";
-  const bgColor = isDark ? "bg-transparent" : "bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]";
+  const bgColor = isDark ? "bg-transparent" : "bg-white";
   const logoClass = isDark ? "brightness-0 invert" : "";
 
   // Close on outside click
