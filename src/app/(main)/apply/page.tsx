@@ -210,6 +210,14 @@ export default function ApplyPage() {
     setCandidateData((prev) =>
       prev ? { ...prev, voice_recording_2_url: url } : prev
     );
+    // Fire Slack notification async — never blocks candidate flow
+    if (candidateData?.id) {
+      fetch("/api/notifications/slack-new-candidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ candidate_id: candidateData.id }),
+      }).catch(() => { /* silent */ });
+    }
     goToStep("profile_builder");
   }
 
