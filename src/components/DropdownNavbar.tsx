@@ -344,6 +344,23 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
           </div>
         </div>
 
+          {/* Tech Team link */}
+          <a
+            href="https://startline.build"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group px-3.5 py-1.5 text-[14px] font-medium text-[#1C1B1A] hover:text-[#FE6E3E] transition-colors"
+          >
+            <span className="group-hover:hidden">Tech Team</span>
+            <span className="hidden group-hover:inline-flex items-center gap-1">
+              Tech Team: Startline
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </span>
+          </a>
+        </div>
+
         {/* Right side — auth buttons or logged-in nav */}
         <div className="hidden lg:flex items-center gap-3">
           {isLoggedIn ? (
@@ -502,6 +519,20 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
                 </div>
               )}
             </div>
+
+            {/* Tech Team link */}
+            <a
+              href="https://startline.build"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center justify-between py-2 text-sm font-medium ${isDark ? "text-white" : "text-text"}`}
+            >
+              <span>Tech Team: Startline</span>
+              <svg className="w-3.5 h-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
 
             {/* Divider */}
             <div className={`border-t ${isDark ? "border-white/10" : "border-gray-200"} my-2`} />
