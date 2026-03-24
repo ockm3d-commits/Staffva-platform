@@ -41,6 +41,12 @@ export default async function Navbar() {
                   >
                     My Profile
                   </Link>
+                  <Link
+                    href="/services"
+                    className="text-sm font-medium text-text hover:text-primary transition-colors"
+                  >
+                    My Services
+                  </Link>
                 </>
               )}
               {role === "client" && (
@@ -56,6 +62,12 @@ export default async function Navbar() {
                     className="text-sm font-medium text-text hover:text-primary transition-colors"
                   >
                     Inbox
+                  </Link>
+                  <Link
+                    href="/services"
+                    className="text-sm font-medium text-text hover:text-primary transition-colors"
+                  >
+                    My Purchases
                   </Link>
                 </>
               )}
