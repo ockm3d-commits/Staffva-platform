@@ -197,27 +197,19 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
-      // Update candidate earnings
-      await supabase.rpc("increment_earnings", {
-        p_candidate_id: order.candidate_id,
-        p_amount: order.candidate_amount_usd,
-      }).then(() => {}).catch(() => {
-        // Fallback: direct update
-        supabase
+      // Update candidate earnings directly
+      const { data: cand } = await supabase
+        .from("candidates")
+        .select("total_earnings_usd")
+        .eq("id", order.candidate_id)
+        .single();
+
+      if (cand) {
+        await supabase
           .from("candidates")
-          .select("total_earnings_usd")
-          .eq("id", order.candidate_id)
-          .single()
-          .then(({ data: cand }) => {
-            if (cand) {
-              supabase
-                .from("candidates")
-                .update({ total_earnings_usd: (cand.total_earnings_usd || 0) + order.candidate_amount_usd })
-                .eq("id", order.candidate_id)
-                .then(() => {});
-            }
-          });
-      });
+          .update({ total_earnings_usd: (cand.total_earnings_usd || 0) + order.candidate_amount_usd })
+          .eq("id", order.candidate_id);
+      }
 
       return NextResponse.json({ order: data });
     }
