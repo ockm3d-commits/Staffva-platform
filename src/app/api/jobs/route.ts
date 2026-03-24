@@ -190,6 +190,7 @@ export async function POST(req: NextRequest) {
 
     scored.sort((a, b) => b.match_score - a.match_score);
     const topMatches = scored.slice(0, 5);
+    const nearMisses = scored.slice(5, 10);
 
     if (topMatches.length > 0) {
       const matchRows = topMatches.map((m) => ({
@@ -199,6 +200,55 @@ export async function POST(req: NextRequest) {
       }));
 
       await supabase.from("job_post_matches").insert(matchRows);
+    }
+
+    // Feature 5: Send role match alert emails to candidates ranked 6-10
+    if (nearMisses.length > 0 && process.env.RESEND_API_KEY) {
+      // Get emails for near-miss candidates
+      const nearMissIds = nearMisses.map((c) => c.id);
+      const { data: nearMissCandidates } = await supabase
+        .from("candidates")
+        .select("id, email, display_name")
+        .in("id", nearMissIds);
+
+      if (nearMissCandidates) {
+        for (const c of nearMissCandidates) {
+          try {
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+              },
+              body: JSON.stringify({
+                from: "StaffVA <notifications@staffva.com>",
+                to: c.email,
+                subject: "A client is looking for someone like you",
+                html: `
+                  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+                    <h2 style="color: #1C1B1A; font-size: 18px;">Hi ${c.display_name?.split(" ")[0] || "there"},</h2>
+                    <p style="color: #666; font-size: 14px; line-height: 1.6;">
+                      A client recently posted a role for a <strong>${role_category}</strong> professional on StaffVA.
+                    </p>
+                    <p style="color: #666; font-size: 14px; line-height: 1.6;">
+                      Make sure your profile is complete and your availability is up to date so you are first in line for the next opportunity.
+                    </p>
+                    <div style="text-align: center; margin: 28px 0;">
+                      <a href="https://staffva.com/candidate/dashboard" style="display: inline-block; background: #FE6E3E; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">Review my profile</a>
+                    </div>
+                    <p style="color: #999; font-size: 12px; border-top: 1px solid #E0E0E0; padding-top: 16px; margin-top: 32px;">
+                      You received this because you have an active profile on StaffVA matching this role category.
+                    </p>
+                  </div>
+                `,
+              }),
+            });
+          } catch {
+            // Silent — don't block the response
+          }
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
     }
 
     return NextResponse.json({
