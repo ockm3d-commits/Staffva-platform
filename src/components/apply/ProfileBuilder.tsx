@@ -335,8 +335,8 @@ export default function ProfileBuilder({
           return false;
         }
         for (const entry of validEntries) {
-          if (!entry.industry || !entry.duration) {
-            setError("Complete all fields for each work experience entry");
+          if (!entry.industry || !entry.start_date) {
+            setError("Each entry needs a role title, industry, and start date");
             return false;
           }
         }
