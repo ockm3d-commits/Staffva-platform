@@ -45,7 +45,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
   const isDark = variant === "dark";
 
   const textColor = isDark ? "text-white/80 hover:text-white" : "text-[#1C1B1A] hover:text-primary";
-  const bgColor = isDark ? "bg-transparent" : "bg-white border-b border-[#E0E0E0]";
+  const bgColor = isDark ? "bg-transparent" : "bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]";
   const logoClass = isDark ? "brightness-0 invert" : "";
 
   // Close on outside click
@@ -88,21 +88,21 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
 
   return (
     <header ref={navRef} className={`${isDark ? "absolute top-0 left-0 right-0" : "sticky top-0"} z-50 ${bgColor}`}>
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 h-14">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-          <Image src="/logo.svg" alt="StaffVA" width={120} height={44} priority className={logoClass} />
+          <Image src="/logo.svg" alt="StaffVA" width={110} height={40} priority className={logoClass} />
         </Link>
 
-        {/* Desktop nav */}
-        <div className="hidden lg:flex items-center gap-1">
+        {/* Desktop nav — centered */}
+        <div className="hidden lg:flex items-center gap-0.5 absolute left-1/2 -translate-x-1/2">
           {/* Hire Staff */}
           <div
             className="relative"
             onMouseEnter={() => handleMouseEnter("hire-staff")}
             onMouseLeave={handleMouseLeave}
           >
-            <button className={`flex items-center gap-1 px-4 py-2 text-sm font-medium transition-colors ${textColor}`}>
+            <button className={`flex items-center gap-1 px-3.5 py-1.5 text-[14px] font-medium transition-colors ${textColor}`}>
               Hire Staff
               <svg className={`w-3.5 h-3.5 transition-transform ${activeDropdown === "hire-staff" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -110,7 +110,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
             </button>
 
             <div className={`absolute left-1/2 -translate-x-1/2 top-full pt-2 transition-all duration-150 ${activeDropdown === "hire-staff" ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}>
-              <div className="w-[640px] rounded-xl bg-white shadow-xl border border-[#E0E0E0] overflow-hidden">
+              <div className="w-[640px] rounded-xl bg-white shadow-lg border border-[#E0E0E0] overflow-hidden">
                 <div className="grid grid-cols-2 p-6 gap-8">
                   {/* By Role */}
                   <div>
@@ -200,7 +200,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
             onMouseEnter={() => handleMouseEnter("hire-freelancer")}
             onMouseLeave={handleMouseLeave}
           >
-            <button className={`flex items-center gap-1 px-4 py-2 text-sm font-medium transition-colors ${textColor}`}>
+            <button className={`flex items-center gap-1 px-3.5 py-1.5 text-[14px] font-medium transition-colors ${textColor}`}>
               Hire Freelancer
               <svg className={`w-3.5 h-3.5 transition-transform ${activeDropdown === "hire-freelancer" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -208,7 +208,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
             </button>
 
             <div className={`absolute left-1/2 -translate-x-1/2 top-full pt-2 transition-all duration-150 ${activeDropdown === "hire-freelancer" ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}>
-              <div className="w-[560px] rounded-xl bg-white shadow-xl border border-[#E0E0E0] overflow-hidden">
+              <div className="w-[560px] rounded-xl bg-white shadow-lg border border-[#E0E0E0] overflow-hidden">
                 <div className="grid grid-cols-2 p-6 gap-8">
                   {/* By Service */}
                   <div>
@@ -304,7 +304,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
             onMouseEnter={() => handleMouseEnter("for-professionals")}
             onMouseLeave={handleMouseLeave}
           >
-            <button className={`flex items-center gap-1 px-4 py-2 text-sm font-medium transition-colors ${textColor}`}>
+            <button className={`flex items-center gap-1 px-3.5 py-1.5 text-[14px] font-medium transition-colors ${textColor}`}>
               For Professionals
               <svg className={`w-3.5 h-3.5 transition-transform ${activeDropdown === "for-professionals" ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -312,7 +312,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
             </button>
 
             <div className={`absolute left-1/2 -translate-x-1/2 top-full pt-2 transition-all duration-150 ${activeDropdown === "for-professionals" ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}>
-              <div className="w-[280px] rounded-xl bg-white shadow-xl border border-[#E0E0E0] overflow-hidden p-4 space-y-1">
+              <div className="w-[280px] rounded-xl bg-white shadow-lg border border-[#E0E0E0] overflow-hidden p-4 space-y-1">
                 <Link
                   href="/apply"
                   onClick={() => setActiveDropdown(null)}
@@ -350,28 +350,28 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
             <>
               {role === "candidate" && (
                 <>
-                  <Link href="/apply" className={`text-sm font-medium transition-colors ${textColor}`}>My Application</Link>
-                  <Link href="/candidate/me" className={`text-sm font-medium transition-colors ${textColor}`}>My Profile</Link>
-                  <Link href="/services" className={`text-sm font-medium transition-colors ${textColor}`}>My Services</Link>
+                  <Link href="/apply" className={`text-[14px] font-medium transition-colors ${textColor}`}>My Application</Link>
+                  <Link href="/candidate/me" className={`text-[14px] font-medium transition-colors ${textColor}`}>My Profile</Link>
+                  <Link href="/services" className={`text-[14px] font-medium transition-colors ${textColor}`}>My Services</Link>
                 </>
               )}
               {role === "client" && (
                 <>
-                  <Link href="/team" className={`text-sm font-medium transition-colors ${textColor}`}>My Team</Link>
-                  <Link href="/inbox" className={`text-sm font-medium transition-colors ${textColor}`}>Inbox</Link>
-                  <Link href="/services" className={`text-sm font-medium transition-colors ${textColor}`}>Purchases</Link>
+                  <Link href="/team" className={`text-[14px] font-medium transition-colors ${textColor}`}>My Team</Link>
+                  <Link href="/inbox" className={`text-[14px] font-medium transition-colors ${textColor}`}>Inbox</Link>
+                  <Link href="/services" className={`text-[14px] font-medium transition-colors ${textColor}`}>Purchases</Link>
                 </>
               )}
               {role === "admin" && (
-                <Link href="/admin" className={`text-sm font-medium transition-colors ${textColor}`}>Admin</Link>
+                <Link href="/admin" className={`text-[14px] font-medium transition-colors ${textColor}`}>Admin</Link>
               )}
               <form action="/auth/signout" method="POST">
                 <button
                   type="submit"
-                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`text-[14px] font-medium transition-colors ${
                     isDark
-                      ? "border-white/30 text-white hover:bg-white/10"
-                      : "border-[#1C1B1A] text-[#1C1B1A] hover:border-primary hover:text-primary"
+                      ? "text-white/70 hover:text-white"
+                      : "text-[#1C1B1A] hover:text-primary"
                   }`}
                 >
                   Sign Out
@@ -382,13 +382,13 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
             <>
               <Link
                 href="/login"
-                className="rounded-lg border border-[#1C1B1A] px-4 py-2 text-sm font-semibold text-[#1C1B1A] hover:border-primary hover:text-primary transition-colors"
+                className="text-[14px] font-medium text-[#1C1B1A] hover:text-primary transition-colors"
               >
                 Sign In
               </Link>
               <Link
                 href="/signup/client"
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors"
+                className="rounded-lg bg-primary px-4 py-2 text-[14px] font-semibold text-white hover:bg-[#E55A2B] transition-colors"
               >
                 Get Started
               </Link>
