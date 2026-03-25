@@ -47,99 +47,62 @@ interface InterviewData {
 type StepStatus = "completed" | "current" | "upcoming";
 
 function getProgressSteps(c: CandidateData, interviews: InterviewData[]): { label: string; status: StepStatus; detail?: string }[] {
-  const hasPassedTest = (c.english_mc_score ?? 0) > 0;
-  const hasRecordings = !!c.voice_recording_1_url && !!c.voice_recording_2_url;
-  const hasProfile = !!c.profile_completed_at;
-  const idVerified = c.id_verification_status === "passed";
+  // Determine completion state for each step based on actual data only
+  const step1Done = true; // Candidate record exists = application submitted
+  const step2Done = (c.english_mc_score ?? 0) > 0;
+  const step3Done = c.id_verification_status === "passed" || !!c.voice_recording_1_url;
+  const step4Done = !!c.profile_photo_url && !!c.resume_url;
   const aiInterview = interviews.find((i) => i.interview_number === 1 && i.status === "completed");
+  const step5Done = !!aiInterview;
   const secondInterview = interviews.find((i) => i.interview_number === 2 && i.status === "completed");
-  const isLive = c.admin_status === "approved";
+  const step6Done = !!secondInterview;
+  const step7Done = c.admin_status === "approved";
 
-  const steps: { label: string; status: StepStatus; detail?: string }[] = [];
-
-  // Step 1 — Application
-  if (c.application_step && c.application_step !== "application_form") {
-    steps.push({ label: "Application Submitted", status: "completed" });
-  } else {
-    steps.push({ label: "Application Submitted", status: "current", detail: "Complete your application form" });
-    return steps.concat([
-      { label: "English Assessment", status: "upcoming" },
-      { label: "ID Verification", status: "upcoming" },
-      { label: "Profile Builder", status: "upcoming" },
-      { label: "AI First Interview", status: "upcoming" },
-      { label: "Second Interview", status: "upcoming" },
-      { label: "Profile Live", status: "upcoming" },
-    ]);
+  function status(done: boolean, prevDone: boolean): StepStatus {
+    if (done) return "completed";
+    if (prevDone) return "current";
+    return "upcoming";
   }
 
-  // Step 2 — English Assessment
-  if (hasPassedTest) {
-    steps.push({ label: "English Assessment", status: "completed" });
-  } else {
-    steps.push({ label: "English Assessment", status: "current", detail: "Complete the English grammar and comprehension test" });
-    return steps.concat([
-      { label: "ID Verification", status: "upcoming" },
-      { label: "Profile Builder", status: "upcoming" },
-      { label: "AI First Interview", status: "upcoming" },
-      { label: "Second Interview", status: "upcoming" },
-      { label: "Profile Live", status: "upcoming" },
-    ]);
-  }
-
-  // Step 3 — ID Verification
-  if (idVerified || hasRecordings) {
-    steps.push({ label: "ID Verification", status: "completed" });
-  } else {
-    steps.push({ label: "ID Verification", status: "current", detail: "Verify your identity" });
-    return steps.concat([
-      { label: "Profile Builder", status: "upcoming" },
-      { label: "AI First Interview", status: "upcoming" },
-      { label: "Second Interview", status: "upcoming" },
-      { label: "Profile Live", status: "upcoming" },
-    ]);
-  }
-
-  // Step 4 — Profile Builder
-  if (hasProfile) {
-    steps.push({ label: "Profile Builder", status: "completed" });
-  } else {
-    steps.push({ label: "Profile Builder", status: "current", detail: "Complete your profile — photo, bio, experience, and resume" });
-    return steps.concat([
-      { label: "AI First Interview", status: "upcoming" },
-      { label: "Second Interview", status: "upcoming" },
-      { label: "Profile Live", status: "upcoming" },
-    ]);
-  }
-
-  // Step 5 — AI First Interview
-  if (aiInterview) {
-    const total = (aiInterview.communication_score || 0) + (aiInterview.demeanor_score || 0) + (aiInterview.role_knowledge_score || 0);
-    const pct = Math.round((total / 15) * 100);
-    steps.push({ label: "AI First Interview", status: "completed", detail: `Score: ${pct}/100` });
-  } else {
-    steps.push({ label: "AI First Interview", status: "current", detail: "Start your AI-powered interview" });
-    return steps.concat([
-      { label: "Second Interview", status: "upcoming" },
-      { label: "Profile Live", status: "upcoming" },
-    ]);
-  }
-
-  // Step 6 — Second Interview
-  if (secondInterview) {
-    steps.push({ label: "Second Interview", status: "completed" });
-  } else {
-    steps.push({ label: "Second Interview", status: "current", detail: "Scheduled by StaffVA team" });
-    return steps.concat([
-      { label: "Profile Live", status: "upcoming" },
-    ]);
-  }
-
-  // Step 7 — Profile Live
-  if (isLive) {
-    steps.push({ label: "Profile Live", status: "completed", detail: "Your profile is visible to clients" });
-  } else {
-    steps.push({ label: "Profile Live", status: "current", detail: "Awaiting admin approval" });
-  }
+  const steps: { label: string; status: StepStatus; detail?: string }[] = [
+    {
+      label: "Application Submitted",
+      status: "completed",
+      detail: undefined,
+    },
+    {
+      label: "English Assessment",
+      status: status(step2Done, step1Done),
+      detail: step2Done ? undefined : "Complete the English grammar and comprehension test",
+    },
+    {
+      label: "ID Verification",
+      status: status(step3Done, step2Done),
+      detail: step3Done ? undefined : "Verify your identity",
+    },
+    {
+      label: "Profile Builder",
+      status: status(step4Done, step3Done),
+      detail: step4Done ? undefined : "Complete your profile — photo, bio, experience, and resume",
+    },
+    {
+      label: "AI First Interview",
+      status: status(step5Done, step4Done),
+      detail: step5Done
+        ? `Score: ${Math.round((((aiInterview?.communication_score || 0) + (aiInterview?.demeanor_score || 0) + (aiInterview?.role_knowledge_score || 0)) / 15) * 100)}/100`
+        : step4Done ? "Start your AI-powered interview" : undefined,
+    },
+    {
+      label: "Second Interview",
+      status: status(step6Done, step5Done),
+      detail: step6Done ? undefined : step5Done ? "Scheduled by StaffVA team" : undefined,
+    },
+    {
+      label: "Profile Live",
+      status: status(step7Done, step6Done),
+      detail: step7Done ? "Your profile is visible to clients" : step6Done ? "Awaiting admin approval" : undefined,
+    },
+  ];
 
   return steps;
 }
@@ -338,7 +301,7 @@ export default function CandidateDashboardPage() {
         const steps = getProgressSteps(candidate, interviews);
         const aiInterview = interviews.find((i) => i.interview_number === 1 && i.status === "completed");
         const aiInterviewPending = interviews.find((i) => i.interview_number === 1 && i.status !== "completed");
-        const profileReady = !!candidate.profile_completed_at && (candidate.admin_status === "pending_speaking_review" || candidate.admin_status === "approved" || candidate.admin_status === "revision_required");
+        const profileBuilderDone = !!candidate.profile_photo_url && !!candidate.resume_url;
 
         return (
           <div className="mb-8 rounded-lg border border-gray-200 bg-white p-5">
@@ -386,7 +349,7 @@ export default function CandidateDashboardPage() {
             </div>
 
             {/* AI Interview Button */}
-            {profileReady && !aiInterview && !aiInterviewPending && (
+            {profileBuilderDone && !aiInterview && !aiInterviewPending && (
               <div className="mt-4 border-t border-gray-100 pt-4">
                 <a
                   href={`https://interview.staffva.com?candidate=${candidate.id}`}
