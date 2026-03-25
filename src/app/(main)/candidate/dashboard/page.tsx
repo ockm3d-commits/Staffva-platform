@@ -28,6 +28,120 @@ interface CandidateData {
   work_experience: unknown[] | null;
   resume_url: string | null;
   payout_method: string | null;
+  english_mc_score: number | null;
+  voice_recording_1_url: string | null;
+  voice_recording_2_url: string | null;
+  profile_completed_at: string | null;
+  id_verification_status: string | null;
+  application_step: string | null;
+}
+
+interface InterviewData {
+  interview_number: number;
+  status: string;
+  communication_score: number | null;
+  demeanor_score: number | null;
+  role_knowledge_score: number | null;
+}
+
+type StepStatus = "completed" | "current" | "upcoming";
+
+function getProgressSteps(c: CandidateData, interviews: InterviewData[]): { label: string; status: StepStatus; detail?: string }[] {
+  const hasPassedTest = (c.english_mc_score ?? 0) > 0;
+  const hasRecordings = !!c.voice_recording_1_url && !!c.voice_recording_2_url;
+  const hasProfile = !!c.profile_completed_at;
+  const idVerified = c.id_verification_status === "passed";
+  const aiInterview = interviews.find((i) => i.interview_number === 1 && i.status === "completed");
+  const secondInterview = interviews.find((i) => i.interview_number === 2 && i.status === "completed");
+  const isLive = c.admin_status === "approved";
+
+  const steps: { label: string; status: StepStatus; detail?: string }[] = [];
+
+  // Step 1 — Application
+  if (c.application_step && c.application_step !== "application_form") {
+    steps.push({ label: "Application Submitted", status: "completed" });
+  } else {
+    steps.push({ label: "Application Submitted", status: "current", detail: "Complete your application form" });
+    return steps.concat([
+      { label: "English Assessment", status: "upcoming" },
+      { label: "ID Verification", status: "upcoming" },
+      { label: "Profile Builder", status: "upcoming" },
+      { label: "AI First Interview", status: "upcoming" },
+      { label: "Second Interview", status: "upcoming" },
+      { label: "Profile Live", status: "upcoming" },
+    ]);
+  }
+
+  // Step 2 — English Assessment
+  if (hasPassedTest) {
+    steps.push({ label: "English Assessment", status: "completed" });
+  } else {
+    steps.push({ label: "English Assessment", status: "current", detail: "Complete the English grammar and comprehension test" });
+    return steps.concat([
+      { label: "ID Verification", status: "upcoming" },
+      { label: "Profile Builder", status: "upcoming" },
+      { label: "AI First Interview", status: "upcoming" },
+      { label: "Second Interview", status: "upcoming" },
+      { label: "Profile Live", status: "upcoming" },
+    ]);
+  }
+
+  // Step 3 — ID Verification
+  if (idVerified || hasRecordings) {
+    steps.push({ label: "ID Verification", status: "completed" });
+  } else {
+    steps.push({ label: "ID Verification", status: "current", detail: "Verify your identity" });
+    return steps.concat([
+      { label: "Profile Builder", status: "upcoming" },
+      { label: "AI First Interview", status: "upcoming" },
+      { label: "Second Interview", status: "upcoming" },
+      { label: "Profile Live", status: "upcoming" },
+    ]);
+  }
+
+  // Step 4 — Profile Builder
+  if (hasProfile) {
+    steps.push({ label: "Profile Builder", status: "completed" });
+  } else {
+    steps.push({ label: "Profile Builder", status: "current", detail: "Complete your profile — photo, bio, experience, and resume" });
+    return steps.concat([
+      { label: "AI First Interview", status: "upcoming" },
+      { label: "Second Interview", status: "upcoming" },
+      { label: "Profile Live", status: "upcoming" },
+    ]);
+  }
+
+  // Step 5 — AI First Interview
+  if (aiInterview) {
+    const total = (aiInterview.communication_score || 0) + (aiInterview.demeanor_score || 0) + (aiInterview.role_knowledge_score || 0);
+    const pct = Math.round((total / 15) * 100);
+    steps.push({ label: "AI First Interview", status: "completed", detail: `Score: ${pct}/100` });
+  } else {
+    steps.push({ label: "AI First Interview", status: "current", detail: "Start your AI-powered interview" });
+    return steps.concat([
+      { label: "Second Interview", status: "upcoming" },
+      { label: "Profile Live", status: "upcoming" },
+    ]);
+  }
+
+  // Step 6 — Second Interview
+  if (secondInterview) {
+    steps.push({ label: "Second Interview", status: "completed" });
+  } else {
+    steps.push({ label: "Second Interview", status: "current", detail: "Scheduled by StaffVA team" });
+    return steps.concat([
+      { label: "Profile Live", status: "upcoming" },
+    ]);
+  }
+
+  // Step 7 — Profile Live
+  if (isLive) {
+    steps.push({ label: "Profile Live", status: "completed", detail: "Your profile is visible to clients" });
+  } else {
+    steps.push({ label: "Profile Live", status: "current", detail: "Awaiting admin approval" });
+  }
+
+  return steps;
 }
 
 interface CompletenessItem {
@@ -112,6 +226,7 @@ function calculateCompleteness(c: CandidateData, hasPortfolio: boolean): { score
 export default function CandidateDashboardPage() {
   const [candidate, setCandidate] = useState<CandidateData | null>(null);
   const [viewStats, setViewStats] = useState<ViewStats | null>(null);
+  const [interviews, setInterviews] = useState<InterviewData[]>([]);
   const [hasPortfolio, setHasPortfolio] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -123,7 +238,7 @@ export default function CandidateDashboardPage() {
 
       const { data: c } = await supabase
         .from("candidates")
-        .select("id, display_name, admin_status, role_category, monthly_rate, availability_status, total_earnings_usd, profile_photo_url, english_written_tier, speaking_level, tagline, bio, skills, tools, work_experience, resume_url, payout_method")
+        .select("id, display_name, admin_status, role_category, monthly_rate, availability_status, total_earnings_usd, profile_photo_url, english_written_tier, speaking_level, tagline, bio, skills, tools, work_experience, resume_url, payout_method, english_mc_score, voice_recording_1_url, voice_recording_2_url, profile_completed_at, id_verification_status, application_step")
         .eq("user_id", session.user.id)
         .single();
 
@@ -136,6 +251,13 @@ export default function CandidateDashboardPage() {
           .select("*", { count: "exact", head: true })
           .eq("candidate_id", c.id);
         setHasPortfolio((count || 0) > 0);
+
+        // Load interviews
+        const { data: interviewData } = await supabase
+          .from("candidate_interviews")
+          .select("interview_number, status, communication_score, demeanor_score, role_knowledge_score")
+          .eq("candidate_id", c.id);
+        if (interviewData) setInterviews(interviewData as InterviewData[]);
       }
 
       try {
@@ -210,6 +332,92 @@ export default function CandidateDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Progress Tracker */}
+      {(() => {
+        const steps = getProgressSteps(candidate, interviews);
+        const aiInterview = interviews.find((i) => i.interview_number === 1 && i.status === "completed");
+        const aiInterviewPending = interviews.find((i) => i.interview_number === 1 && i.status !== "completed");
+        const profileReady = !!candidate.profile_completed_at && (candidate.admin_status === "pending_speaking_review" || candidate.admin_status === "approved" || candidate.admin_status === "revision_required");
+
+        return (
+          <div className="mb-8 rounded-lg border border-gray-200 bg-white p-5">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">Your Progress</h2>
+            <div className="relative">
+              {steps.map((step, i) => (
+                <div key={step.label} className="flex items-start gap-3 pb-4 last:pb-0">
+                  {/* Vertical line */}
+                  <div className="flex flex-col items-center">
+                    {step.status === "completed" ? (
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-500">
+                        <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    ) : step.status === "current" ? (
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FE6E3E] ring-4 ring-orange-100">
+                        <span className="text-xs font-bold text-white">{i + 1}</span>
+                      </div>
+                    ) : (
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-gray-200 bg-gray-50">
+                        <span className="text-xs font-medium text-gray-400">{i + 1}</span>
+                      </div>
+                    )}
+                    {i < steps.length - 1 && (
+                      <div className={`mt-1 h-6 w-0.5 ${step.status === "completed" ? "bg-green-300" : "bg-gray-200"}`} />
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="pt-0.5">
+                    <p className={`text-sm font-medium ${
+                      step.status === "completed" ? "text-green-700" : step.status === "current" ? "text-[#1C1B1A]" : "text-gray-400"
+                    }`}>
+                      {step.label}
+                    </p>
+                    {step.detail && (
+                      <p className={`mt-0.5 text-xs ${step.status === "completed" ? "text-green-600" : step.status === "current" ? "text-gray-500" : "text-gray-400"}`}>
+                        {step.detail}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* AI Interview Button */}
+            {profileReady && !aiInterview && !aiInterviewPending && (
+              <div className="mt-4 border-t border-gray-100 pt-4">
+                <a
+                  href={`https://interview.staffva.com?candidate=${candidate.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#FE6E3E] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Start AI Interview
+                </a>
+                <p className="mt-1.5 text-xs text-gray-500">20-minute AI-powered structured interview. Available now.</p>
+              </div>
+            )}
+
+            {aiInterview && (
+              <div className="mt-4 border-t border-gray-100 pt-4">
+                <div className="inline-flex items-center gap-2 rounded-full bg-green-50 border border-green-200 px-4 py-2">
+                  <svg className="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm font-medium text-green-700">
+                    AI Interview Complete — {Math.round((((aiInterview.communication_score || 0) + (aiInterview.demeanor_score || 0) + (aiInterview.role_knowledge_score || 0)) / 15) * 100)}/100
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Status messages */}
       {candidate.admin_status === "pending_speaking_review" && (
