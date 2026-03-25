@@ -296,6 +296,50 @@ export default function CandidateDashboardPage() {
         </div>
       </div>
 
+      {/* Next Step Action Button */}
+      {(() => {
+        const hasPassedTest = (candidate.english_mc_score ?? 0) >= 70 && (candidate.english_written_tier !== null);
+        const hasRecordings = !!candidate.voice_recording_1_url && !!candidate.voice_recording_2_url;
+        const profileDone = !!candidate.profile_photo_url && !!candidate.resume_url;
+        const aiDone = interviews.some((i) => i.interview_number === 1 && i.status === "completed");
+
+        if (aiDone) return null; // No button needed — green badge shows in tracker
+
+        let label = "";
+        let href = "/apply";
+
+        if (!hasPassedTest && !hasRecordings) {
+          label = candidate.english_mc_score ? "Continue English Test" : "Continue Application";
+        } else if (hasPassedTest && !hasRecordings) {
+          label = "Continue Application";
+        } else if (hasRecordings && !profileDone) {
+          label = "Continue Profile Setup";
+        } else if (profileDone && !aiDone) {
+          label = "Start AI Interview";
+          href = `https://interview.staffva.com?candidate=${candidate.id}`;
+        }
+
+        if (!label) return null;
+
+        return (
+          <div className="mb-6">
+            <a
+              href={href}
+              target={href.startsWith("http") ? "_blank" : undefined}
+              rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
+              className="inline-flex items-center gap-2 rounded-lg bg-[#FE6E3E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors shadow-sm"
+            >
+              {label === "Start AI Interview" && (
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              )}
+              {label} →
+            </a>
+          </div>
+        );
+      })()}
+
       {/* Progress Tracker */}
       {(() => {
         const steps = getProgressSteps(candidate, interviews);

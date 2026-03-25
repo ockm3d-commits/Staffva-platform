@@ -55,6 +55,9 @@ export interface CandidateData {
   retake_available_at: string | null;
   application_step: string;
   profile_completed_at: string | null;
+  profile_photo_url: string | null;
+  tagline: string | null;
+  interview_consent: boolean;
   skills: string[];
   tools: string[];
 }
@@ -111,17 +114,31 @@ export default function ApplyPage() {
       return;
     }
 
-    // Profile is fully complete (has profile_completed_at)
-    if (candidate.profile_completed_at) {
+    // Check if ALL completion requirements are met for "complete" status
+    const isFullyComplete =
+      candidate.english_mc_score !== null &&
+      candidate.english_mc_score >= 70 &&
+      (candidate.english_comprehension_score ?? 0) >= 70 &&
+      !!candidate.voice_recording_1_url &&
+      !!candidate.voice_recording_2_url &&
+      !!candidate.profile_photo_url &&
+      !!candidate.resume_url &&
+      !!candidate.tagline &&
+      !!candidate.bio &&
+      !!candidate.payout_method &&
+      candidate.interview_consent !== false &&
+      !!candidate.profile_completed_at;
+
+    if (isFullyComplete) {
       setStep("complete");
       return;
     }
 
-    // Use the saved application_step from the database
-    // But also validate against actual data to prevent skipping ahead
-    const savedStep = candidate.application_step as ApplicationStep;
+    // --- SESSION RESTORE LOGIC ---
+    // Determine step from actual data, not saved step
+    // This handles both page refresh AND cross-session return
 
-    // Validate: if saved step says voice recordings but test not passed, correct it
+    // Step: Check if test was taken and passed
     if (candidate.english_mc_score !== null) {
       const passed =
         candidate.english_mc_score >= 70 &&
@@ -134,19 +151,21 @@ export default function ApplyPage() {
       }
     }
 
-    // Validate: if both recordings exist and profile not built, go to profile builder
-    if (candidate.voice_recording_1_url && candidate.voice_recording_2_url && !candidate.profile_completed_at) {
+    // Both recordings done → profile builder
+    if (candidate.voice_recording_1_url && candidate.voice_recording_2_url) {
+      // Cross-session: always start profile builder from step 1
+      // In-session refresh: sessionStorage preserves the current step
       setStep("profile_builder");
       return;
     }
 
-    // Validate: if recording 1 exists but not 2, go to recording 2
+    // Recording 1 done but not 2 → recording 2
     if (candidate.voice_recording_1_url && !candidate.voice_recording_2_url) {
       setStep("voice_recording_2");
       return;
     }
 
-    // If test completed and passed but no recordings, go to recording 1
+    // Test passed but no recordings → recording 1
     if (candidate.english_mc_score !== null && !candidate.voice_recording_1_url) {
       const passed =
         candidate.english_mc_score >= 70 &&
@@ -157,7 +176,18 @@ export default function ApplyPage() {
       }
     }
 
-    // Otherwise use the saved step, with fallback logic
+    // Cross-session return: if saved step is mid-test, restart test from beginning
+    const savedStep = candidate.application_step as ApplicationStep;
+    const midTestSteps: ApplicationStep[] = ["device_check", "test_instructions", "english_test"];
+
+    if (midTestSteps.includes(savedStep)) {
+      // Cross-session: restart test flow from device check
+      // In-session refresh: sessionStorage in EnglishTest handles answer preservation
+      setStep("device_check");
+      return;
+    }
+
+    // Use saved step if valid, otherwise start from beginning
     const validSteps: ApplicationStep[] = [
       "application_form", "device_check", "test_instructions",
       "english_test", "test_result", "voice_recording_1",
@@ -167,12 +197,7 @@ export default function ApplyPage() {
     if (validSteps.includes(savedStep)) {
       setStep(savedStep);
     } else {
-      // Fallback: determine step from data
-      if (!candidate.english_mc_score) {
-        setStep("device_check");
-      } else {
-        setStep("application_form");
-      }
+      setStep("application_form");
     }
   }
 
@@ -221,7 +246,45 @@ export default function ApplyPage() {
     goToStep("profile_builder");
   }
 
-  function handleProfileComplete() {
+  async function handleProfileComplete() {
+    // Re-fetch candidate data to check all completion requirements
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: latest } = await supabase
+      .from("candidates")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!latest) return;
+
+    const allComplete =
+      latest.english_mc_score !== null &&
+      latest.english_mc_score >= 70 &&
+      (latest.english_comprehension_score ?? 0) >= 70 &&
+      !!latest.voice_recording_1_url &&
+      !!latest.voice_recording_2_url &&
+      !!latest.profile_photo_url &&
+      !!latest.resume_url &&
+      !!latest.tagline &&
+      !!latest.bio &&
+      !!latest.payout_method &&
+      latest.interview_consent !== false;
+
+    if (allComplete && latest.admin_status !== "approved" && latest.admin_status !== "pending_speaking_review") {
+      // Set to pending_speaking_review only when everything is complete
+      await supabase
+        .from("candidates")
+        .update({
+          admin_status: "pending_speaking_review",
+          profile_completed_at: new Date().toISOString(),
+        })
+        .eq("id", latest.id);
+    }
+
+    setCandidateData({ ...candidateData!, ...latest, profile_completed_at: new Date().toISOString() } as CandidateData);
     goToStep("complete");
   }
 
