@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import EscrowStatusPanel from "@/components/EscrowStatusPanel";
 
 interface ViewStats {
   weekViews: number;
@@ -610,6 +611,11 @@ export default function CandidateDashboardPage() {
           <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Earnings</p>
           <p className="mt-1 text-2xl font-bold text-green-600">${(candidate.total_earnings_usd || 0).toLocaleString()}</p>
         </div>
+      </div>
+
+      {/* Escrow Status */}
+      <div className="mb-6">
+        <EscrowStatusPanel role="candidate" />
       </div>
 
       {/* Quick actions */}

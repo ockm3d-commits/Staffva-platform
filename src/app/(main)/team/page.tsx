@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import EscrowStatusPanel from "@/components/EscrowStatusPanel";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   funded: { label: "Funded — Period Active", color: "bg-green-100 text-green-700" },
@@ -131,6 +132,11 @@ export default function TeamPortalPage() {
         >
           Browse Talent
         </button>
+      </div>
+
+      {/* Escrow Status Panel */}
+      <div className="mt-6">
+        <EscrowStatusPanel role="client" />
       </div>
 
       {engagements.length === 0 ? (
