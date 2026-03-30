@@ -35,6 +35,24 @@ export async function POST(request: Request) {
 
   const supabase = getAdminClient();
 
+  // Log the webhook event
+  const { data: logEntry } = await supabase
+    .from("webhook_log")
+    .insert({
+      provider: "stripe",
+      event_type: event.type,
+      event_id: event.id,
+      payload: JSON.parse(JSON.stringify(event.data.object)),
+      received_at: new Date().toISOString(),
+      processed: false,
+    })
+    .select("id")
+    .single();
+
+  const logId = logEntry?.id;
+
+  try {
+
   switch (event.type) {
     // ---- Stripe Identity — ID verification ----
 
@@ -357,5 +375,32 @@ export async function POST(request: Request) {
     }
   }
 
+  // Mark as successfully processed
+  if (logId) {
+    await supabase
+      .from("webhook_log")
+      .update({ processed: true, processed_at: new Date().toISOString() })
+      .eq("id", logId);
+  }
+
   return NextResponse.json({ received: true });
+
+  } catch (processingError) {
+    // Log the processing failure
+    const errorMessage = processingError instanceof Error ? processingError.message : "Unknown processing error";
+    console.error(`[StaffVA] Webhook processing failed for ${event.type}:`, errorMessage);
+
+    if (logId) {
+      await supabase
+        .from("webhook_log")
+        .update({
+          error: errorMessage,
+          processed: false,
+        })
+        .eq("id", logId);
+    }
+
+    // Still return 200 to prevent Stripe from retrying (we handle retries ourselves)
+    return NextResponse.json({ received: true, processing_error: errorMessage });
+  }
 }
