@@ -1,4 +1,5 @@
 import Link from "next/link";
+import InlineAudioPreview from "./InlineAudioPreview";
 
 const TIER_CONFIG: Record<string, { label: string; color: string }> = {
   exceptional: { label: "Exceptional", color: "bg-emerald-100 text-emerald-700" },
@@ -13,7 +14,7 @@ const SPEAKING_CONFIG: Record<string, { label: string; color: string }> = {
   basic: { label: "Basic", color: "bg-gray-100 text-gray-700" },
 };
 
-interface CandidateCardData {
+export interface CandidateCardData {
   id: string;
   display_name: string;
   country: string;
@@ -28,6 +29,7 @@ interface CandidateCardData {
   committed_hours: number;
   profile_photo_url: string | null;
   needs_availability_update?: boolean;
+  voice_recording_1_preview_url?: string | null;
 }
 
 function getAvailabilityDisplay(committedHours: number) {
@@ -43,9 +45,10 @@ function getAvailabilityDisplay(committedHours: number) {
 
 interface Props {
   candidate: CandidateCardData;
+  isLoggedIn?: boolean;
 }
 
-export default function CandidateCard({ candidate }: Props) {
+export default function CandidateCard({ candidate, isLoggedIn = false }: Props) {
   const tier = candidate.english_written_tier
     ? TIER_CONFIG[candidate.english_written_tier]
     : null;
@@ -60,98 +63,112 @@ export default function CandidateCard({ candidate }: Props) {
   const avail = getAvailabilityDisplay(candidate.committed_hours || 0);
 
   return (
-    <Link
-      href={`/candidate/${candidate.id}`}
-      className="block rounded-xl border border-gray-200 bg-card p-5 transition-all hover:border-primary/30 hover:shadow-md"
-    >
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gray-100">
-          {candidate.profile_photo_url ? (
-            <img
-              src={candidate.profile_photo_url}
-              alt={candidate.display_name}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-lg font-bold text-text/30">
-              {candidate.display_name?.[0] || "?"}
-            </div>
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between">
-            <div>
-              <h3 className="font-semibold text-text">{candidate.display_name}</h3>
-              <p className="mt-0.5 text-sm text-text/60">
-                {candidate.country} &middot; {candidate.role_category}
+    <div className="rounded-xl border border-gray-200 bg-card transition-all hover:border-primary/30 hover:shadow-md">
+      <Link
+        href={`/candidate/${candidate.id}`}
+        className="block p-5 pb-3"
+      >
+        {/* Header */}
+        <div className="flex items-start gap-3">
+          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-gray-100">
+            {candidate.profile_photo_url ? (
+              <img
+                src={candidate.profile_photo_url}
+                alt={candidate.display_name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-lg font-bold text-text/30">
+                {candidate.display_name?.[0] || "?"}
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="font-semibold text-text">{candidate.display_name}</h3>
+                <p className="mt-0.5 text-sm text-text/60">
+                  {candidate.country} &middot; {candidate.role_category}
+                </p>
+              </div>
+              <p className="text-lg font-bold text-text shrink-0">
+                ${candidate.monthly_rate.toLocaleString()}
+                <span className="text-xs font-normal text-text/40">/mo</span>
               </p>
             </div>
-            <p className="text-lg font-bold text-text shrink-0">
-              ${candidate.monthly_rate.toLocaleString()}
-              <span className="text-xs font-normal text-text/40">/mo</span>
-            </p>
           </div>
         </div>
+
+        {/* Availability status */}
+        <div className="mt-2 flex items-center gap-1.5">
+          <span className={`h-2 w-2 rounded-full ${avail.dot}`} />
+          <span className={`text-xs font-medium ${avail.textColor}`}>
+            {avail.text}
+          </span>
+          {candidate.needs_availability_update && (
+            <span className="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+              Availability unconfirmed
+            </span>
+          )}
+        </div>
+
+        {/* Badges */}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {tier && (
+            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${tier.color}`}>
+              {tier.label}
+            </span>
+          )}
+          {speaking && (
+            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${speaking.color}`}>
+              {speaking.label}
+            </span>
+          )}
+          {hasUSExperience && (
+            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+              US Experience
+            </span>
+          )}
+          {hasInternational && (
+            <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">
+              International
+            </span>
+          )}
+        </div>
+
+        {/* Verified earnings */}
+        {candidate.total_earnings_usd > 0 && (
+          <p className="mt-2 text-xs font-medium text-text/50">
+            ${Number(candidate.total_earnings_usd).toLocaleString()} verified earnings
+          </p>
+        )}
+
+        {/* Bio snippet */}
+        {candidate.bio && (
+          <p className="mt-2 text-sm text-text/60 line-clamp-2">
+            {candidate.bio}
+          </p>
+        )}
+      </Link>
+
+      {/* Audio preview — outside the Link to prevent navigation */}
+      <div className="px-5 pb-3">
+        <InlineAudioPreview
+          previewUrl={candidate.voice_recording_1_preview_url || null}
+          isLoggedIn={isLoggedIn}
+          candidateName={candidate.display_name}
+        />
       </div>
-
-      {/* Availability status */}
-      <div className="mt-2 flex items-center gap-1.5">
-        <span className={`h-2 w-2 rounded-full ${avail.dot}`} />
-        <span className={`text-xs font-medium ${avail.textColor}`}>
-          {avail.text}
-        </span>
-        {candidate.needs_availability_update && (
-          <span className="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
-            Availability unconfirmed
-          </span>
-        )}
-      </div>
-
-      {/* Badges */}
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {tier && (
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${tier.color}`}>
-            {tier.label}
-          </span>
-        )}
-        {speaking && (
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${speaking.color}`}>
-            {speaking.label}
-          </span>
-        )}
-        {hasUSExperience && (
-          <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-            US Experience
-          </span>
-        )}
-        {hasInternational && (
-          <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">
-            International
-          </span>
-        )}
-      </div>
-
-      {/* Verified earnings */}
-      {candidate.total_earnings_usd > 0 && (
-        <p className="mt-2 text-xs font-medium text-text/50">
-          ${Number(candidate.total_earnings_usd).toLocaleString()} verified earnings
-        </p>
-      )}
-
-      {/* Bio snippet */}
-      {candidate.bio && (
-        <p className="mt-2 text-sm text-text/60 line-clamp-2">
-          {candidate.bio}
-        </p>
-      )}
 
       {/* Footer */}
-      <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
+      <Link
+        href={`/candidate/${candidate.id}`}
+        className="block border-t border-gray-100 px-5 py-3"
+      >
         <span className="text-xs text-primary font-medium">
           View Profile &rarr;
         </span>
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }

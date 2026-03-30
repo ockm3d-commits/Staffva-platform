@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import CandidateCard from "@/components/browse/CandidateCard";
+import { createClient } from "@/lib/supabase/client";
 
 const ROLE_CATEGORIES = [
   "All",
@@ -53,6 +54,7 @@ interface CandidateResult {
   committed_hours: number;
   profile_photo_url: string | null;
   needs_availability_update: boolean;
+  voice_recording_1_preview_url: string | null;
 }
 
 function BrowseContent() {
@@ -61,6 +63,7 @@ function BrowseContent() {
 
   const [candidates, setCandidates] = useState<CandidateResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -110,6 +113,16 @@ function BrowseContent() {
   useEffect(() => {
     fetchCandidates();
   }, [fetchCandidates]);
+
+  // Check auth state
+  useEffect(() => {
+    async function checkAuth() {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsLoggedIn(!!session);
+    }
+    checkAuth();
+  }, []);
 
   function resetFilters() {
     setSearch("");
@@ -460,7 +473,7 @@ function BrowseContent() {
               <>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {candidates.map((candidate) => (
-                    <CandidateCard key={candidate.id} candidate={candidate} />
+                    <CandidateCard key={candidate.id} candidate={candidate} isLoggedIn={isLoggedIn} />
                   ))}
                 </div>
 
