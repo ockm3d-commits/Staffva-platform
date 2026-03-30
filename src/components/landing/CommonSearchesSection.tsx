@@ -20,7 +20,7 @@ export default function CommonSearchesSection() {
         <p className="text-xs font-semibold uppercase tracking-wider text-text/40">
           Common searches
         </p>
-        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-2.5">
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-x-3 sm:gap-x-8 gap-y-2.5">
           {COMMON_ROLES.map((role) => (
             <Link
               key={role}

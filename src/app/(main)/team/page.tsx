@@ -124,11 +124,11 @@ export default function TeamPortalPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-text">My Team</h1>
         <button
           onClick={() => router.push("/browse")}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark transition-colors"
+          className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark transition-colors min-h-[44px]"
         >
           Browse Talent
         </button>

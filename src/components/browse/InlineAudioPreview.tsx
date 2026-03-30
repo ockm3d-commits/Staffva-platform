@@ -174,7 +174,7 @@ export default function InlineAudioPreview({
       <button
         onClick={togglePlay}
         disabled={loading}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FE6E3E] text-white hover:bg-[#E55A2B] transition-colors disabled:opacity-50"
+        className="flex h-10 w-10 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-[#FE6E3E] text-white hover:bg-[#E55A2B] transition-colors disabled:opacity-50"
         aria-label={playing ? `Pause ${candidateName} preview` : `Play ${candidateName} preview`}
       >
         {loading ? (
@@ -193,7 +193,7 @@ export default function InlineAudioPreview({
 
       {/* Progress bar */}
       <div
-        className="flex-1 h-1.5 rounded-full bg-gray-200 cursor-pointer relative"
+        className="flex-1 h-2 sm:h-1.5 rounded-full bg-gray-200 cursor-pointer relative"
         onClick={handleBarClick}
       >
         <div

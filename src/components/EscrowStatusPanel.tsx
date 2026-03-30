@@ -174,7 +174,7 @@ export default function EscrowStatusPanel({ role }: { role: "client" | "candidat
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-6">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
         <div className="flex items-center gap-2">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#FE6E3E] border-t-transparent" />
           <span className="text-sm text-gray-500">Loading escrow status...</span>
@@ -185,7 +185,7 @@ export default function EscrowStatusPanel({ role }: { role: "client" | "candidat
 
   if (!data || data.count === 0) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-6">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-lg">🔒</span>
           <h3 className="text-sm font-semibold text-[#1C1B1A]">Escrow Status</h3>
@@ -198,8 +198,8 @@ export default function EscrowStatusPanel({ role }: { role: "client" | "candidat
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6">
-      <div className="flex items-center justify-between mb-4">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 mb-4">
         <div className="flex items-center gap-2">
           <span className="text-lg">🔒</span>
           <h3 className="text-sm font-semibold text-[#1C1B1A]">Escrow Status</h3>

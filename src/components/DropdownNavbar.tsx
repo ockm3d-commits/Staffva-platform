@@ -435,7 +435,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
         {/* Mobile hamburger */}
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className={`lg:hidden p-2 rounded-lg transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-text hover:bg-gray-100"}`}
+          className={`lg:hidden p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg transition-colors ${isDark ? "text-white hover:bg-white/10" : "text-text hover:bg-gray-100"}`}
         >
           {mobileOpen ? (
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -473,12 +473,12 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
                       key={item.label}
                       href={item.href}
                       onClick={() => setMobileOpen(false)}
-                      className={`block py-1.5 text-sm ${isDark ? "text-white/70 hover:text-white" : "text-text/70 hover:text-primary"}`}
+                      className={`block py-2.5 text-sm ${isDark ? "text-white/70 hover:text-white" : "text-text/70 hover:text-primary"}`}
                     >
                       {item.label}
                     </Link>
                   ))}
-                  <Link href="/browse" onClick={() => setMobileOpen(false)} className="block py-1.5 text-sm font-semibold text-primary">
+                  <Link href="/browse" onClick={() => setMobileOpen(false)} className="block py-2.5 text-sm font-semibold text-primary">
                     View all &rarr;
                   </Link>
                 </div>
@@ -504,12 +504,12 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
                       key={item.label}
                       href={item.href}
                       onClick={() => setMobileOpen(false)}
-                      className={`block py-1.5 text-sm ${isDark ? "text-white/70 hover:text-white" : "text-text/70 hover:text-primary"}`}
+                      className={`block py-2.5 text-sm ${isDark ? "text-white/70 hover:text-white" : "text-text/70 hover:text-primary"}`}
                     >
                       {item.label}
                     </Link>
                   ))}
-                  <Link href="/services" onClick={() => setMobileOpen(false)} className="block py-1.5 text-sm font-semibold text-primary">
+                  <Link href="/services" onClick={() => setMobileOpen(false)} className="block py-2.5 text-sm font-semibold text-primary">
                     View all services &rarr;
                   </Link>
                 </div>
@@ -529,10 +529,10 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
               </button>
               {mobileAccordion === "for-professionals" && (
                 <div className="pb-3 pl-4 space-y-1">
-                  <Link href="/apply" onClick={() => setMobileOpen(false)} className={`block py-1.5 text-sm ${isDark ? "text-white/70 hover:text-white" : "text-text/70 hover:text-primary"}`}>
+                  <Link href="/apply" onClick={() => setMobileOpen(false)} className={`block py-2.5 text-sm ${isDark ? "text-white/70 hover:text-white" : "text-text/70 hover:text-primary"}`}>
                     Apply as a Professional
                   </Link>
-                  <Link href="/login" onClick={() => setMobileOpen(false)} className={`block py-1.5 text-sm ${isDark ? "text-white/70 hover:text-white" : "text-text/70 hover:text-primary"}`}>
+                  <Link href="/login" onClick={() => setMobileOpen(false)} className={`block py-2.5 text-sm ${isDark ? "text-white/70 hover:text-white" : "text-text/70 hover:text-primary"}`}>
                     Sign in to my account
                   </Link>
                 </div>
