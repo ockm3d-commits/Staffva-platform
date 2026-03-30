@@ -530,6 +530,33 @@ export default function CandidateDashboardPage() {
           <Link href="/apply" className="mt-2 inline-block text-sm font-medium text-[#FE6E3E] hover:underline">Edit my profile →</Link>
         </div>
       )}
+      {candidate.id_verification_status === "manual_review" && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <svg className="h-5 w-5 shrink-0 text-amber-600 mt-0.5 animate-pulse" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-amber-800">ID Verification Under Review</p>
+              <p className="mt-1 text-sm text-amber-700">Your identity verification is being manually reviewed. This typically takes up to 48 hours. We will email you once resolved. You can continue viewing your application progress while you wait.</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {candidate.id_verification_status === "failed" && (
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
+          <div className="flex items-start gap-3">
+            <svg className="h-5 w-5 shrink-0 text-red-600 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-red-800">ID Verification Failed</p>
+              <p className="mt-1 text-sm text-red-700">Your identity verification could not be completed. Your application is paused. Please contact support if you believe this is an error.</p>
+              <a href="mailto:support@staffva.com" className="mt-2 inline-block text-sm font-medium text-[#FE6E3E] hover:underline">Contact support →</a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Profile Completeness */}
       <div className="mb-8 rounded-lg border border-gray-200 bg-white p-5">

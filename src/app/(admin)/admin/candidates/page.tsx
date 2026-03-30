@@ -68,6 +68,7 @@ interface Candidate {
   cheat_flag_count: number;
   score_mismatch_flag: boolean;
   id_verification_status: string;
+  id_verification_submitted_at: string | null;
   us_client_experience: string;
   us_client_description: string;
   voice_recording_1_url: string;
@@ -805,7 +806,29 @@ export default function CandidateReviewPage() {
                               </div>
                             </div>
                           )}
-                          <div><p className="text-xs font-semibold text-text/40 uppercase mb-1">ID Verification</p><span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${c.id_verification_status === "passed" ? "bg-green-100 text-green-700" : c.id_verification_status === "failed" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}`}>{c.id_verification_status?.replace(/_/g, " ") || "Pending"}</span></div>
+                          <div>
+                            <p className="text-xs font-semibold text-text/40 uppercase mb-1">ID Verification</p>
+                            <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
+                              c.id_verification_status === "passed" ? "bg-green-100 text-green-700" :
+                              c.id_verification_status === "failed" ? "bg-red-100 text-red-700" :
+                              c.id_verification_status === "manual_review" ? "bg-amber-100 text-amber-700" :
+                              "bg-gray-100 text-gray-600"
+                            }`}>
+                              {c.id_verification_status?.replace(/_/g, " ") || "Pending"}
+                            </span>
+                            {c.id_verification_status === "manual_review" && c.id_verification_submitted_at && (() => {
+                              const elapsed = Date.now() - new Date(c.id_verification_submitted_at).getTime();
+                              const hours = Math.floor(elapsed / (1000 * 60 * 60));
+                              const isOverdue = hours >= 72;
+                              return (
+                                <span className={`ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${isOverdue ? "bg-red-100 text-red-700" : "bg-amber-50 text-amber-600"}`}>
+                                  {isOverdue ? "⚠ " : ""}
+                                  {hours}h elapsed
+                                  {isOverdue && " — Overdue"}
+                                </span>
+                              );
+                            })()}
+                          </div>
                         </div>
                       )}
                     </div>

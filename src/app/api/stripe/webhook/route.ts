@@ -50,6 +50,39 @@ export async function POST(request: Request) {
           .from("candidates")
           .update({ id_verification_status: "passed" })
           .eq("id", candidateId);
+
+        // Send success email
+        if (process.env.RESEND_API_KEY) {
+          const { data: candidate } = await supabase
+            .from("candidates")
+            .select("email, display_name, full_name")
+            .eq("id", candidateId)
+            .single();
+
+          if (candidate) {
+            try {
+              await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  from: "StaffVA <notifications@staffva.com>",
+                  to: candidate.email,
+                  subject: "ID Verification Passed — Continue Your Application",
+                  html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+                    <h2 style="color:#1C1B1A;">ID Verification Complete</h2>
+                    <p style="color:#444;font-size:14px;">Hi ${candidate.display_name || candidate.full_name},</p>
+                    <p style="color:#444;font-size:14px;line-height:1.6;">Your identity has been successfully verified. You can now continue building your profile on StaffVA.</p>
+                    <a href="https://staffva.com/apply" style="display:inline-block;background:#FE6E3E;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">Continue Application</a>
+                    <p style="color:#999;margin-top:24px;font-size:12px;">— The StaffVA Team</p>
+                  </div>`,
+                }),
+              });
+            } catch { /* silent */ }
+          }
+        }
       }
       break;
     }
@@ -66,6 +99,94 @@ export async function POST(request: Request) {
           .from("candidates")
           .update({ id_verification_status: "failed" })
           .eq("id", candidateId);
+
+        // Send failure email
+        if (process.env.RESEND_API_KEY) {
+          const { data: candidate } = await supabase
+            .from("candidates")
+            .select("email, display_name, full_name")
+            .eq("id", candidateId)
+            .single();
+
+          if (candidate) {
+            try {
+              await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  from: "StaffVA <notifications@staffva.com>",
+                  to: candidate.email,
+                  subject: "ID Verification Could Not Be Completed",
+                  html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+                    <h2 style="color:#1C1B1A;">ID Verification Update</h2>
+                    <p style="color:#444;font-size:14px;">Hi ${candidate.display_name || candidate.full_name},</p>
+                    <p style="color:#444;font-size:14px;line-height:1.6;">Unfortunately, your identity verification could not be completed. This may be due to an unclear photo, mismatched information, or an unsupported document type.</p>
+                    <p style="color:#444;font-size:14px;line-height:1.6;">Your application has been paused. If you believe this is an error, please contact our support team and we will assist you.</p>
+                    <a href="mailto:support@staffva.com" style="display:inline-block;background:#FE6E3E;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">Contact Support</a>
+                    <p style="color:#999;margin-top:24px;font-size:12px;">— The StaffVA Team</p>
+                  </div>`,
+                }),
+              });
+            } catch { /* silent */ }
+          }
+        }
+      }
+      break;
+    }
+
+    // Stripe Identity — manual review (processing)
+    case "identity.verification_session.processing": {
+      const session = event.data.object as {
+        id: string;
+        metadata?: { candidate_id?: string };
+      };
+      const candidateId = session.metadata?.candidate_id;
+
+      if (candidateId) {
+        await supabase
+          .from("candidates")
+          .update({
+            id_verification_status: "manual_review",
+            id_verification_submitted_at: new Date().toISOString(),
+          })
+          .eq("id", candidateId);
+
+        // Send manual review email to candidate
+        if (process.env.RESEND_API_KEY) {
+          const { data: candidate } = await supabase
+            .from("candidates")
+            .select("email, display_name, full_name")
+            .eq("id", candidateId)
+            .single();
+
+          if (candidate) {
+            try {
+              await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  from: "StaffVA <notifications@staffva.com>",
+                  to: candidate.email,
+                  subject: "Your ID Verification Is Under Review",
+                  html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+                    <h2 style="color:#1C1B1A;">ID Verification Under Review</h2>
+                    <p style="color:#444;font-size:14px;">Hi ${candidate.display_name || candidate.full_name},</p>
+                    <p style="color:#444;font-size:14px;line-height:1.6;">Your identity verification has been submitted and is currently under manual review. This typically takes up to <strong>48 hours</strong>.</p>
+                    <p style="color:#444;font-size:14px;line-height:1.6;">You can continue viewing your application progress in your dashboard while we process your verification. We will notify you by email once it is resolved.</p>
+                    <a href="https://staffva.com/candidate/dashboard" style="display:inline-block;background:#FE6E3E;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">View My Dashboard</a>
+                    <p style="color:#999;margin-top:24px;font-size:12px;">— The StaffVA Team</p>
+                  </div>`,
+                }),
+              });
+            } catch { /* silent */ }
+          }
+        }
       }
       break;
     }
