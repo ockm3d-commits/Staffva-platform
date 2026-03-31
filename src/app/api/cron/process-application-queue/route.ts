@@ -207,16 +207,14 @@ async function processApplication(
     throw new Error(`Candidate insert failed: ${insertError.message}`);
   }
 
-  // Fire AI screening (async, non-blocking)
+  // Queue AI screening (processed by separate screening queue cron)
   try {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://staffva.com";
-    await fetch(`${siteUrl}/api/screening`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ candidateId: candidate.id }),
+    await supabase.from("screening_queue").insert({
+      candidate_id: candidate.id,
+      status: "pending",
     });
   } catch {
-    // Non-fatal — screening can be triggered later
+    // Non-fatal — screening can be queued manually later
   }
 
   // Send welcome email
