@@ -96,6 +96,20 @@ export async function POST(request: Request) {
       </div>`
     );
 
+    // Trigger 7: Profile approved email
+    try {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://staffva.com";
+      fetch(`${siteUrl}/api/candidate-emails`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidateId,
+          emailType: "profile_approved",
+          data: { profileUrl: `https://staffva.com/candidate/${candidateId}` },
+        }),
+      }).catch(() => {});
+    } catch { /* non-fatal */ }
+
     return NextResponse.json({ success: true, action: "approved" });
   }
 

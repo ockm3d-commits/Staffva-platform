@@ -270,4 +270,23 @@ async function processApplication(
   } catch {
     // Non-fatal
   }
+
+  // Trigger automated emails (fire-and-forget)
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://staffva.com";
+  try {
+    // Trigger 1: Application received
+    await fetch(`${siteUrl}/api/candidate-emails`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidateId: candidate.id, emailType: "application_received" }),
+    });
+    // Trigger 2: English test invitation (delayed — candidate needs to be ready)
+    await fetch(`${siteUrl}/api/candidate-emails`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidateId: candidate.id, emailType: "english_test_invitation" }),
+    });
+  } catch {
+    // Non-fatal
+  }
 }

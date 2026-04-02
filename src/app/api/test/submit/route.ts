@@ -123,6 +123,22 @@ export async function POST(request: Request) {
     .select()
     .single();
 
+  // Trigger 3: English test passed email
+  if (passed) {
+    try {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://staffva.com";
+      fetch(`${siteUrl}/api/candidate-emails`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidateId,
+          emailType: "english_test_passed",
+          data: { tier: tier || "" },
+        }),
+      }).catch(() => {});
+    } catch { /* non-fatal */ }
+  }
+
   return NextResponse.json({
     passed,
     grammarScore,

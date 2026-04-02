@@ -262,5 +262,22 @@ export async function POST(req: NextRequest) {
     } catch { /* silent */ }
   }
 
+  // Trigger 6: Second interview scheduled email
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://staffva.com";
+    fetch(`${siteUrl}/api/candidate-emails`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        candidateId,
+        emailType: "second_interview_scheduled",
+        data: {
+          date: new Date(scheduledAt).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }),
+          time: new Date(scheduledAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZoneName: "short" }),
+        },
+      }),
+    }).catch(() => {});
+  } catch { /* non-fatal */ }
+
   return NextResponse.json({ success: true, scheduledAt });
 }
