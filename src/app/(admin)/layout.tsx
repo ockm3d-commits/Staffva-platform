@@ -54,6 +54,12 @@ export default async function AdminLayout({
               Triage Queue
             </Link>
             <Link
+              href="/admin/duplicates"
+              className="block rounded-lg px-3 py-2 text-sm font-medium text-text hover:bg-primary/5 hover:text-primary transition-colors"
+            >
+              Duplicates
+            </Link>
+            <Link
               href="/admin/recruiters"
               className="block rounded-lg px-3 py-2 text-sm font-medium text-text hover:bg-primary/5 hover:text-primary transition-colors"
             >
