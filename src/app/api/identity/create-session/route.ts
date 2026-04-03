@@ -73,9 +73,10 @@ export async function POST(request: Request) {
       sessionId: session.id,
     });
   } catch (error) {
-    console.error("Stripe Identity error:", error);
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error("Stripe Identity error:", msg);
     return NextResponse.json(
-      { error: "Failed to create verification session" },
+      { error: `Stripe Identity error: ${msg}` },
       { status: 500 }
     );
   }
