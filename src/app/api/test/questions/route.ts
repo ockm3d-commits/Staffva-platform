@@ -27,6 +27,48 @@ export async function POST(request: Request) {
 
   const supabase = getAdminClient();
 
+  // ═══ IDENTITY-HASH LOCKOUT ENFORCEMENT ═══
+  // Check lockout by identity hash — cannot be bypassed by new accounts
+  const { data: identityRecord } = await supabase
+    .from("verified_identities")
+    .select("identity_hash")
+    .eq("candidate_id", candidateId)
+    .eq("is_duplicate", false)
+    .single();
+
+  if (identityRecord?.identity_hash) {
+    const { data: lockoutResult } = await supabase.rpc("check_identity_lockout", {
+      p_identity_hash: identityRecord.identity_hash,
+    });
+
+    const lockout = lockoutResult as { is_locked: boolean; lockout_expires_at: string | null } | null;
+
+    if (lockout?.is_locked) {
+      return NextResponse.json({
+        error: "English assessment locked",
+        locked: true,
+        lockout_expires_at: lockout.lockout_expires_at,
+        message: "Your English assessment is currently locked due to a previous attempt. Please wait for the lockout period to expire.",
+      }, { status: 403 });
+    }
+  }
+
+  // Also check candidate-level permanent block
+  const { data: candidateCheck } = await supabase
+    .from("candidates")
+    .select("permanently_blocked")
+    .eq("id", candidateId)
+    .single();
+
+  if (candidateCheck?.permanently_blocked) {
+    return NextResponse.json({
+      error: "Permanently blocked",
+      locked: true,
+      permanent: true,
+      message: "After multiple attempts, your English assessment access has been permanently suspended.",
+    }, { status: 403 });
+  }
+
   // Fetch 20 random grammar questions
   const { data: grammarQuestions } = await supabase
     .from("english_test_questions")

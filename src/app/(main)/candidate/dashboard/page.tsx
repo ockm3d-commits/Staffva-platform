@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import EscrowStatusPanel from "@/components/EscrowStatusPanel";
 import GiveawayTracker from "@/components/GiveawayTracker";
+import LockoutCard from "@/components/LockoutCard";
 
 interface ViewStats {
   weekViews: number;
@@ -516,6 +517,9 @@ export default function CandidateDashboardPage() {
           </div>
         );
       })()}
+
+      {/* Lockout card */}
+      <LockoutCard />
 
       {/* Status messages */}
       {candidate.admin_status === "pending_speaking_review" && (

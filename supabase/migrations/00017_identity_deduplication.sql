@@ -31,10 +31,13 @@ CREATE INDEX IF NOT EXISTS idx_lockouts_hash ON english_test_lockouts(identity_h
 CREATE INDEX IF NOT EXISTS idx_lockouts_expires ON english_test_lockouts(lockout_expires_at);
 
 -- Trigger: auto-set lockout_expires_at = failed_at + 3 days
+-- Only set default lockout if not explicitly provided
 CREATE OR REPLACE FUNCTION set_lockout_expiry()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.lockout_expires_at := NEW.failed_at + interval '3 days';
+  IF NEW.lockout_expires_at IS NULL THEN
+    NEW.lockout_expires_at := NEW.failed_at + interval '3 days';
+  END IF;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

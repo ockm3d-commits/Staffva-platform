@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 function getAdminClient() {
   return createClient(
@@ -12,7 +15,18 @@ function assignWrittenTier(percentile: number): string | null {
   if (percentile >= 90) return "exceptional";
   if (percentile >= 75) return "proficient";
   if (percentile >= 70) return "competent";
-  return null; // below 70 = fail
+  return null;
+}
+
+/**
+ * Get lockout duration based on attempt number.
+ * Attempts 1-2: 3 days, Attempt 3: 6 days, Attempt 4: 14 days, Attempt 5+: permanent
+ */
+function getLockoutDays(attemptNumber: number): number | null {
+  if (attemptNumber >= 5) return null; // permanent block
+  if (attemptNumber >= 4) return 14;
+  if (attemptNumber >= 3) return 6;
+  return 3; // attempts 1-2
 }
 
 export async function POST(request: Request) {
@@ -24,7 +38,7 @@ export async function POST(request: Request) {
 
   const supabase = getAdminClient();
 
-  // Fetch the correct answers for all answered questions
+  // Fetch the correct answers
   const questionIds = Object.keys(answers);
   const { data: questions } = await supabase
     .from("english_test_questions")
@@ -32,10 +46,7 @@ export async function POST(request: Request) {
     .in("id", questionIds);
 
   if (!questions) {
-    return NextResponse.json(
-      { error: "Failed to load answers" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to load answers" }, { status: 500 });
   }
 
   // Grade each answer
@@ -64,35 +75,25 @@ export async function POST(request: Request) {
     };
   });
 
-  // Save all answers
   await supabase.from("candidate_test_answers").insert(answerRecords);
 
   // Calculate scores
-  const grammarScore =
-    grammarTotal > 0 ? Math.round((grammarCorrect / grammarTotal) * 100) : 0;
-  const compScore =
-    compTotal > 0 ? Math.round((compCorrect / compTotal) * 100) : 0;
-
-  // Combined percentile (weighted: 80% grammar, 20% comprehension since grammar has 20 questions)
-  const combinedScore = Math.round(
-    (grammarCorrect + compCorrect) /
-      (grammarTotal + compTotal) *
-      100
-  );
+  const grammarScore = grammarTotal > 0 ? Math.round((grammarCorrect / grammarTotal) * 100) : 0;
+  const compScore = compTotal > 0 ? Math.round((compCorrect / compTotal) * 100) : 0;
+  const combinedScore = Math.round((grammarCorrect + compCorrect) / (grammarTotal + compTotal) * 100);
 
   const passed = grammarScore >= 70 && compScore >= 70;
   const tier = passed ? assignWrittenTier(combinedScore) : null;
   const scoreMismatch = combinedScore > 80;
 
-  // Get current candidate for retake tracking
+  // Get current candidate for retake tracking + identity hash
   const { data: currentCandidate } = await supabase
     .from("candidates")
-    .select("retake_count")
+    .select("retake_count, email, display_name, full_name")
     .eq("id", candidateId)
     .single();
 
   const retakeCount = (currentCandidate?.retake_count ?? 0) + (passed ? 0 : 1);
-  const permanentlyBlocked = !passed && retakeCount >= 2;
 
   // Update candidate record
   const updateData: Record<string, unknown> = {
@@ -107,12 +108,95 @@ export async function POST(request: Request) {
 
   if (!passed) {
     updateData.retake_count = retakeCount;
-    updateData.permanently_blocked = permanentlyBlocked;
-    if (!permanentlyBlocked) {
-      // Allow retake after 7 days
-      const retakeDate = new Date();
-      retakeDate.setDate(retakeDate.getDate() + 7);
-      updateData.retake_available_at = retakeDate.toISOString();
+
+    // ═══ IDENTITY-HASH LOCKOUT SYSTEM ═══
+    // Get identity hash for this candidate
+    const { data: identityRecord } = await supabase
+      .from("verified_identities")
+      .select("identity_hash")
+      .eq("candidate_id", candidateId)
+      .eq("is_duplicate", false)
+      .single();
+
+    if (identityRecord?.identity_hash) {
+      // Count previous lockouts for this identity hash
+      const { count: previousAttempts } = await supabase
+        .from("english_test_lockouts")
+        .select("*", { count: "exact", head: true })
+        .eq("identity_hash", identityRecord.identity_hash);
+
+      const attemptNumber = (previousAttempts || 0) + 1;
+      const lockoutDays = getLockoutDays(attemptNumber);
+
+      if (lockoutDays === null) {
+        // Permanent block (5+ attempts)
+        updateData.permanently_blocked = true;
+
+        // Insert final lockout record
+        await supabase.from("english_test_lockouts").insert({
+          identity_hash: identityRecord.identity_hash,
+          candidate_id: candidateId,
+          attempt_number: attemptNumber,
+        });
+
+        // Send permanent block email
+        if (process.env.RESEND_API_KEY && currentCandidate?.email) {
+          const firstName = (currentCandidate.display_name || currentCandidate.full_name || "").split(" ")[0] || "there";
+          try {
+            await resend.emails.send({
+              from: "StaffVA <notifications@staffva.com>",
+              to: currentCandidate.email,
+              subject: "StaffVA Application Update",
+              html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+                <h2 style="color:#1C1B1A;">Application Update</h2>
+                <p style="color:#444;font-size:14px;">Hi ${firstName},</p>
+                <p style="color:#444;font-size:14px;line-height:1.6;">After multiple attempts, we are unable to advance your application at this time.</p>
+                <p style="color:#444;font-size:14px;line-height:1.6;">You may reapply in <strong>90 days</strong>. We encourage you to continue developing your English language skills during this time.</p>
+                <p style="color:#999;margin-top:24px;font-size:12px;">— The StaffVA Team</p>
+              </div>`,
+            });
+          } catch { /* silent */ }
+        }
+
+        // Notify admin
+        if (process.env.RESEND_API_KEY) {
+          try {
+            await resend.emails.send({
+              from: "StaffVA <notifications@staffva.com>",
+              to: "sam@glostaffing.com",
+              subject: `Candidate permanently blocked after ${attemptNumber} test failures`,
+              html: `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+                <h2 style="color:#1C1B1A;">Permanent Block Notification</h2>
+                <p style="color:#444;font-size:14px;">Candidate <strong>${currentCandidate?.display_name || currentCandidate?.full_name}</strong> (${currentCandidate?.email}) has been permanently blocked after ${attemptNumber} failed English test attempts.</p>
+                <p style="color:#444;font-size:14px;">Identity hash: ${identityRecord.identity_hash.slice(0, 16)}...</p>
+              </div>`,
+            });
+          } catch { /* silent */ }
+        }
+      } else {
+        // Timed lockout
+        const lockoutExpiry = new Date();
+        lockoutExpiry.setDate(lockoutExpiry.getDate() + lockoutDays);
+        updateData.retake_available_at = lockoutExpiry.toISOString();
+
+        // Insert lockout record — trigger auto-sets lockout_expires_at
+        // But we override with our escalating duration
+        await supabase.from("english_test_lockouts").insert({
+          identity_hash: identityRecord.identity_hash,
+          candidate_id: candidateId,
+          attempt_number: attemptNumber,
+          lockout_expires_at: lockoutExpiry.toISOString(),
+        });
+      }
+    } else {
+      // No identity hash — fall back to candidate-level lockout (legacy)
+      const permanentlyBlocked = retakeCount >= 5;
+      updateData.permanently_blocked = permanentlyBlocked;
+      if (!permanentlyBlocked) {
+        const retakeDate = new Date();
+        retakeDate.setDate(retakeDate.getDate() + 3);
+        updateData.retake_available_at = retakeDate.toISOString();
+      }
     }
   }
 
