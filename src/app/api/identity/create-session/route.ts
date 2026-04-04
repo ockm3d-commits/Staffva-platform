@@ -13,9 +13,7 @@ function getAdminClient() {
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
@@ -28,7 +26,6 @@ export async function POST(request: Request) {
 
     const admin = getAdminClient();
 
-    // Verify this candidate belongs to the user
     const { data: candidate } = await admin
       .from("candidates")
       .select("id, full_name, id_verification_status")
@@ -40,12 +37,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
     }
 
-    // Already verified
     if (candidate.id_verification_status === "passed") {
       return NextResponse.json({ alreadyVerified: true });
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "https://staffva.com";
 
     // Create Stripe Identity verification session
     const session = await stripe.identity.verificationSessions.create({
@@ -59,13 +55,16 @@ export async function POST(request: Request) {
           require_matching_selfie: true,
         },
       },
-      return_url: `${appUrl}/apply?step=id_verification_complete`,
+      return_url: `${siteUrl}/apply?id_check=returning`,
     });
 
-    // Update candidate status to pending
+    // Update candidate status to pending and store session ID
     await admin
       .from("candidates")
-      .update({ id_verification_status: "pending" })
+      .update({
+        id_verification_status: "pending",
+        id_verification_submitted_at: new Date().toISOString(),
+      })
       .eq("id", candidateId);
 
     return NextResponse.json({
