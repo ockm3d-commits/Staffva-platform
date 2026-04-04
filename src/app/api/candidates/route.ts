@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   let query = supabase
     .from("candidates")
     .select(
-      "id, display_name, country, role_category, hourly_rate, english_written_tier, speaking_level, availability_status, availability_date, us_client_experience, bio, total_earnings_usd, committed_hours, profile_photo_url, needs_availability_update, voice_recording_1_preview_url, created_at",
+      "id, display_name, country, role_category, hourly_rate, english_written_tier, speaking_level, availability_status, availability_date, us_client_experience, bio, total_earnings_usd, committed_hours, profile_photo_url, needs_availability_update, voice_recording_1_preview_url, created_at, english_mc_score, english_comprehension_score",
       { count: "exact" }
     )
     .eq("admin_status", "approved");
@@ -108,8 +108,37 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Batch-fetch completed AI interviews for all returned candidates
+  const candidateIds = (data || []).map((c) => c.id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let aiInterviewMap: Record<string, any> = {};
+
+  if (candidateIds.length > 0) {
+    const { data: aiInterviews } = await supabase
+      .from("ai_interviews")
+      .select("candidate_id, overall_score, technical_knowledge_score, problem_solving_score, communication_score, experience_depth_score, professionalism_score, status, passed")
+      .in("candidate_id", candidateIds)
+      .eq("status", "completed")
+      .eq("passed", true);
+
+    if (aiInterviews) {
+      for (const ai of aiInterviews) {
+        // Keep the latest (first match since we don't order, but one per candidate typically)
+        if (!aiInterviewMap[ai.candidate_id]) {
+          aiInterviewMap[ai.candidate_id] = ai;
+        }
+      }
+    }
+  }
+
+  // Merge AI interview data into candidates
+  const enriched = (data || []).map((c) => ({
+    ...c,
+    ai_interview: aiInterviewMap[c.id] || null,
+  }));
+
   return NextResponse.json({
-    candidates: data || [],
+    candidates: enriched,
     total: count || 0,
     page,
     totalPages: Math.ceil((count || 0) / limit),
