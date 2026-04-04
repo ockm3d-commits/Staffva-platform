@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import NotificationBell from "@/components/NotificationBell";
 
 interface DropdownNavbarProps {
   user: { role?: string } | null;
@@ -371,6 +372,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
                   <Link href="/candidate/dashboard" className={`text-[14px] font-medium transition-colors ${textColor}`}>Dashboard</Link>
                   <Link href="/candidate/me" className={`text-[14px] font-medium transition-colors ${textColor}`}>My Profile</Link>
                   <Link href="/apply" className={`text-[14px] font-medium transition-colors ${textColor}`}>Application</Link>
+                  <NotificationBell />
                 </>
               )}
               {role === "client" && (

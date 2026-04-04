@@ -7,10 +7,18 @@ import EscrowStatusPanel from "@/components/EscrowStatusPanel";
 import GiveawayTracker from "@/components/GiveawayTracker";
 import LockoutCard from "@/components/LockoutCard";
 
+interface DailyCount {
+  day: string;
+  label: string;
+  count: number;
+}
+
 interface ViewStats {
   weekViews: number;
   monthViews: number;
   totalViews: number;
+  dailyCounts?: DailyCount[];
+  todayViews?: number;
 }
 
 interface CandidateData {
@@ -710,24 +718,50 @@ export default function CandidateDashboardPage() {
         </div>
       </div>
 
-      {/* Stats grid */}
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Views This Week</p>
-          <p className="mt-1 text-2xl font-bold text-[#1C1B1A]">{viewStats?.weekViews || 0}</p>
+      {/* Profile Activity */}
+      <div className="mb-8">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Profile Activity</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Stat cards */}
+          <div className="rounded-xl border border-gray-200 bg-white p-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Views This Week</p>
+            <p className="mt-1 text-3xl font-bold text-[#1C1B1A]">{viewStats?.weekViews || 0}</p>
+            <p className="mt-1 text-xs text-gray-400">{viewStats?.monthViews || 0} this month</p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Views</p>
+            <p className="mt-1 text-3xl font-bold text-[#1C1B1A]">{viewStats?.totalViews || 0}</p>
+            <p className="mt-1 text-xs text-gray-400">All time</p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Earnings</p>
+            <p className="mt-1 text-3xl font-bold text-green-600">${(candidate.total_earnings_usd || 0).toLocaleString()}</p>
+            <p className="mt-1 text-xs text-gray-400">Platform total</p>
+          </div>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Views This Month</p>
-          <p className="mt-1 text-2xl font-bold text-[#1C1B1A]">{viewStats?.monthViews || 0}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total Views</p>
-          <p className="mt-1 text-2xl font-bold text-[#1C1B1A]">{viewStats?.totalViews || 0}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Earnings</p>
-          <p className="mt-1 text-2xl font-bold text-green-600">${(candidate.total_earnings_usd || 0).toLocaleString()}</p>
-        </div>
+
+        {/* Daily views bar chart */}
+        {viewStats?.dailyCounts && viewStats.dailyCounts.length > 0 && (
+          <div className="mt-4 rounded-xl border border-gray-200 bg-white p-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-3">Views by Day — Past 7 Days</p>
+            <div className="flex items-end gap-2 h-16">
+              {viewStats.dailyCounts.map((d) => {
+                const maxCount = Math.max(...(viewStats.dailyCounts || []).map((dc) => dc.count), 1);
+                const height = d.count > 0 ? Math.max((d.count / maxCount) * 100, 12) : 4;
+                return (
+                  <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-[10px] font-semibold text-[#1C1B1A] tabular-nums">{d.count > 0 ? d.count : ""}</span>
+                    <div
+                      className={`w-full rounded-sm transition-all ${d.count > 0 ? "bg-[#FE6E3E]" : "bg-gray-100"}`}
+                      style={{ height: `${height}%` }}
+                    />
+                    <span className="text-[9px] text-gray-400">{d.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Escrow Status */}
