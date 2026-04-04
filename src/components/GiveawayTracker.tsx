@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 interface GiveawayEntry {
   application_complete: boolean;
   profile_approved: boolean;
   tag_verified: boolean;
   eligible: boolean;
+  raffle_ticket_count: number;
+  video_bonus_awarded: boolean;
 }
 
 export default function GiveawayTracker() {
@@ -47,6 +50,9 @@ export default function GiveawayTracker() {
   ];
 
   const completedCount = steps.filter((s) => s.complete).length;
+  const baseTickets = completedCount;
+  const videoBonus = entry.video_bonus_awarded ? 3 : 0;
+  const totalTickets = entry.raffle_ticket_count || (baseTickets + videoBonus);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -81,14 +87,36 @@ export default function GiveawayTracker() {
         ))}
       </div>
 
-      <div className="mt-4 rounded-lg bg-gray-50 p-3">
+      {/* Raffle ticket breakdown */}
+      <div className="mt-4 rounded-lg bg-gray-50 p-3 space-y-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-gray-500">Base entries</span>
+          <span className="font-semibold text-[#1C1B1A]">{baseTickets}</span>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-gray-500">Video introduction bonus</span>
+          {entry.video_bonus_awarded ? (
+            <span className="font-semibold text-green-600">+3</span>
+          ) : (
+            <Link href="/profile/video-intro" className="text-[#FE6E3E] font-medium hover:underline">
+              Locked — add a video to earn +3
+            </Link>
+          )}
+        </div>
+        <div className="flex items-center justify-between text-xs border-t border-gray-200 pt-1.5">
+          <span className="font-semibold text-[#1C1B1A]">Total raffle entries</span>
+          <span className="text-sm font-bold text-[#FE6E3E]">{totalTickets}</span>
+        </div>
+      </div>
+
+      <div className="mt-3">
         {entry.eligible ? (
           <p className="text-xs text-green-700 font-medium">
             You are eligible for the $3,000 giveaway. Winners announced on the 1st of the month.
           </p>
         ) : (
           <p className="text-xs text-gray-500">
-            Complete all 3 steps to be eligible for the $3,000 giveaway. {completedCount}/3 complete.
+            Complete all 3 steps to be eligible. {completedCount}/3 complete.
           </p>
         )}
       </div>

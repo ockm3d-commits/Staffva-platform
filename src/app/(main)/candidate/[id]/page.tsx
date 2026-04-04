@@ -69,6 +69,32 @@ async function AudioPlayerServer({ bucket, path, label }: { bucket: string; path
   );
 }
 
+async function VideoPlayerSection({ bucket, path }: { bucket: string; path: string }) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  let videoUrl = path;
+  if (!path.startsWith("http")) {
+    const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 3600);
+    videoUrl = data?.signedUrl || "";
+  }
+
+  if (!videoUrl) return null;
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <p className="text-xs font-semibold text-text/40 uppercase tracking-wider mb-1">Video Introduction</p>
+      <p className="text-[10px] text-text-tertiary mb-3">Reviewed and approved by StaffVA</p>
+      <div className="rounded-lg overflow-hidden bg-black">
+        <video controls playsInline src={videoUrl} className="w-full aspect-video" preload="metadata" />
+      </div>
+      <p className="mt-2 text-[10px] text-text-tertiary">This video was reviewed by our team to confirm it meets StaffVA professional standards.</p>
+    </div>
+  );
+}
+
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -501,6 +527,25 @@ export default async function CandidateProfilePage({
           </div>
         ) : null}
       </div>
+
+      {/* ═══════════ VIDEO INTRODUCTION ═══════════ */}
+      {candidate.video_intro_status === "approved" && candidate.video_intro_url && (
+        <div className="mx-auto max-w-5xl px-6 mt-6">
+          {canViewGated ? (
+            <VideoPlayerSection bucket="video-intros" path={candidate.video_intro_url} />
+          ) : (
+            <div className="rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center">
+              <svg className="mx-auto w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <p className="mt-2 text-sm text-text/60">Sign in to watch this professional&apos;s video introduction</p>
+              <Link href="/login" className="mt-2 inline-block text-sm text-primary hover:underline">
+                Create a free account
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ═══════════ AI ASSESSMENT SCORES ═══════════ */}
       {candidate.admin_status === "approved" && (() => {

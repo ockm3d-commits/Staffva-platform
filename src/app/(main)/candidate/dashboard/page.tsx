@@ -45,6 +45,9 @@ interface CandidateData {
   profile_completed_at: string | null;
   id_verification_status: string | null;
   application_step: string | null;
+  video_intro_status: string | null;
+  video_intro_url: string | null;
+  video_intro_admin_note: string | null;
 }
 
 interface InterviewData {
@@ -440,7 +443,7 @@ export default function CandidateDashboardPage() {
 
       const { data: c } = await supabase
         .from("candidates")
-        .select("id, display_name, admin_status, role_category, hourly_rate, availability_status, total_earnings_usd, profile_photo_url, english_written_tier, speaking_level, tagline, bio, skills, tools, work_experience, resume_url, payout_method, english_mc_score, voice_recording_1_url, voice_recording_2_url, profile_completed_at, id_verification_status, application_step")
+        .select("id, display_name, admin_status, role_category, hourly_rate, availability_status, total_earnings_usd, profile_photo_url, english_written_tier, speaking_level, tagline, bio, skills, tools, work_experience, resume_url, payout_method, english_mc_score, voice_recording_1_url, voice_recording_2_url, profile_completed_at, id_verification_status, application_step, video_intro_status, video_intro_url, video_intro_admin_note")
         .eq("user_id", session.user.id)
         .single();
 
@@ -874,6 +877,62 @@ export default function CandidateDashboardPage() {
 
       {/* Contracts */}
       <ContractsSection />
+
+      {/* Video Introduction */}
+      {candidate.video_intro_status === "approved" ? (
+        <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 className="text-sm font-semibold text-green-800">Your video introduction is live</h3>
+          </div>
+          <p className="text-xs text-green-700 mb-3">Clients can watch it on your profile.</p>
+        </div>
+      ) : candidate.video_intro_status === "pending_review" ? (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+            <h3 className="text-sm font-semibold text-amber-800">Your video introduction is under review</h3>
+          </div>
+          <p className="mt-1 text-xs text-amber-700">We will notify you within 24 hours.</p>
+        </div>
+      ) : candidate.video_intro_status === "revision_required" ? (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
+          <h3 className="text-sm font-semibold text-amber-800">Your video needs a small update</h3>
+          {candidate.video_intro_admin_note && (
+            <div className="mt-2 rounded-lg bg-white border border-amber-200 p-3">
+              <p className="text-xs text-amber-900 italic">&quot;{candidate.video_intro_admin_note}&quot;</p>
+            </div>
+          )}
+          <Link
+            href="/profile/video-intro"
+            className="mt-3 inline-block rounded-full bg-[#FE6E3E] px-5 py-2 text-xs font-semibold text-white hover:bg-[#e55a2b] transition-colors"
+          >
+            Re-record Video
+          </Link>
+        </div>
+      ) : (
+        <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+              <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-[#1C1B1A]">Add Your Video Introduction</h3>
+              <p className="mt-0.5 text-xs text-gray-500">Candidates with a video introduction attract significantly more client attention. Add yours to earn 3 bonus raffle entries.</p>
+              <Link
+                href="/profile/video-intro"
+                className="mt-3 inline-block rounded-full bg-[#FE6E3E] px-5 py-2 text-xs font-semibold text-white hover:bg-[#e55a2b] transition-colors"
+              >
+                Add Video Introduction
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6">
         <GiveawayTracker />

@@ -22,7 +22,7 @@ export async function GET() {
 
   const { data: candidate } = await supabase
     .from("candidates")
-    .select("id, admin_status")
+    .select("id, admin_status, video_intro_raffle_tickets_awarded")
     .eq("user_id", user.id)
     .single();
 
@@ -87,5 +87,10 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ entry });
+  return NextResponse.json({
+    entry: entry ? {
+      ...entry,
+      video_bonus_awarded: !!candidate.video_intro_raffle_tickets_awarded,
+    } : null,
+  });
 }
