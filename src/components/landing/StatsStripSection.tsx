@@ -1,24 +1,21 @@
 const STATS = [
   { number: "<30%", label: "Acceptance rate" },
-  { number: "100%", label: "Human-reviewed assessments" },
-  { number: "$0", label: "Candidate fees. Ever." },
-  { number: "10", label: "Countries represented" },
+  { number: "100%", label: "Human-reviewed" },
+  { number: "$0", label: "Candidate fees" },
+  { number: "10+", label: "Countries" },
 ];
 
 export default function StatsStripSection() {
   return (
-    <section className="bg-charcoal">
-      <div className="mx-auto max-w-7xl">
-        <div className="grid grid-cols-2 lg:grid-cols-4">
-          {STATS.map((stat, i) => (
-            <div
-              key={stat.number}
-              className={`flex flex-col items-center justify-center py-7 px-6 lg:px-12 text-center ${
-                i < STATS.length - 1 ? "border-r border-white/[0.07]" : ""
-              } ${i === 1 ? "max-lg:border-r-0" : ""}`}
-            >
-              <p className="text-[2rem] font-light text-primary font-serif">{stat.number}</p>
-              <p className="mt-1.5 text-[11px] text-white/35 tracking-wide leading-snug max-w-[200px]">
+    <section className="border-y border-border-light bg-card">
+      <div className="mx-auto max-w-5xl px-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-border-light">
+          {STATS.map((stat) => (
+            <div key={stat.number} className="flex flex-col items-center py-10 px-4">
+              <p className="text-3xl sm:text-4xl font-light tracking-tight text-text">
+                {stat.number}
+              </p>
+              <p className="mt-2 text-xs text-text-tertiary tracking-wide uppercase">
                 {stat.label}
               </p>
             </div>

@@ -1,37 +1,40 @@
 export default function HowItWorksSection() {
   const steps = [
     {
-      number: "1",
+      number: "01",
       title: "Browse free",
       description: "See every vetted professional instantly. No login required.",
     },
     {
-      number: "2",
-      title: "Create a free account",
-      description: "View full profiles, hear voice recordings, and message directly. No credit card.",
+      number: "02",
+      title: "Hear their voice",
+      description: "Listen to real voice recordings. Know how they communicate before you connect.",
     },
     {
-      number: "3",
+      number: "03",
       title: "Hire through escrow",
-      description: "Payments are held in escrow. You release when satisfied. Work begins.",
+      description: "Payments are held securely. You release when satisfied.",
     },
   ];
 
   return (
-    <section className="bg-card py-20">
-      <div className="mx-auto max-w-7xl px-6">
-        <h2 className="text-center text-3xl font-bold text-text">
+    <section className="bg-background py-24 sm:py-32">
+      <div className="mx-auto max-w-5xl px-6">
+        <p className="text-center text-sm font-medium tracking-widest uppercase text-text-tertiary">
+          How it works
+        </p>
+        <h2 className="mt-4 text-center text-3xl sm:text-4xl font-semibold tracking-tight text-text">
           Three steps. That&apos;s it.
         </h2>
 
-        <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-10">
+        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-16 md:gap-8">
           {steps.map((step) => (
             <div key={step.number} className="text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                <span className="text-2xl font-bold text-primary">{step.number}</span>
-              </div>
-              <h3 className="mt-5 text-lg font-semibold text-text">{step.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-text-muted">{step.description}</p>
+              <p className="text-5xl font-extralight tracking-tight text-text/10">
+                {step.number}
+              </p>
+              <h3 className="mt-4 text-lg font-semibold text-text">{step.title}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-text-muted">{step.description}</p>
             </div>
           ))}
         </div>

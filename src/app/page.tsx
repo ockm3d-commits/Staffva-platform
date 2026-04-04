@@ -59,12 +59,9 @@ export default async function Home() {
 
   return (
     <main className="overflow-x-hidden">
-      <AnnouncementBar />
       <LandingNavbar />
       <HeroSection heroPreview={heroPreview} />
       <StatsStripSection />
-      <CommonSearchesSection />
-      <BrowseByRoleSection />
       <LiveCandidatesSection candidates={liveCandidates} />
       <HowItWorksSection />
       <WhyStaffVASection />
@@ -74,7 +71,6 @@ export default async function Home() {
       />
       <FinalCTASection />
       <Footer />
-      <QuickMatchButton />
     </main>
   );
 }

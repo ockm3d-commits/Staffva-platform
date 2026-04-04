@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface HeroCandidate {
   id: string;
@@ -17,35 +18,6 @@ interface Props {
   heroPreview: HeroCandidate[];
 }
 
-const ROLE_CHIPS = [
-  { label: "Paralegal", icon: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
-  { label: "Bookkeeper", icon: "M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" },
-  { label: "Legal Assistant", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
-  { label: "Admin", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
-  { label: "VA", icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" },
-  { label: "Scheduling", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
-  { label: "Customer Support", icon: "M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" },
-];
-
-function WaveformBars() {
-  const heights = [3, 8, 5, 10, 4, 7, 6, 11];
-  return (
-    <div className="flex items-end gap-[2px]">
-      {heights.map((h, i) => (
-        <div
-          key={i}
-          className="w-[2px] rounded-sm bg-primary"
-          style={{
-            height: h,
-            animation: "waveform 1.2s ease-in-out infinite",
-            animationDelay: `${i * 0.1}s`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
 export default function HeroSection({ heroPreview: _heroPreview }: Props) {
   const [query, setQuery] = useState("");
   const router = useRouter();
@@ -57,136 +29,65 @@ export default function HeroSection({ heroPreview: _heroPreview }: Props) {
 
   return (
     <section className="relative bg-card overflow-hidden">
-      <div className="mx-auto max-w-7xl px-6 pt-16 pb-20 lg:pt-20 lg:pb-28">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      {/* Generous vertical space — Apple hero pacing */}
+      <div className="mx-auto max-w-4xl px-6 pt-24 pb-20 sm:pt-32 sm:pb-28 lg:pt-40 lg:pb-36 text-center">
 
-          {/* Left — copy + search */}
-          <div>
-            <span className="inline-block text-sm font-semibold text-primary tracking-wide uppercase">
-              Vetted professionals. Ready to hire.
-            </span>
+        {/* Eyebrow — quiet, earned */}
+        <p className="text-sm font-medium tracking-widest uppercase text-primary">
+          Vetted talent marketplace
+        </p>
 
-            <h1 className="mt-4 text-4xl sm:text-5xl lg:text-[3.25rem] font-bold leading-[1.1] text-text">
-              The talent you need.{" "}
-              <span className="text-primary">Already proven.</span>
-            </h1>
+        {/* Headline — one idea, owns the viewport */}
+        <h1 className="mt-6 text-[2.75rem] sm:text-6xl lg:text-7xl font-semibold leading-[1.05] tracking-tight text-text">
+          The talent you need.
+          <br />
+          <span className="text-primary">Already proven.</span>
+        </h1>
 
-            <p className="mt-6 text-lg text-text-muted leading-relaxed max-w-xl">
-              Every professional on StaffVA passed a live English and speaking
-              assessment. Browse profiles, hear voice recordings, and hire
-              through escrow. Free to start.
-            </p>
+        {/* Subhead — one breath, benefit-first */}
+        <p className="mx-auto mt-6 max-w-2xl text-lg sm:text-xl text-text-muted leading-relaxed">
+          Every professional on StaffVA passed a live English and speaking
+          assessment. Browse profiles, hear voice recordings, and hire
+          through escrow.
+        </p>
 
-            {/* Search */}
-            <form onSubmit={handleSearch} className="mt-8 flex gap-2 max-w-lg">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder='Try "paralegal" or "bookkeeper"...'
-                className="flex-1 rounded-lg bg-card border border-border-light px-4 py-3.5 text-sm text-text placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-              />
-              <button
-                type="submit"
-                className="rounded-lg bg-primary px-6 py-3.5 text-sm font-semibold text-white hover:bg-primary-dark transition-colors whitespace-nowrap"
-              >
-                Search
-              </button>
-            </form>
-
-            {/* Audience labels */}
-            <div className="mt-6 flex items-center gap-6 max-w-lg">
-              <div className="flex items-center gap-2">
-                <span className="h-px w-6 bg-border-light" />
-                <span className="text-xs text-text-muted">For businesses</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-text-muted">For professionals</span>
-                <a href="/apply" className="text-xs font-semibold text-primary underline underline-offset-2 hover:text-primary-dark transition-colors">
-                  Apply Now
-                </a>
-              </div>
-            </div>
-
-            {/* Role chips */}
-            <div className="mt-5 flex flex-wrap gap-2">
-              {ROLE_CHIPS.map((chip) => (
-                <button
-                  key={chip.label}
-                  onClick={() => router.push(`/browse?role=${encodeURIComponent(chip.label)}`)}
-                  className="group flex items-center gap-[5px] rounded-full border border-border bg-card px-3.5 py-1.5 text-xs text-text-secondary hover:border-primary hover:text-primary transition-colors cursor-pointer"
-                >
-                  <svg className="w-[11px] h-[11px] opacity-50 group-hover:opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d={chip.icon} />
-                  </svg>
-                  {chip.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Trust badges */}
-            <div className="mt-6 flex flex-wrap gap-6 text-sm text-text">
-              <span className="flex items-center gap-1.5">
-                <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                Escrow on every payment
-              </span>
-              <span className="flex items-center gap-1.5">
-                <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                Zero candidate fees. Ever.
-              </span>
-            </div>
-          </div>
-
-          {/* Right — hero photo with floating cards */}
-          <div className="hidden lg:block relative">
-            <div className="relative w-[560px] h-[520px] rounded-2xl overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/hero-photo.svg" alt="StaffVA professional ready to work" className="w-full h-full object-cover object-top" />
-            </div>
-
-            {/* Floating card — bottom left */}
-            <div className="absolute z-10 w-[220px] rounded-xl bg-card p-3.5 shadow-lg border border-border animate-fade-in-up" style={{ bottom: -20, left: -20 }}>
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">RS</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-text">Ranim S.</p>
-                  <p className="text-[10px] text-text-tertiary">HR Specialist · Egypt</p>
-                </div>
-              </div>
-              <div className="mt-2 flex items-center justify-between">
-                <span className="text-sm font-bold text-primary">$1,000/mo</span>
-                <span className="flex items-center gap-1 text-[10px] text-green-600">
-                  <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                  Available now
-                </span>
-              </div>
-              <div className="mt-2 flex items-center gap-[7px] rounded-md bg-surface-warm px-2 py-1.5 border border-border">
-                <div className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-primary">
-                  <svg className="w-[6px] h-[6px] text-white ml-[1px]" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                </div>
-                <span className="text-[9px] text-text-tertiary">Voice recording</span>
-                <div className="ml-auto"><WaveformBars /></div>
-              </div>
-            </div>
-
-            {/* Floating card — top right */}
-            <div className="absolute z-10 w-[180px] rounded-xl bg-card p-3 shadow-lg border border-border animate-fade-in-up" style={{ top: 20, right: -20, animationDelay: "0.2s" }}>
-              <p className="text-xs font-semibold text-text">Shelly G.</p>
-              <p className="text-[9px] text-text-tertiary">Philippines</p>
-              <div className="mt-1.5 flex items-center justify-between">
-                <span className="text-[13px] font-bold text-primary">$1,500/mo</span>
-              </div>
-              <div className="mt-1.5">
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-medium text-primary">Exceptional</span>
-              </div>
-              <p className="mt-1 text-[9px] text-text-tertiary">Social Media Manager</p>
-            </div>
-          </div>
+        {/* CTA cluster — primary + secondary, nothing else */}
+        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Link
+            href="/browse"
+            className="rounded-full bg-primary px-8 py-3.5 text-sm font-semibold text-white hover:bg-primary-dark transition-colors"
+          >
+            Browse Talent
+          </Link>
+          <Link
+            href="/apply"
+            className="rounded-full border border-border px-8 py-3.5 text-sm font-semibold text-text hover:border-text transition-colors"
+          >
+            Apply as a Professional
+          </Link>
         </div>
+
+        {/* Search — secondary action, calm */}
+        <form onSubmit={handleSearch} className="mx-auto mt-10 flex max-w-md gap-2">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder='Try "paralegal" or "bookkeeper"'
+            className="flex-1 rounded-full border border-border-light bg-background px-5 py-3 text-sm text-text placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+          />
+          <button
+            type="submit"
+            className="rounded-full bg-charcoal px-5 py-3 text-sm font-medium text-white hover:bg-charcoal/90 transition-colors"
+          >
+            Search
+          </button>
+        </form>
+
+        {/* Trust line — whisper, not shout */}
+        <p className="mt-8 text-xs text-text-tertiary tracking-wide">
+          Free to browse · Escrow on every payment · Zero candidate fees
+        </p>
       </div>
     </section>
   );
