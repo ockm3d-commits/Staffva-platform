@@ -20,211 +20,115 @@ interface Props {
   candidates: LiveCandidate[];
 }
 
-const TIER_CONFIG: Record<string, { label: string; color: string }> = {
-  exceptional: { label: "Exceptional", color: "bg-emerald-100 text-emerald-700" },
-  proficient: { label: "Proficient", color: "bg-blue-100 text-blue-700" },
-  competent: { label: "Competent", color: "bg-gray-100 text-gray-700" },
+const TIER_STYLE: Record<string, string> = {
+  exceptional: "bg-primary/10 text-primary",
+  proficient: "bg-background text-text-secondary",
+  competent: "bg-background text-text-tertiary",
 };
 
-const SPEAKING_CONFIG: Record<string, { label: string; color: string }> = {
-  fluent: { label: "Fluent", color: "bg-emerald-100 text-emerald-700" },
-  proficient: { label: "Proficient", color: "bg-blue-100 text-blue-700" },
-  conversational: { label: "Conversational", color: "bg-amber-100 text-amber-700" },
-  basic: { label: "Basic", color: "bg-gray-100 text-gray-700" },
+const SPEAKING_STYLE: Record<string, string> = {
+  fluent: "bg-indigo-50 text-indigo-600",
+  proficient: "bg-background text-text-secondary",
+  conversational: "bg-background text-text-tertiary",
+  basic: "bg-background text-text-tertiary",
 };
 
-const SAMPLE_CANDIDATES: { display_name: string; country: string; role_category: string; monthly_rate: number; english_written_tier: string; speaking_level: string; profile_photo_url: string | null }[] = [
-  { display_name: "Maria S.", country: "Philippines", role_category: "Paralegal", monthly_rate: 1200, english_written_tier: "exceptional", speaking_level: "fluent", profile_photo_url: null },
-  { display_name: "Ahmed K.", country: "Lebanon", role_category: "Bookkeeper", monthly_rate: 1400, english_written_tier: "proficient", speaking_level: "proficient", profile_photo_url: null },
-  { display_name: "Sofia R.", country: "Brazil", role_category: "Legal Assistant", monthly_rate: 1100, english_written_tier: "proficient", speaking_level: "conversational", profile_photo_url: null },
-  { display_name: "Grace T.", country: "Philippines", role_category: "Admin", monthly_rate: 900, english_written_tier: "competent", speaking_level: "proficient", profile_photo_url: null },
-  { display_name: "Omar H.", country: "Egypt", role_category: "Bookkeeper", monthly_rate: 1300, english_written_tier: "exceptional", speaking_level: "fluent", profile_photo_url: null },
-  { display_name: "Lea M.", country: "Philippines", role_category: "Paralegal", monthly_rate: 1500, english_written_tier: "exceptional", speaking_level: "fluent", profile_photo_url: null },
-];
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 export default function LiveCandidatesSection({ candidates }: Props) {
+  const cards = candidates.length > 0 ? candidates : [];
+
+  if (cards.length === 0) return null;
+
   return (
-    <section className="bg-background py-20">
-      <div className="mx-auto max-w-7xl px-6">
-        <h2 className="text-center text-3xl font-bold text-text">
+    <section className="bg-background py-24 sm:py-32">
+      <div className="mx-auto max-w-6xl px-6">
+        <p className="text-center text-sm font-medium tracking-widest uppercase text-text-tertiary">
+          Available now
+        </p>
+        <h2 className="mt-4 text-center text-3xl sm:text-4xl font-semibold tracking-tight text-text">
           Who&apos;s available right now
         </h2>
 
-        {candidates.length > 0 ? (
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {candidates.map((c) => {
-              const tier = c.english_written_tier
-                ? TIER_CONFIG[c.english_written_tier]
-                : null;
-              const speaking = c.speaking_level
-                ? SPEAKING_CONFIG[c.speaking_level]
-                : null;
+        <div className="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {cards.slice(0, 6).map((c) => {
+            const tierStyle = c.english_written_tier ? TIER_STYLE[c.english_written_tier] : null;
+            const speakingStyle = c.speaking_level ? SPEAKING_STYLE[c.speaking_level] : null;
 
-              return (
-                <div
-                  key={c.id}
-                  className="rounded-xl border border-gray-200 bg-card p-5 shadow-sm hover:shadow-md hover:border-primary/30 transition-all"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gray-100">
-                      {c.profile_photo_url ? (
-                        <img src={c.profile_photo_url} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-sm font-bold text-text/30">
-                          {c.display_name?.[0] || "?"}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-semibold text-text">
-                            {c.display_name}
-                          </h3>
-                          <p className="text-sm text-text/60 mt-0.5">{c.country}</p>
-                        </div>
-                        <p className="text-lg font-bold text-primary shrink-0">
-                          ${c.monthly_rate.toLocaleString()}
-                          <span className="text-xs font-normal text-text/40">
-                            /mo
-                          </span>
-                        </p>
+            return (
+              <Link
+                key={c.id}
+                href={`/candidate/${c.id}`}
+                className="group rounded-2xl border border-border-light bg-card p-5 hover:border-text/20 transition-colors"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-background">
+                    {c.profile_photo_url ? (
+                      <img src={c.profile_photo_url} alt={c.display_name} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-text-tertiary">
+                        {c.display_name?.[0] || "?"}
                       </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="text-sm font-semibold text-text">{c.display_name}</h3>
+                        <p className="mt-0.5 text-xs text-text-tertiary">{c.country} · {c.role_category}</p>
+                      </div>
+                      <p className="text-base font-semibold text-text shrink-0 tabular-nums">
+                        ${c.monthly_rate.toLocaleString()}
+                        <span className="text-xs font-normal text-text-tertiary">/mo</span>
+                      </p>
                     </div>
                   </div>
+                </div>
 
-                  {/* Role pill */}
-                  <div className="mt-3">
-                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                      {c.role_category}
+                {/* Badges */}
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {tierStyle && (
+                    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${tierStyle}`}>
+                      {capitalize(c.english_written_tier!)}
                     </span>
-                  </div>
-
-                  {/* Badges */}
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {tier && (
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${tier.color}`}
-                      >
-                        {tier.label}
-                      </span>
-                    )}
-                    {speaking && (
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${speaking.color}`}
-                      >
-                        {speaking.label}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Verified earnings */}
-                  {c.total_earnings_usd > 0 && (
-                    <p className="mt-2 text-xs font-medium text-green-600">
-                      ${Number(c.total_earnings_usd).toLocaleString()} earned on
-                      platform
-                    </p>
                   )}
-
-                  {/* Availability + CTA */}
-                  <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
-                    <span className="flex items-center gap-1.5 text-xs font-medium text-green-600">
-                      <span className="h-2 w-2 rounded-full bg-green-500" />
-                      Available now
+                  {speakingStyle && (
+                    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${speakingStyle}`}>
+                      {capitalize(c.speaking_level!)}
                     </span>
-                    <Link
-                      href={`/candidate/${c.id}`}
-                      className="text-xs font-medium text-primary hover:underline"
-                    >
-                      View Profile &rarr;
-                    </Link>
-                  </div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {SAMPLE_CANDIDATES.map((c) => {
-              const tier = TIER_CONFIG[c.english_written_tier];
-              const speaking = SPEAKING_CONFIG[c.speaking_level];
 
-              return (
-                <div
-                  key={c.display_name}
-                  className="rounded-xl border border-gray-200 bg-card p-5 shadow-sm hover:shadow-md hover:border-primary/30 transition-all"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-gray-100">
-                      {c.profile_photo_url ? (
-                        <img src={c.profile_photo_url} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-sm font-bold text-text/30">
-                          {c.display_name?.[0] || "?"}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-semibold text-text">
-                            {c.display_name}
-                          </h3>
-                          <p className="text-sm text-text/60 mt-0.5">{c.country}</p>
-                        </div>
-                        <p className="text-lg font-bold text-primary shrink-0">
-                          ${c.monthly_rate.toLocaleString()}
-                          <span className="text-xs font-normal text-text/40">
-                            /mo
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                {/* Earnings */}
+                {c.total_earnings_usd > 0 && (
+                  <p className="mt-2.5 text-xs text-text-tertiary">
+                    ${Number(c.total_earnings_usd).toLocaleString()} earned
+                  </p>
+                )}
 
-                  <div className="mt-3">
-                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                      {c.role_category}
-                    </span>
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${tier.color}`}
-                    >
-                      {tier.label}
-                    </span>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${speaking.color}`}
-                    >
-                      {speaking.label}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
-                    <span className="flex items-center gap-1.5 text-xs font-medium text-green-600">
-                      <span className="h-2 w-2 rounded-full bg-green-500" />
-                      Available now
-                    </span>
-                    <span className="text-xs font-medium text-primary">
-                      View Profile &rarr;
-                    </span>
-                  </div>
+                {/* Footer */}
+                <div className="mt-4 flex items-center justify-between pt-3 border-t border-border-light">
+                  <span className="flex items-center gap-1.5 text-xs text-green-600">
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                    Available
+                  </span>
+                  <span className="text-xs font-medium text-text-tertiary group-hover:text-text transition-colors">
+                    View →
+                  </span>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </Link>
+            );
+          })}
+        </div>
 
-        <div className="mt-10 text-center">
+        <div className="mt-12 text-center">
           <Link
             href="/browse"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-8 py-3 text-sm font-semibold text-white hover:bg-primary-dark transition-colors"
+            className="rounded-full border border-border px-8 py-3 text-sm font-medium text-text hover:border-text transition-colors"
           >
-            Browse All Candidates
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg>
+            See all
           </Link>
         </div>
       </div>
