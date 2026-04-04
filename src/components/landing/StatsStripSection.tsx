@@ -1,7 +1,7 @@
 const STATS = [
-  { number: "<30%", label: "Acceptance rate" },
+  { number: "<30%", label: "Accepted" },
   { number: "100%", label: "Human-reviewed" },
-  { number: "$0", label: "Candidate fees" },
+  { number: "2", label: "Voice recordings per profile" },
   { number: "10+", label: "Countries" },
 ];
 

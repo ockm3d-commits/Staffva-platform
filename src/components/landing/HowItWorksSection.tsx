@@ -2,18 +2,18 @@ export default function HowItWorksSection() {
   const steps = [
     {
       number: "01",
-      title: "Browse free",
-      description: "See every vetted professional instantly. No login required.",
+      title: "Browse instantly",
+      description: "No login. No subscription. Profiles load the moment you arrive.",
     },
     {
       number: "02",
-      title: "Hear their voice",
-      description: "Listen to real voice recordings. Know how they communicate before you connect.",
+      title: "Listen, then decide",
+      description: "Two voice recordings on every profile. An oral reading and a personal introduction.",
     },
     {
       number: "03",
-      title: "Hire through escrow",
-      description: "Payments are held securely. You release when satisfied.",
+      title: "Pay through escrow",
+      description: "Funds are held until you approve the work. Protected on both sides.",
     },
   ];
 
@@ -24,7 +24,7 @@ export default function HowItWorksSection() {
           How it works
         </p>
         <h2 className="mt-4 text-center text-3xl sm:text-4xl font-semibold tracking-tight text-text">
-          Three steps. That&apos;s it.
+          From search to hire in minutes.
         </h2>
 
         <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-16 md:gap-8">

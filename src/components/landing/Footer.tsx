@@ -10,21 +10,18 @@ export default function Footer() {
             <Link href="/" className="inline-block">
               <Image src="/logo.svg" alt="StaffVA" width={90} height={32} />
             </Link>
-            <p className="mt-3 text-xs text-text-tertiary leading-relaxed max-w-[200px]">
-              Vetted talent marketplace. Free to browse. Pay when you hire.
-            </p>
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold text-text tracking-wide uppercase">For Clients</h4>
+            <h4 className="text-xs font-semibold text-text tracking-wide uppercase">Clients</h4>
             <ul className="mt-3 space-y-2">
-              <li><Link href="/browse" className="text-sm text-text-muted hover:text-text transition-colors">Browse Talent</Link></li>
+              <li><Link href="/browse" className="text-sm text-text-muted hover:text-text transition-colors">Browse</Link></li>
               <li><Link href="/post-role" className="text-sm text-text-muted hover:text-text transition-colors">Post a Role</Link></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold text-text tracking-wide uppercase">For Professionals</h4>
+            <h4 className="text-xs font-semibold text-text tracking-wide uppercase">Professionals</h4>
             <ul className="mt-3 space-y-2">
               <li><Link href="/apply" className="text-sm text-text-muted hover:text-text transition-colors">Apply</Link></li>
               <li><Link href="/login" className="text-sm text-text-muted hover:text-text transition-colors">Sign In</Link></li>
@@ -32,7 +29,7 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold text-text tracking-wide uppercase">Company</h4>
+            <h4 className="text-xs font-semibold text-text tracking-wide uppercase">Support</h4>
             <ul className="mt-3 space-y-2">
               <li><a href="mailto:support@staffva.com" className="text-sm text-text-muted hover:text-text transition-colors">Contact</a></li>
             </ul>
@@ -41,7 +38,7 @@ export default function Footer() {
 
         <div className="mt-10 pt-6 border-t border-border-light">
           <p className="text-xs text-text-tertiary text-center">
-            &copy; {new Date().getFullYear()} StaffVA. All rights reserved.
+            &copy; {new Date().getFullYear()} StaffVA
           </p>
         </div>
       </div>
