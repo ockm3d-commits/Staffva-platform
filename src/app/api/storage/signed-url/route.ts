@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Only allow specific buckets
-  const allowedBuckets = ["voice-recordings", "resumes", "portfolio"];
+  const allowedBuckets = ["voice-recordings", "resumes", "portfolio", "contracts"];
   if (!allowedBuckets.includes(bucket)) {
     return NextResponse.json({ error: "Invalid bucket" }, { status: 400 });
   }

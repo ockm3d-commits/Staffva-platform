@@ -53,6 +53,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Engagement not found" }, { status: 404 });
     }
 
+    // Check contract is fully executed before allowing escrow funding
+    const { data: contract } = await admin
+      .from("engagement_contracts")
+      .select("status")
+      .eq("engagement_id", engagementId)
+      .single();
+
+    if (contract && contract.status !== "fully_executed") {
+      return NextResponse.json(
+        { error: "Contract must be fully signed by both parties before funding escrow" },
+        { status: 400 }
+      );
+    }
+
     // Get or create Stripe customer
     let customerId = engagement.clients.stripe_customer_id;
     if (!customerId) {

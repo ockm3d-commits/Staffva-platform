@@ -111,6 +111,19 @@ export async function GET() {
       allPeriods[p.engagement_id]!.push(p);
     }
 
+    // Get contracts for all engagements
+    const engagementIds = engagements.map((e) => e.id);
+    const { data: contracts } = await admin
+      .from("engagement_contracts")
+      .select("id, engagement_id, status, contract_pdf_url, client_signed_at, candidate_signed_at")
+      .in("engagement_id", engagementIds.length > 0 ? engagementIds : ["none"]);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const contractMap: Record<string, any> = {};
+    for (const c of contracts || []) {
+      contractMap[c.engagement_id] = c;
+    }
+
     // Enrich engagements
     const enriched = engagements.map((e) => ({
       ...e,
@@ -118,6 +131,7 @@ export async function GET() {
       latest_period: latestPeriodMap[e.id] || null,
       milestones: milestoneMap[e.id] || [],
       payment_history: allPeriods[e.id] || [],
+      contract: contractMap[e.id] || null,
     }));
 
     return NextResponse.json({ engagements: enriched, clientId: client.id });

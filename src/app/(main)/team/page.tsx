@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import EscrowStatusPanel from "@/components/EscrowStatusPanel";
+import ContractReviewModal from "@/components/ContractReviewModal";
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   funded: { label: "Funded — Period Active", color: "bg-green-100 text-green-700" },
@@ -26,6 +27,13 @@ const ENG_STATUS: Record<string, { label: string; color: string }> = {
   payment_failed: { label: "Payment Failed", color: "bg-red-100 text-red-700" },
   released: { label: "Released", color: "bg-gray-100 text-gray-600" },
   completed: { label: "Completed", color: "bg-blue-100 text-blue-700" },
+};
+
+const CONTRACT_STATUS: Record<string, { label: string; color: string }> = {
+  draft: { label: "Draft", color: "bg-gray-100 text-gray-600" },
+  pending_client: { label: "Awaiting Your Signature", color: "bg-amber-100 text-amber-700" },
+  pending_candidate: { label: "Awaiting Contractor Signature", color: "bg-blue-100 text-blue-700" },
+  fully_executed: { label: "Fully Executed", color: "bg-green-100 text-green-700" },
 };
 
 interface Engagement {
@@ -56,6 +64,13 @@ interface Engagement {
     amount_usd: number;
     status: string;
   }[];
+  contract: {
+    id: string;
+    status: string;
+    contract_pdf_url: string | null;
+    client_signed_at: string | null;
+    candidate_signed_at: string | null;
+  } | null;
 }
 
 export default function TeamPortalPage() {
@@ -64,6 +79,9 @@ export default function TeamPortalPage() {
   const [clientId, setClientId] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showContract, setShowContract] = useState(false);
+  const [activeContractId, setActiveContractId] = useState("");
+  const [activeContractHtml, setActiveContractHtml] = useState("");
 
   useEffect(() => {
     loadEngagements();
@@ -108,6 +126,32 @@ export default function TeamPortalPage() {
       body: JSON.stringify({ milestoneId, action: "approve" }),
     });
     await loadEngagements();
+    setActionLoading(null);
+  }
+
+  async function handleViewContract(contractId: string) {
+    setActionLoading(contractId);
+    try {
+      const res = await fetch(`/api/contracts/view?contractId=${contractId}`);
+      const data = await res.json();
+      if (res.ok && data.contractHtml) {
+        setActiveContractId(contractId);
+        setActiveContractHtml(data.contractHtml);
+        setShowContract(true);
+      }
+    } catch { /* silent */ }
+    setActionLoading(null);
+  }
+
+  async function handleDownloadContract(contractId: string) {
+    setActionLoading(contractId);
+    try {
+      const res = await fetch(`/api/contracts/view?contractId=${contractId}`);
+      const data = await res.json();
+      if (res.ok && data.contractPdfUrl) {
+        window.open(data.contractPdfUrl, "_blank");
+      }
+    } catch { /* silent */ }
     setActionLoading(null);
   }
 
@@ -193,6 +237,43 @@ export default function TeamPortalPage() {
                         <p className="font-semibold text-primary">${Number(eng.client_total_usd).toLocaleString()}</p>
                       </div>
                     </div>
+
+                    {/* Contract status */}
+                    {eng.contract && (
+                      <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <svg className="h-5 w-5 text-text/40" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                          </svg>
+                          <div>
+                            <p className="text-xs text-text/40">Contract</p>
+                            <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${CONTRACT_STATUS[eng.contract.status]?.color || "bg-gray-100"}`}>
+                              {CONTRACT_STATUS[eng.contract.status]?.label || eng.contract.status}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {eng.contract.status === "pending_client" && (
+                            <button
+                              onClick={() => handleViewContract(eng.contract!.id)}
+                              disabled={actionLoading === eng.contract.id}
+                              className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-dark transition-colors disabled:opacity-50"
+                            >
+                              Review & Sign
+                            </button>
+                          )}
+                          {eng.contract.status === "fully_executed" && eng.contract.contract_pdf_url && (
+                            <button
+                              onClick={() => handleDownloadContract(eng.contract!.id)}
+                              disabled={actionLoading === eng.contract.id}
+                              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-text hover:bg-gray-50 transition-colors disabled:opacity-50"
+                            >
+                              Download PDF
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Ongoing: latest period */}
                     {eng.contract_type === "ongoing" && eng.latest_period && (
@@ -301,15 +382,38 @@ export default function TeamPortalPage() {
                         Started {new Date(eng.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${ENG_STATUS[eng.status]?.color || "bg-gray-100"}`}>
-                      {ENG_STATUS[eng.status]?.label || eng.status}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      {eng.contract?.status === "fully_executed" && eng.contract.contract_pdf_url && (
+                        <button
+                          onClick={() => handleDownloadContract(eng.contract!.id)}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          Download Contract
+                        </button>
+                      )}
+                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${ENG_STATUS[eng.status]?.color || "bg-gray-100"}`}>
+                        {ENG_STATUS[eng.status]?.label || eng.status}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
         </>
+      )}
+
+      {/* Contract Review Modal */}
+      {showContract && activeContractHtml && (
+        <ContractReviewModal
+          contractId={activeContractId}
+          contractHtml={activeContractHtml}
+          onSigned={() => {
+            setShowContract(false);
+            loadEngagements();
+          }}
+          onClose={() => setShowContract(false)}
+        />
       )}
     </div>
   );

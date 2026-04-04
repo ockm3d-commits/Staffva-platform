@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import ContractReviewModal from "@/components/ContractReviewModal";
 
 interface MilestoneEntry {
   title: string;
@@ -27,6 +28,9 @@ export default function HirePage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [showContract, setShowContract] = useState(false);
+  const [contractId, setContractId] = useState("");
+  const [contractHtml, setContractHtml] = useState("");
 
   useEffect(() => {
     loadCandidate();
@@ -119,7 +123,32 @@ export default function HirePage() {
       return;
     }
 
-    // Redirect to team portal
+    // Generate contract for the new engagement
+    const engagementId = data.engagement?.id;
+    if (engagementId) {
+      try {
+        const contractRes = await fetch("/api/contracts/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ engagementId }),
+        });
+
+        const contractData = await contractRes.json();
+
+        if (contractRes.ok && contractData.contractHtml) {
+          setContractId(contractData.contractId);
+          setContractHtml(contractData.contractHtml);
+          setShowContract(true);
+          setSubmitting(false);
+          return;
+        }
+      } catch {
+        // If contract generation fails, still redirect to team
+        console.error("Contract generation failed, redirecting to team");
+      }
+    }
+
+    // Fallback: redirect to team portal
     router.push("/team");
   }
 
@@ -339,6 +368,15 @@ export default function HirePage() {
           {submitting ? "Creating engagement..." : "Create Engagement"}
         </button>
       </form>
+
+      {showContract && contractHtml && (
+        <ContractReviewModal
+          contractId={contractId}
+          contractHtml={contractHtml}
+          onSigned={() => router.push("/team")}
+          onClose={() => router.push("/team")}
+        />
+      )}
     </div>
   );
 }

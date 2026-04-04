@@ -230,6 +230,91 @@ function calculateCompleteness(c: CandidateData, hasPortfolio: boolean): { score
   return { score, items };
 }
 
+interface ContractItem {
+  id: string;
+  engagement_id: string;
+  status: string;
+  generated_at: string;
+  client_signed_at: string | null;
+  candidate_signed_at: string | null;
+  contract_pdf_url: string | null;
+  clients: { full_name: string; company_name: string | null } | null;
+}
+
+const CONTRACT_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  pending_candidate: { label: "Awaiting Your Signature", color: "bg-amber-100 text-amber-700" },
+  fully_executed: { label: "Fully Executed", color: "bg-green-100 text-green-700" },
+  pending_client: { label: "Awaiting Client Signature", color: "bg-blue-100 text-blue-700" },
+  draft: { label: "Draft", color: "bg-gray-100 text-gray-600" },
+};
+
+function ContractsSection() {
+  const [contracts, setContracts] = useState<ContractItem[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch("/api/contracts/list");
+        const data = await res.json();
+        setContracts(data.contracts || []);
+      } catch { /* silent */ }
+      setLoaded(true);
+    }
+    load();
+  }, []);
+
+  if (!loaded || contracts.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Contracts</h2>
+      <div className="space-y-3">
+        {contracts.map((c) => {
+          const clientInfo = c.clients as { full_name: string; company_name: string | null } | null;
+          const statusInfo = CONTRACT_STATUS_LABELS[c.status] || { label: c.status, color: "bg-gray-100 text-gray-600" };
+
+          return (
+            <div key={c.id} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4">
+              <div>
+                <p className="text-sm font-semibold text-[#1C1B1A]">
+                  {clientInfo?.company_name || clientInfo?.full_name || "Client"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Generated {new Date(c.generated_at).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusInfo.color}`}>
+                  {statusInfo.label}
+                </span>
+                {c.status === "pending_candidate" && (
+                  <a
+                    href={`/contracts/sign/${c.id}`}
+                    className="rounded-lg bg-[#FE6E3E] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#e55a2b] transition-colors"
+                  >
+                    Review & Sign
+                  </a>
+                )}
+                {c.status === "fully_executed" && c.contract_pdf_url && (
+                  <a
+                    href={c.contract_pdf_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-[#FE6E3E] hover:underline"
+                  >
+                    Download PDF
+                  </a>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function CandidateDashboardPage() {
   const [candidate, setCandidate] = useState<CandidateData | null>(null);
   const [viewStats, setViewStats] = useState<ViewStats | null>(null);
@@ -649,6 +734,10 @@ export default function CandidateDashboardPage() {
       <div className="mb-6">
         <EscrowStatusPanel role="candidate" />
       </div>
+
+      {/* Contracts */}
+      <ContractsSection />
+
       <div className="mb-6">
         <GiveawayTracker />
       </div>
