@@ -58,7 +58,7 @@ function LoginForm() {
     const role = data.user?.user_metadata?.role;
 
     if (role === "candidate") {
-      router.push("/apply");
+      router.push("/candidate/dashboard");
     } else if (role === "client") {
       router.push("/browse");
     } else if (role === "admin") {

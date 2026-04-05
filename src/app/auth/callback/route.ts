@@ -18,7 +18,7 @@ export async function GET(request: Request) {
       const role = user?.user_metadata?.role;
 
       if (role === "candidate") {
-        return NextResponse.redirect(`${origin}/apply`);
+        return NextResponse.redirect(`${origin}/candidate/dashboard`);
       } else if (role === "client") {
         return NextResponse.redirect(`${origin}/browse`);
       }

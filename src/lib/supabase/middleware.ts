@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Routes that require authentication
-const protectedRoutes = ["/apply", "/inbox", "/admin", "/team", "/hire"];
+const protectedRoutes = ["/apply", "/inbox", "/admin", "/team", "/hire", "/candidate/dashboard"];
 
 // Routes only for unauthenticated users
 const authRoutes = ["/login", "/signup"];
@@ -51,7 +51,7 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
 
     if (role === "candidate") {
-      url.pathname = "/apply";
+      url.pathname = "/candidate/dashboard";
     } else if (role === "client") {
       url.pathname = "/browse";
     } else if (role === "admin") {
