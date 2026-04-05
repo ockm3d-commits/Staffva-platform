@@ -617,7 +617,51 @@ export default function CandidateDashboardPage() {
       setLoading(false);
     }
     load();
+
+    // Re-fetch when window regains focus (candidate returns from external interview site)
+    function handleFocus() { load(); }
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
+
+  // Poll for AI interview completion when it's the expected next step
+  useEffect(() => {
+    if (!candidate) return;
+    const idVerified = candidate.id_verification_status === "passed";
+    const testDone = (candidate.english_mc_score ?? 0) > 0;
+    const aiDone = !!aiInterview && aiInterview.status === "completed" && aiInterview.passed;
+
+    // Only poll if ID verified, test done, and AI not yet done
+    if (!idVerified || !testDone || aiDone) return;
+
+    let attempts = 0;
+    const maxAttempts = 12; // 60 seconds (every 5s)
+
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) { clearInterval(pollInterval); return; }
+
+      try {
+        const supabase = createClient();
+        const { data: aiData } = await supabase
+          .from("ai_interviews")
+          .select("id, status, overall_score, badge_level, passed, created_at, completed_at, second_interview_status")
+          .eq("candidate_id", candidate.id)
+          .eq("status", "completed")
+          .eq("passed", true)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (aiData) {
+          setAiInterview(aiData as AIInterviewData);
+          clearInterval(pollInterval);
+        }
+      } catch { /* silent */ }
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
+  }, [candidate, aiInterview]);
 
   if (loading) {
     return (
