@@ -13,6 +13,7 @@ import FinalCTASection from "@/components/landing/FinalCTASection";
 import Footer from "@/components/landing/Footer";
 import QuickMatchButton from "@/components/landing/QuickMatchButton";
 import StatsStripSection from "@/components/landing/StatsStripSection";
+import MatchCTASection from "@/components/landing/MatchCTASection";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -70,6 +71,7 @@ export default async function Home() {
         uniqueCountries={uniqueCountries || 0}
       />
       <FinalCTASection />
+      <MatchCTASection />
       <Footer />
     </main>
   );
