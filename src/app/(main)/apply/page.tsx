@@ -13,6 +13,7 @@ import ProfileBuilder from "@/components/apply/ProfileBuilder";
 import CandidateStatusScreen from "@/components/apply/CandidateStatusScreen";
 import IDVerificationConsent from "@/components/apply/IDVerificationConsent";
 import IDVerification from "@/components/apply/IDVerification";
+import IntegrityPledge from "@/components/apply/IntegrityPledge";
 
 export type ApplicationStep =
   | "loading"
@@ -21,6 +22,7 @@ export type ApplicationStep =
   | "id_verification"
   | "device_check"
   | "test_instructions"
+  | "integrity_pledge"
   | "english_test"
   | "test_result"
   | "voice_recording_1"
@@ -177,7 +179,7 @@ export default function ApplyPage() {
     } else {
       // No test score — go to device check (pre-test flow)
       const savedStep = candidate.application_step as ApplicationStep;
-      const midTestSteps: ApplicationStep[] = ["device_check", "test_instructions", "english_test"];
+      const midTestSteps: ApplicationStep[] = ["device_check", "test_instructions", "integrity_pledge", "english_test"];
 
       if (midTestSteps.includes(savedStep)) {
         setStep("device_check");
@@ -239,6 +241,18 @@ export default function ApplyPage() {
   }
 
   function handleTestStart() {
+    goToStep("integrity_pledge");
+  }
+
+  async function handlePledgeAccepted() {
+    // Record pledge acceptance
+    if (candidateData?.id) {
+      const supabase = createClient();
+      await supabase.from("candidates").update({
+        integrity_pledge_accepted: true,
+        integrity_pledge_accepted_at: new Date().toISOString(),
+      }).eq("id", candidateData.id);
+    }
     goToStep("english_test");
   }
 
@@ -335,7 +349,7 @@ export default function ApplyPage() {
               const currentIndex = stepOrder.indexOf(step);
               const thisIndex = stepOrder.indexOf(s);
               const isComplete = currentIndex > thisIndex;
-              const isCurrent = step === s || (s === "english_test" && (step === "device_check" || step === "test_instructions" || step === "english_test"));
+              const isCurrent = step === s || (s === "english_test" && (step === "device_check" || step === "test_instructions" || step === "integrity_pledge" || step === "english_test"));
               return (
                 <div key={s} className="flex-1">
                   <div className={`h-1.5 rounded-full ${isComplete ? "bg-primary" : isCurrent ? "bg-primary/50" : "bg-gray-200"}`} />
@@ -374,6 +388,9 @@ export default function ApplyPage() {
       )}
       {step === "test_instructions" && (
         <TestInstructions onStart={handleTestStart} />
+      )}
+      {step === "integrity_pledge" && (
+        <IntegrityPledge onAccept={handlePledgeAccepted} />
       )}
       {step === "english_test" && candidateData && (
         <EnglishTest
