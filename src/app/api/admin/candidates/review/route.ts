@@ -161,7 +161,7 @@ export async function POST(request: Request) {
           <p style="color: #9A3412; font-weight: 600; margin: 0 0 8px 0; font-size: 14px;">Feedback from our team:</p>
           <p style="color: #7C2D12; margin: 0; white-space: pre-wrap;">${revisionNote.trim()}</p>
         </div>
-        <p style="color: #555;">Please update your profile based on this feedback. Once you make the changes, our team will review again within 2 business days.</p>
+        <p style="color: #555;">Please update your profile based on this feedback. Once you make the changes, resubmit from your dashboard and our team will review promptly.</p>
         <a href="https://staffva.com/apply" style="display: inline-block; background: #fe6e3e; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">Edit Your Profile</a>
         <p style="color: #999; margin-top: 24px; font-size: 12px;">— The StaffVA Team</p>
       </div>`
@@ -196,6 +196,31 @@ export async function POST(request: Request) {
         admin_status: newAdminStatus,
       })
       .eq("id", candidateId);
+
+    // If pass — send "profile under review" email
+    if (spokenResult === "pass") {
+      const { data: candidate } = await supabaseAdmin
+        .from("candidates")
+        .select("email, display_name, full_name")
+        .eq("id", candidateId)
+        .single();
+
+      if (candidate?.email) {
+        const firstName = (candidate.display_name || candidate.full_name || "").split(" ")[0] || "there";
+        await sendEmail(
+          candidate.email,
+          "Your StaffVA profile is under review",
+          `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+            <h2 style="color:#1C1B1A;">Profile Under Review</h2>
+            <p style="color:#444;font-size:14px;">Hi ${firstName},</p>
+            <p style="color:#444;font-size:14px;">Thank you for completing your recruiter interview. Our team is now reviewing your profile, voice recordings, and experience.</p>
+            <p style="color:#444;font-size:14px;">We will be in touch within 2 business days.</p>
+            <a href="https://staffva.com/candidate/dashboard" style="display:inline-block;background:#FE6E3E;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">View Dashboard</a>
+            <p style="color:#999;margin-top:24px;font-size:12px;">— The StaffVA Team</p>
+          </div>`
+        );
+      }
+    }
 
     // If fail — send rejection email
     if (spokenResult === "fail") {

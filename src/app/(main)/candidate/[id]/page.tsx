@@ -299,10 +299,10 @@ export default async function CandidateProfilePage({
       {isClient && !isOwnProfile && <ProfileViewTracker candidateId={id} />}
 
       {/* Status banner for own profile — reads actual admin_status */}
-      {isOwnProfile && candidate.admin_status === "pending_speaking_review" && (
+      {isOwnProfile && (candidate.admin_status === "pending_speaking_review" || candidate.admin_status === "under_review") && (
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 text-center">
           <p className="text-sm text-amber-800">
-            <strong>Profile under review</strong> — Your profile is complete and under review. We will notify you within 2 business days once your speaking assessment is complete and your profile goes live.
+            <strong>Profile under review</strong> — Our team is reviewing your profile. Check your dashboard for the latest status.
           </p>
         </div>
       )}

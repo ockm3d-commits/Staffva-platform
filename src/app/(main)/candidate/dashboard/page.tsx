@@ -1016,13 +1016,7 @@ export default function CandidateDashboardPage() {
       {/* Lockout card */}
       <LockoutCard />
 
-      {/* Status messages */}
-      {candidate.admin_status === "pending_speaking_review" && (
-        <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-          <p className="text-sm font-medium text-yellow-800">Your profile is under review</p>
-          <p className="mt-1 text-sm text-yellow-700">We will notify you within 2 business days once your speaking assessment is complete and your profile is live.</p>
-        </div>
-      )}
+      {/* Status messages — handled by progress tracker above */}
       {candidate.admin_status === "revision_required" && (
         <div className="mb-6 rounded-lg border border-orange-200 bg-orange-50 p-4">
           <p className="text-sm font-medium text-orange-800">Action required</p>
