@@ -15,8 +15,21 @@ export async function GET(request: Request) {
   const candidateId = searchParams.get("candidateId");
   const ownPackages = searchParams.get("own") === "true";
   const category = searchParams.get("category");
+  const statusFilter = searchParams.get("status");
 
   const supabase = getAdminClient();
+
+  // Admin: fetch packages by status (e.g. pending_review)
+  if (statusFilter) {
+    const { data, error } = await supabase
+      .from("service_packages")
+      .select("*, candidates(display_name, role_category, reputation_tier)")
+      .eq("status", statusFilter)
+      .order("created_at", { ascending: true });
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ packages: data || [] });
+  }
 
   if (ownPackages) {
     // Candidate fetching their own packages (all statuses)
