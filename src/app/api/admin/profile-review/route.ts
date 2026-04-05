@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { Resend } from "resend";
+import { generateInsights } from "@/lib/generateInsights";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -45,6 +46,11 @@ export async function POST(req: NextRequest) {
         admin_status: "approved",
         profile_went_live_at: new Date().toISOString(),
       }).eq("id", candidateId);
+
+      // Fire AI insights generation (fire-and-forget)
+      generateInsights(candidateId).catch((err) =>
+        console.error("[Profile Review] AI insights error:", err)
+      );
 
       if (process.env.RESEND_API_KEY && candidate.email) {
         try {

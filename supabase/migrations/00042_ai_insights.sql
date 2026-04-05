@@ -1,0 +1,3 @@
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS ai_insight_1 TEXT;
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS ai_insight_2 TEXT;
+ALTER TABLE candidates ADD COLUMN IF NOT EXISTS ai_insights_generated_at TIMESTAMPTZ;

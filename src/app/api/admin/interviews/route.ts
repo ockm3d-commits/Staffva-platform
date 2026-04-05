@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { generateInsights } from "@/lib/generateInsights";
 
 function getAdminClient() {
   return createClient(
@@ -135,6 +136,11 @@ export async function POST(req: NextRequest) {
       .from("candidates")
       .update({ speaking_level: speakingLevel })
       .eq("id", candidateId);
+
+    // Regenerate AI insights after interview scoring (fire-and-forget)
+    generateInsights(candidateId).catch((err) =>
+      console.error("[Interviews] AI insights error:", err)
+    );
 
     // Check if there's a pending client interview request to notify
     const { data: pendingRequests } = await supabase

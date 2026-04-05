@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { generateInsights } from "@/lib/generateInsights";
 
 function getAdminClient() {
   return createClient(
@@ -84,6 +85,11 @@ export async function POST(request: Request) {
         speaking_level: speakingLevel,
       })
       .eq("id", candidateId);
+
+    // Fire AI insights generation (fire-and-forget)
+    generateInsights(candidateId).catch((err) =>
+      console.error("[Candidate Review] AI insights error:", err)
+    );
 
     await sendEmail(
       candidate.email,

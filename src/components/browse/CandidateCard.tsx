@@ -24,6 +24,8 @@ export interface CandidateCardData {
   reputation_tier?: string | null;
   video_intro_status?: string | null;
   skills?: string[] | null;
+  ai_insight_1?: string | null;
+  ai_insight_2?: string | null;
   ai_interview?: {
     overall_score: number | null;
     technical_knowledge_score: number | null;
@@ -159,7 +161,15 @@ export default function CandidateCard({ candidate, isLoggedIn = false, onSkillCl
             </div>
           )}
 
-          {/* Row 6: Bio excerpt */}
+          {/* Row 6: AI Insights */}
+          {(candidate.ai_insight_1 || candidate.ai_insight_2) && (
+            <ul className="mt-1.5 space-y-0.5">
+              {candidate.ai_insight_1 && <li className="text-[11px] text-text-secondary leading-relaxed">• {candidate.ai_insight_1}</li>}
+              {candidate.ai_insight_2 && <li className="text-[11px] text-text-secondary leading-relaxed">• {candidate.ai_insight_2}</li>}
+            </ul>
+          )}
+
+          {/* Row 7: Bio excerpt */}
           {candidate.bio && (
             <p className="mt-1.5 text-[11px] leading-relaxed text-text-muted italic line-clamp-2">{candidate.bio}</p>
           )}
@@ -260,7 +270,15 @@ export default function CandidateCard({ candidate, isLoggedIn = false, onSkillCl
           </div>
         )}
 
-        {/* Row 5: Audio + View Profile */}
+        {/* Row 5: AI Insights */}
+        {(candidate.ai_insight_1 || candidate.ai_insight_2) && (
+          <ul className="space-y-0.5">
+            {candidate.ai_insight_1 && <li className="text-[11px] text-text-secondary leading-relaxed">• {candidate.ai_insight_1}</li>}
+            {candidate.ai_insight_2 && <li className="text-[11px] text-text-secondary leading-relaxed">• {candidate.ai_insight_2}</li>}
+          </ul>
+        )}
+
+        {/* Row 6: Audio + View Profile */}
         <div className="flex items-center gap-2">
           <div className="flex-1" onClick={(e) => e.stopPropagation()}>
             <InlineAudioPreview
