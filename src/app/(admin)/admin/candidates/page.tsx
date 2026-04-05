@@ -53,6 +53,8 @@ interface Candidate {
   email: string;
   country: string;
   role_category: string;
+  custom_role_description: string | null;
+  classified_role_category: string | null;
   years_experience: string;
   hourly_rate: number;
   bio: string;
@@ -578,7 +580,10 @@ export default function CandidateReviewPage() {
                         )}
                       </p>
                       <p className="text-xs text-text/60">
-                        {c.country} &middot; {c.role_category} &middot; ${c.hourly_rate}/hr
+                        {c.country} &middot; {c.role_category}
+                        {c.custom_role_description && <span className="text-primary"> ({c.custom_role_description})</span>}
+                        {c.classified_role_category && <span className="text-blue-600"> → {c.classified_role_category}</span>}
+                        {" "}&middot; ${c.hourly_rate}/hr
                       </p>
                     </div>
                   </div>

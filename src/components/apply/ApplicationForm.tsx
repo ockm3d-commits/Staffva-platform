@@ -276,6 +276,7 @@ export default function ApplicationForm({ onComplete, initialStage = 0, existing
   const [email, setEmail] = useState("");
   const [country, setCountry] = useState("");
   const [roleCategory, setRoleCategory] = useState("");
+  const [customRoleDescription, setCustomRoleDescription] = useState("");
 
   // Stage 2 fields
   const [tagline, setTagline] = useState(existingCandidate?.tagline || "");
@@ -347,6 +348,7 @@ export default function ApplicationForm({ onComplete, initialStage = 0, existing
     if (!firstName.trim() || !lastName.trim()) { setError("Please enter your full name"); return; }
     if (!country) { setError("Please select your country"); return; }
     if (!roleCategory) { setError("Please select your primary role"); return; }
+    if (roleCategory === "Other" && !customRoleDescription.trim()) { setError("Please describe your role"); return; }
 
     setLoading(true);
 
@@ -370,6 +372,8 @@ export default function ApplicationForm({ onComplete, initialStage = 0, existing
       ? `${firstName.trim()} ${lastName.trim()[0]}.`
       : firstName.trim();
 
+    const effectiveRole = roleCategory === "Other" ? customRoleDescription.trim() : roleCategory;
+
     if (existing) {
       // Already exists — update and advance
       await supabase.from("candidates").update({
@@ -378,7 +382,8 @@ export default function ApplicationForm({ onComplete, initialStage = 0, existing
         last_name: lastName.trim(),
         display_name: displayName,
         country,
-        role_category: roleCategory,
+        role_category: effectiveRole,
+        custom_role_description: roleCategory === "Other" ? customRoleDescription.trim() : null,
         application_stage: 1,
         stage1_completed_at: new Date().toISOString(),
       }).eq("id", existing.id);
@@ -393,7 +398,8 @@ export default function ApplicationForm({ onComplete, initialStage = 0, existing
         display_name: displayName,
         email: user.email || email,
         country,
-        role_category: roleCategory,
+        role_category: effectiveRole,
+        custom_role_description: roleCategory === "Other" ? customRoleDescription.trim() : null,
         years_experience: "0-1",
         hourly_rate: 5,
         time_zone: timeZone || "UTC",
@@ -422,6 +428,15 @@ export default function ApplicationForm({ onComplete, initialStage = 0, existing
         candidate_id: newCandidate.id,
         status: "pending",
       }).then(() => {});
+
+      // If custom role, classify via API (fire and forget)
+      if (roleCategory === "Other" && customRoleDescription.trim()) {
+        fetch("/api/candidate/classify-role", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ candidateId: newCandidate.id, customRole: customRoleDescription.trim() }),
+        }).catch(() => {});
+      }
     }
 
     setStage(1);
@@ -535,8 +550,23 @@ export default function ApplicationForm({ onComplete, initialStage = 0, existing
 
           <div>
             <label className="block text-sm font-medium text-text">Primary Role <span className="text-red-500">*</span></label>
-            <SearchableRoleSelect value={roleCategory} onChange={setRoleCategory} />
+            <SearchableRoleSelect value={roleCategory} onChange={(v) => { setRoleCategory(v); if (v !== "Other") setCustomRoleDescription(""); }} />
           </div>
+
+          {roleCategory === "Other" && (
+            <div>
+              <label className="block text-sm font-medium text-text">Describe Your Role <span className="text-red-500">*</span></label>
+              <input
+                required
+                maxLength={100}
+                value={customRoleDescription}
+                onChange={(e) => setCustomRoleDescription(e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                placeholder="e.g. Grant Writer, Podcast Editor"
+              />
+              <p className="mt-1 text-xs text-gray-400">{customRoleDescription.length}/100</p>
+            </div>
+          )}
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 
