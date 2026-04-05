@@ -859,16 +859,28 @@ export default function ProfileBuilder({
                   }
                   className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                 />
-                <select
-                  value={entry.industry}
-                  onChange={(e) => { updateWorkEntry(i, "industry", e.target.value); if (e.target.value !== "Other") updateWorkEntry(i, "industry_other", ""); }}
-                  className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                >
-                  <option value="">Select industry</option>
-                  {INDUSTRIES.map((ind) => (
-                    <option key={ind} value={ind}>{ind}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={entry.industry || ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setWorkEntries((prev) => {
+                        const updated = [...prev];
+                        updated[i] = { ...updated[i], industry: val, industry_other: val === "Other" ? updated[i].industry_other || "" : "" };
+                        return updated;
+                      });
+                    }}
+                    className="relative z-10 block w-full appearance-none rounded-lg border border-gray-300 bg-white px-4 py-3 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Select industry</option>
+                    {INDUSTRIES.map((ind) => (
+                      <option key={ind} value={ind}>{ind}</option>
+                    ))}
+                  </select>
+                  <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </div>
                 {entry.industry === "Other" && (
                   <input
                     type="text"
