@@ -9,13 +9,15 @@ function getAdminClient() {
 const ROLE_CATEGORIES = [
   "Paralegal", "Legal Assistant", "Legal Secretary", "Litigation Support", "Contract Reviewer",
   "Bookkeeper", "Accounts Payable Specialist", "Accounts Receivable Specialist", "Payroll Specialist", "Tax Preparer", "Financial Analyst",
-  "Administrative Assistant", "Executive Assistant", "Virtual Assistant", "Office Manager", "Data Entry Specialist",
+  "Administrative Assistant", "Executive Assistant", "Virtual Assistant", "Office Manager", "Data Entry Specialist", "Transcriptionist",
+  "Cold Caller", "Sales Representative", "Sales Development Representative (SDR)", "Appointment Setter", "Account Manager", "Lead Generation Specialist",
+  "Social Media Manager", "Content Writer", "SEO Specialist", "Paid Ads Specialist", "Email Marketing Specialist", "CRM Manager",
   "Scheduling Coordinator", "Customer Support Representative",
   "Medical Billing Specialist", "Medical Administrative Assistant", "Insurance Verification Specialist", "Dental Office Administrator",
   "Real Estate Assistant", "Transaction Coordinator",
   "HR Assistant", "Recruitment Coordinator",
-  "Social Media Manager", "Content Writer", "Graphic Designer", "Video Editor",
-  "Project Manager", "Operations Assistant", "E-commerce Assistant", "Amazon Store Manager", "Shopify Assistant",
+  "Graphic Designer", "Video Editor",
+  "Project Manager", "Operations Assistant", "E-Commerce Manager", "Shopify Manager", "Amazon Store Manager",
 ];
 
 interface ExtractedQuery {

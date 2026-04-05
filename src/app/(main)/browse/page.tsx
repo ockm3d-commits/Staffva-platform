@@ -12,8 +12,15 @@ const ROLE_CATEGORIES = [
   "Bookkeeping/AP",
   "Admin",
   "VA",
+  "Cold Caller",
+  "Sales",
+  "SDR",
+  "SEO",
+  "Marketing",
   "Scheduling",
   "Customer Support",
+  "Medical",
+  "E-Commerce",
 ];
 
 const TIER_OPTIONS = [

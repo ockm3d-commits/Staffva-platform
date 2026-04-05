@@ -7,13 +7,15 @@ import { createClient } from "@/lib/supabase/client";
 const ROLE_CATEGORIES = [
   { group: "Legal", roles: ["Paralegal", "Legal Assistant", "Legal Secretary", "Litigation Support", "Contract Reviewer"] },
   { group: "Accounting & Finance", roles: ["Bookkeeper", "Accounts Payable Specialist", "Accounts Receivable Specialist", "Payroll Specialist", "Tax Preparer", "Financial Analyst"] },
-  { group: "Administration", roles: ["Administrative Assistant", "Executive Assistant", "Virtual Assistant", "Office Manager", "Data Entry Specialist"] },
+  { group: "Administrative", roles: ["Administrative Assistant", "Executive Assistant", "Virtual Assistant", "Office Manager", "Data Entry Specialist", "Transcriptionist"] },
+  { group: "Sales & Outreach", roles: ["Cold Caller", "Sales Representative", "Sales Development Representative (SDR)", "Appointment Setter", "Account Manager", "Lead Generation Specialist"] },
+  { group: "Marketing & SEO", roles: ["Social Media Manager", "Content Writer", "SEO Specialist", "Paid Ads Specialist", "Email Marketing Specialist", "CRM Manager"] },
   { group: "Scheduling & Support", roles: ["Scheduling Coordinator", "Customer Support Representative"] },
   { group: "Medical", roles: ["Medical Billing Specialist", "Medical Administrative Assistant", "Insurance Verification Specialist", "Dental Office Administrator"] },
   { group: "Real Estate", roles: ["Real Estate Assistant", "Transaction Coordinator"] },
-  { group: "HR & Recruiting", roles: ["HR Assistant", "Recruitment Coordinator"] },
-  { group: "Marketing & Creative", roles: ["Social Media Manager", "Content Writer", "Graphic Designer", "Video Editor"] },
-  { group: "Operations", roles: ["Project Manager", "Operations Assistant", "E-commerce Assistant", "Amazon Store Manager", "Shopify Assistant"] },
+  { group: "HR & Recruitment", roles: ["HR Assistant", "Recruitment Coordinator"] },
+  { group: "Creative & Design", roles: ["Graphic Designer", "Video Editor"] },
+  { group: "Operations & E-commerce", roles: ["Project Manager", "Operations Assistant", "E-Commerce Manager", "Shopify Manager", "Amazon Store Manager"] },
   { group: "Other", roles: ["Other"] },
 ];
 
