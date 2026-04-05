@@ -161,9 +161,14 @@ async function processApplication(
   const appData = item.application_data as Record<string, unknown>;
 
   // Build candidate record from queued data
+  const fullNameStr = appData.full_name as string || "";
+  const nameParts = fullNameStr.split(" ");
   const candidateRecord = {
     user_id: item.user_id,
-    full_name: appData.full_name as string,
+    full_name: fullNameStr,
+    first_name: nameParts[0] || "",
+    last_name: nameParts.slice(1).join(" ") || "",
+    display_name: nameParts[1] ? `${nameParts[0]} ${nameParts[1][0]}.` : nameParts[0],
     email: appData.email as string,
     country: appData.country as string,
     role_category: appData.role_category as string,

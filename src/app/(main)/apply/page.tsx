@@ -31,6 +31,8 @@ export type ApplicationStep =
 export interface CandidateData {
   id: string;
   full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   display_name: string | null;
   email: string;
   country: string;

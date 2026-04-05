@@ -167,9 +167,14 @@ export default function ApplicationForm({ onComplete, initialStage = 0, existing
   useEffect(() => {
     if (existingCandidate) {
       setCandidateId(existingCandidate.id);
-      const parts = (existingCandidate.full_name || "").split(" ");
-      setFirstName(parts[0] || "");
-      setLastName(parts.slice(1).join(" ") || "");
+      if (existingCandidate.first_name) {
+        setFirstName(existingCandidate.first_name);
+        setLastName(existingCandidate.last_name || "");
+      } else {
+        const parts = (existingCandidate.full_name || "").split(" ");
+        setFirstName(parts[0] || "");
+        setLastName(parts.slice(1).join(" ") || "");
+      }
       setEmail(existingCandidate.email || "");
       setCountry(existingCandidate.country || "");
       setRoleCategory(existingCandidate.role_category || "");
@@ -215,10 +220,17 @@ export default function ApplicationForm({ onComplete, initialStage = 0, existing
     // Check for existing candidate
     const { data: existing } = await supabase.from("candidates").select("id").eq("user_id", user.id).maybeSingle();
 
+    const displayName = lastName.trim()
+      ? `${firstName.trim()} ${lastName.trim()[0]}.`
+      : firstName.trim();
+
     if (existing) {
       // Already exists — update and advance
       await supabase.from("candidates").update({
         full_name: fullName,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        display_name: displayName,
         country,
         role_category: roleCategory,
         application_stage: 1,
@@ -230,6 +242,9 @@ export default function ApplicationForm({ onComplete, initialStage = 0, existing
       const { data: newCandidate, error: insertErr } = await supabase.from("candidates").insert({
         user_id: user.id,
         full_name: fullName,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        display_name: displayName,
         email: user.email || email,
         country,
         role_category: roleCategory,
@@ -395,14 +410,14 @@ export default function ApplicationForm({ onComplete, initialStage = 0, existing
         <p className="mt-1 text-sm text-text/60">Tell us who you are. This takes under a minute.</p>
 
         <form onSubmit={handleStage1} className="mt-6 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-text">First Name <span className="text-red-500">*</span></label>
-              <input required value={firstName} onChange={(e) => setFirstName(e.target.value)} className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary" placeholder="First name" />
+              <input required maxLength={50} value={firstName} onChange={(e) => setFirstName(e.target.value)} className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary" placeholder="e.g. Maria" />
             </div>
             <div>
               <label className="block text-sm font-medium text-text">Last Name <span className="text-red-500">*</span></label>
-              <input required value={lastName} onChange={(e) => setLastName(e.target.value)} className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary" placeholder="Last name" />
+              <input required maxLength={50} value={lastName} onChange={(e) => setLastName(e.target.value)} className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary" placeholder="e.g. Santos" />
             </div>
           </div>
 
