@@ -55,6 +55,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
   const role = user?.role;
   const isLoggedIn = !!user;
   const isDark = variant === "dark";
+  const [showSignupModal, setShowSignupModal] = useState(false);
 
   const textColor = isDark ? "text-white/80 hover:text-white" : "text-[#1C1B1A] hover:text-primary";
   const bgColor = isDark ? "bg-transparent" : "bg-white";
@@ -273,9 +274,9 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
               <Link href="/login" className="text-[14px] font-medium text-[#1C1B1A] hover:text-primary transition-colors">
                 Sign In
               </Link>
-              <Link href="/signup/client" className="rounded-lg bg-primary px-4 py-2 text-[14px] font-semibold text-white hover:bg-[#E55A2B] transition-colors">
+              <button onClick={() => setShowSignupModal(true)} className="rounded-lg bg-primary px-4 py-2 text-[14px] font-semibold text-white hover:bg-[#E55A2B] transition-colors">
                 Start Now
-              </Link>
+              </button>
             </>
           )}
         </div>
@@ -376,11 +377,61 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
             ) : (
               <div className="space-y-2 pt-2">
                 <Link href="/login" onClick={() => setMobileOpen(false)} className="block py-2 text-sm font-medium text-text">Sign In</Link>
-                <Link href="/signup/client" onClick={() => setMobileOpen(false)} className="block w-full rounded-lg bg-primary py-2.5 text-center text-sm font-semibold text-white hover:bg-orange-600">
+                <button onClick={() => { setMobileOpen(false); setShowSignupModal(true); }} className="block w-full rounded-lg bg-primary py-2.5 text-center text-sm font-semibold text-white hover:bg-orange-600">
                   Start Now
-                </Link>
+                </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* ═══ SIGNUP MODAL ═══ */}
+      {showSignupModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowSignupModal(false)}>
+          <div className="relative mx-4 w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            {/* Close button */}
+            <button
+              onClick={() => setShowSignupModal(false)}
+              className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <h2 className="text-xl font-bold text-[#1C1B1A] text-center mb-6">How will you use StaffVA?</h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Employer card */}
+              <Link
+                href="/signup/client"
+                onClick={() => setShowSignupModal(false)}
+                className="group rounded-xl border-2 border-gray-200 p-6 text-center hover:border-primary transition-colors"
+              >
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                  <svg className="h-7 w-7 text-primary" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-semibold text-[#1C1B1A]">Sign up as an Employer</h3>
+                <p className="mt-1 text-xs text-gray-500">Post roles and hire pre-vetted professionals</p>
+              </Link>
+
+              {/* Professional card */}
+              <Link
+                href="/signup/candidate"
+                onClick={() => setShowSignupModal(false)}
+                className="group rounded-xl border-2 border-gray-200 p-6 text-center hover:border-[#1C1B1A] transition-colors"
+              >
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
+                  <svg className="h-7 w-7 text-[#1C1B1A]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-semibold text-[#1C1B1A]">Apply as a Professional</h3>
+                <p className="mt-1 text-xs text-gray-500">Build your profile and get hired by US businesses</p>
+              </Link>
+            </div>
           </div>
         </div>
       )}
