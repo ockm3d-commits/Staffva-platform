@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import ServicesBrowse from "@/components/ServicesBrowse";
 
 interface ServicePackage {
   id: string;
@@ -88,11 +89,13 @@ export default function MyServicesPage() {
   const [deliveryMessage, setDeliveryMessage] = useState("");
   const [submittingDelivery, setSubmittingDelivery] = useState<string | null>(null);
 
+  const [showBrowse, setShowBrowse] = useState(false);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { setShowBrowse(true); setLoading(false); return; }
 
     const { data: profile } = await supabase
       .from("profiles")
@@ -294,6 +297,11 @@ export default function MyServicesPage() {
         <p className="text-text/60">Loading...</p>
       </div>
     );
+  }
+
+  // Unauthenticated users see the browse page
+  if (showBrowse) {
+    return <ServicesBrowse />;
   }
 
   return (
