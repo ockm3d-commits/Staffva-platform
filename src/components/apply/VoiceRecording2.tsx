@@ -4,8 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   validateAudio,
-  compressAudio,
-  generatePreviewClip,
   createPlaybackUrl,
   revokePlaybackUrl,
 } from "@/lib/audioUtils";
@@ -131,22 +129,15 @@ export default function VoiceRecording2({ candidateId, onComplete }: Props) {
     setError("");
 
     try {
-      setUploadProgress("Compressing audio...");
-      const compressed = await compressAudio(recordedBlobRef.current);
-
-      setUploadProgress("Generating preview clip...");
-      const preview = await generatePreviewClip(compressed, 15);
-
       setUploadProgress("Uploading recording...");
       const supabase = createClient();
       const timestamp = Date.now();
       const fullFileName = `${candidateId}/self-intro-${timestamp}.webm`;
-      const previewFileName = `${candidateId}/self-intro-preview-${timestamp}.webm`;
 
-      // Upload full recording
+      // Upload raw recording directly — no compression or preview generation
       const { error: uploadError } = await supabase.storage
         .from("voice-recordings")
-        .upload(fullFileName, compressed);
+        .upload(fullFileName, recordedBlobRef.current);
 
       if (uploadError) {
         setError("Failed to upload recording: " + uploadError.message);
@@ -154,19 +145,12 @@ export default function VoiceRecording2({ candidateId, onComplete }: Props) {
         return;
       }
 
-      // Upload preview clip
-      setUploadProgress("Uploading preview...");
-      await supabase.storage
-        .from("voice-recordings")
-        .upload(previewFileName, preview);
-
       // Update candidate record
       setUploadProgress("Saving...");
       await supabase
         .from("candidates")
         .update({
           voice_recording_2_url: fullFileName,
-          voice_recording_2_preview_url: previewFileName,
         })
         .eq("id", candidateId);
 
