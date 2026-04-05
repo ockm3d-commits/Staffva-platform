@@ -64,6 +64,16 @@ function SearchableRoleSelect({ value, onChange }: { value: string; onChange: (v
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
+  // Lock body scroll when open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
   // Focus search when opened
   useEffect(() => {
     if (open && searchRef.current) searchRef.current.focus();
@@ -114,19 +124,17 @@ function SearchableRoleSelect({ value, onChange }: { value: string; onChange: (v
       {/* Dropdown / bottom sheet */}
       {open && (
         <div
-          className={`
-            fixed bottom-0 left-0 right-0 z-50 max-h-[85vh] rounded-t-2xl bg-white shadow-2xl
-            lg:absolute lg:top-full lg:bottom-auto lg:left-0 lg:right-0 lg:mt-1 lg:max-h-80 lg:rounded-xl lg:border lg:border-gray-200
-          `}
+          className="fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-2xl bg-white shadow-2xl lg:absolute lg:top-full lg:bottom-auto lg:left-0 lg:right-0 lg:mt-1 lg:rounded-xl lg:border lg:border-gray-200"
+          style={{ maxHeight: "min(85vh, 85dvh)", height: "auto" }}
           onKeyDown={handleKeyDown}
         >
-          {/* Mobile drag handle */}
-          <div className="flex justify-center pt-3 pb-1 lg:hidden">
+          {/* Mobile drag handle — pinned */}
+          <div className="flex justify-center pt-3 pb-1 lg:hidden shrink-0">
             <div className="h-1 w-10 rounded-full bg-gray-300" />
           </div>
 
-          {/* Search input */}
-          <div className="px-3 pb-2 pt-1">
+          {/* Search input — pinned */}
+          <div className="px-3 pb-2 pt-1 shrink-0">
             <input
               ref={searchRef}
               type="text"
@@ -137,8 +145,8 @@ function SearchableRoleSelect({ value, onChange }: { value: string; onChange: (v
             />
           </div>
 
-          {/* Role list */}
-          <div ref={listRef} className="overflow-y-auto px-1 pb-3" style={{ maxHeight: "calc(85vh - 100px)" }}>
+          {/* Role list — only scrollable element */}
+          <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain px-1 pb-3 lg:max-h-[260px]">
             {filtered.length === 0 ? (
               <div className="px-4 py-6 text-center">
                 <p className="text-sm text-gray-400">No roles found — try a different search.</p>
