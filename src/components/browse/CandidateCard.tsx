@@ -40,6 +40,16 @@ function getAvailability(hours: number) {
   return "bg-gray-300";
 }
 
+export function getEarningsBucketLabel(amount: number | null | undefined): string | null {
+  if (!amount || amount <= 0) return null;
+  if (amount >= 100000) return "$100K+ earned";
+  if (amount >= 50000) return "$50K+ earned";
+  if (amount >= 25000) return "$25K+ earned";
+  if (amount >= 10000) return "$10K+ earned";
+  if (amount >= 5000) return "$5K+ earned";
+  return "$1K+ earned";
+}
+
 interface Props {
   candidate: CandidateCardData;
   isLoggedIn?: boolean;
@@ -55,10 +65,7 @@ export default function CandidateCard({ candidate, isLoggedIn = false, onSkillCl
   const visibleSkills = skills.slice(0, maxSkills);
   const overflowCount = skills.length - maxSkills;
 
-  const earningsLabel = candidate.total_earnings_usd >= 10000 ? "$10K+ earned"
-    : candidate.total_earnings_usd >= 1000 ? `$${Math.floor(candidate.total_earnings_usd / 1000)}K+ earned`
-    : candidate.total_earnings_usd > 0 ? `$${Math.round(candidate.total_earnings_usd)} earned`
-    : null;
+  const earningsLabel = getEarningsBucketLabel(candidate.total_earnings_usd);
 
   return (
     <div className="group relative border-b border-gray-100 bg-white hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer">
@@ -96,15 +103,18 @@ export default function CandidateCard({ candidate, isLoggedIn = false, onSkillCl
             )}
           </div>
 
-          {/* Row 2: Tagline */}
-          {(candidate.tagline || candidate.role_category) && (
-            <p className="mt-0.5 text-xs text-text-secondary truncate">
-              {candidate.tagline || candidate.role_category}
-            </p>
+          {/* Row 2: Tagline (primary) + Role category (secondary) */}
+          {candidate.tagline ? (
+            <>
+              <p className="mt-0.5 text-sm font-medium text-[#1C1B1A] truncate">{candidate.tagline}</p>
+              <p className="mt-0.5 text-[11px] text-text-tertiary">{candidate.role_category} &middot; {candidate.country}</p>
+            </>
+          ) : (
+            <>
+              <p className="mt-0.5 text-sm font-medium text-[#1C1B1A] truncate">{candidate.role_category}</p>
+              <p className="mt-0.5 text-[11px] text-text-tertiary">{candidate.country}</p>
+            </>
           )}
-
-          {/* Row 3: Country */}
-          <p className="mt-0.5 text-[11px] text-text-tertiary">{candidate.country}</p>
 
           {/* Row 4: Rate + reputation + earnings */}
           <div className="mt-1.5 flex items-center gap-1.5 text-xs">
@@ -201,9 +211,14 @@ export default function CandidateCard({ candidate, isLoggedIn = false, onSkillCl
           </div>
         </div>
 
-        {/* Row 2: Headline */}
-        {(candidate.tagline || candidate.role_category) && (
-          <p className="text-xs text-text-secondary truncate">{candidate.tagline || candidate.role_category}</p>
+        {/* Row 2: Tagline (primary) + Role category (secondary) */}
+        {candidate.tagline ? (
+          <>
+            <p className="text-sm font-medium text-[#1C1B1A] truncate">{candidate.tagline}</p>
+            <p className="text-[11px] text-text-tertiary">{candidate.role_category}</p>
+          </>
+        ) : (
+          <p className="text-sm font-medium text-[#1C1B1A] truncate">{candidate.role_category}</p>
         )}
 
         {/* Row 3: Rate + signals */}

@@ -932,17 +932,20 @@ export default async function CandidateProfilePage({
 
               {/* Verified info card */}
               <div className="rounded-xl border border-gray-200 bg-white p-6 space-y-3">
-                {Number(candidate.total_earnings_usd) > 0 && (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-text/40">Verified Earnings</span>
-                      <span className="text-sm font-semibold text-green-600">
-                        ${Number(candidate.total_earnings_usd).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="border-t border-gray-100" />
-                  </>
-                )}
+                {(() => {
+                  const amt = Number(candidate.total_earnings_usd);
+                  if (!amt || amt <= 0) return null;
+                  const label = amt >= 100000 ? "$100K+ earned" : amt >= 50000 ? "$50K+ earned" : amt >= 25000 ? "$25K+ earned" : amt >= 10000 ? "$10K+ earned" : amt >= 5000 ? "$5K+ earned" : "$1K+ earned";
+                  return (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-text/40">Verified Earnings</span>
+                        <span className="text-sm font-semibold text-green-600">{label}</span>
+                      </div>
+                      <div className="border-t border-gray-100" />
+                    </>
+                  );
+                })()}
 
                 {(tenureBadges || []).length > 0 && (
                   <>

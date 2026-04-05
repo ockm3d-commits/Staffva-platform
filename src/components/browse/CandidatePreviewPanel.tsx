@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { getEarningsBucketLabel } from "./CandidateCard";
 
 interface PanelProps {
   candidateId: string | null;
@@ -103,7 +104,7 @@ export default function CandidatePreviewPanel({ candidateId, onClose, onSkillCli
     try { return new Date().toLocaleTimeString("en-US", { timeZone: c?.time_zone || "UTC", hour: "numeric", minute: "2-digit" }); } catch { return ""; }
   })();
   const availDot = !c?.committed_hours || c.committed_hours === 0 ? "bg-green-500" : c.committed_hours < 40 ? "bg-amber-500" : "bg-gray-300";
-  const earningsLabel = (c?.total_earnings_usd || 0) >= 10000 ? "$10K+" : (c?.total_earnings_usd || 0) >= 1000 ? `$${Math.floor((c?.total_earnings_usd || 0) / 1000)}K+` : null;
+  const earningsLabel = getEarningsBucketLabel(c?.total_earnings_usd);
   const skills = [...(c?.skills || []), ...(c?.tools || [])];
   const workExp = (c?.work_experience || []).slice(0, 2);
 
@@ -197,7 +198,7 @@ export default function CandidatePreviewPanel({ candidateId, onClose, onSkillCli
               <div className="flex items-center gap-1.5 text-xs overflow-x-auto">
                 <span className="shrink-0 font-semibold text-[#FE6E3E]">${c.hourly_rate}/hr</span>
                 {c.reputation_score && c.reputation_score > 0 && <><span className="text-gray-300">&middot;</span><span className="shrink-0 text-text-secondary">{c.reputation_score}%</span></>}
-                {earningsLabel && <><span className="text-gray-300">&middot;</span><span className="shrink-0 text-green-600">{earningsLabel} earned</span></>}
+                {earningsLabel && <><span className="text-gray-300">&middot;</span><span className="shrink-0 text-green-600">{earningsLabel}</span></>}
               </div>
 
               {/* AI Assessment */}
