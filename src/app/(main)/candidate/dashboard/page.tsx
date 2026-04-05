@@ -345,6 +345,53 @@ const TIER_COLORS: Record<string, { bg: string; text: string }> = {
   Established: { bg: "bg-gray-500", text: "text-white" },
 };
 
+function AIInterviewDimensions({ candidateId }: { candidateId: string }) {
+  const [dimensions, setDimensions] = useState<{ label: string; score: number }[] | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("ai_interviews")
+        .select("technical_knowledge_score, problem_solving_score, communication_score, experience_depth_score, professionalism_score")
+        .eq("candidate_id", candidateId)
+        .eq("status", "completed")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setDimensions([
+          { label: "Technical Knowledge", score: Math.round((data.technical_knowledge_score || 0) * 5) },
+          { label: "Problem Solving", score: Math.round((data.problem_solving_score || 0) * 5) },
+          { label: "Communication", score: Math.round((data.communication_score || 0) * 5) },
+          { label: "Experience Depth", score: Math.round((data.experience_depth_score || 0) * 5) },
+          { label: "Professionalism", score: Math.round((data.professionalism_score || 0) * 5) },
+        ]);
+      }
+    }
+    load();
+  }, [candidateId]);
+
+  if (!dimensions) return null;
+
+  return (
+    <div className="space-y-2.5">
+      {dimensions.map((d) => (
+        <div key={d.label}>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium text-gray-500">{d.label}</span>
+            <span className="text-xs font-semibold text-[#1C1B1A] tabular-nums">{d.score}/100</span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-gray-100">
+            <div className="h-2 rounded-full bg-[#FE6E3E] transition-all" style={{ width: `${Math.min(d.score, 100)}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ReputationSection() {
   const [rep, setRep] = useState<ReputationData | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -596,13 +643,26 @@ export default function CandidateDashboardPage() {
           nextBody = "Complete identity verification to unlock your test results.";
           nextHref = "/apply"; nextLabel = "Verify Identity";
         } else if (!aiDone) {
-          nextHeading = "You passed your English test";
-          nextBody = "Take your AI interview next to boost your profile ranking.";
-          nextHref = `https://interview.staffva.com?candidate=${candidate.id}`;
-          nextLabel = "Start AI Interview";
+          // Check if AI interview was completed but failed
+          const aiFailed = !!aiInterview && aiInterview.status === "completed" && !aiInterview.passed;
+          const aiInProgress = !!aiInterview && aiInterview.status === "in_progress";
+          if (aiFailed) {
+            nextHeading = "Your AI interview did not pass";
+            nextBody = "Review your results below. You may be eligible to retake the interview.";
+          } else if (aiInProgress) {
+            nextHeading = "Your AI interview is in progress";
+            nextBody = "Complete your interview to move to the next step.";
+            nextHref = `https://interview.staffva.com?candidate=${candidate.id}`;
+            nextLabel = "Continue Interview";
+          } else {
+            nextHeading = "You passed your English test";
+            nextBody = "Take your AI interview next to boost your profile ranking.";
+            nextHref = `https://interview.staffva.com?candidate=${candidate.id}`;
+            nextLabel = "Start AI Interview";
+          }
         } else if (!recruiterDone) {
-          nextHeading = "Your application is with our team";
-          nextBody = "A recruiter will contact you within 48 hours to schedule your final interview.";
+          nextHeading = "Your AI interview is complete";
+          nextBody = "A recruiter will contact you within 48 hours to schedule your second interview.";
         } else if (!profileLive) {
           nextHeading = "Almost there";
           nextBody = "Your profile is being reviewed by our team.";
@@ -917,6 +977,31 @@ export default function CandidateDashboardPage() {
           ))}
         </div>
       </div>
+
+      {/* AI Interview Results — visible to candidate only */}
+      {aiInterview && aiInterview.status === "completed" && (
+        <div className="mb-8">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">AI Interview Results</h2>
+          <div className="rounded-xl border border-gray-200 bg-white p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-3xl font-bold text-[#1C1B1A]">{aiInterview.overall_score}<span className="text-lg font-normal text-gray-400">/100</span></p>
+                {aiInterview.passed ? (
+                  <span className="mt-1 inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">Passed</span>
+                ) : (
+                  <span className="mt-1 inline-block rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Did Not Pass</span>
+                )}
+              </div>
+              {aiInterview.completed_at && (
+                <p className="text-xs text-gray-400">Completed {new Date(aiInterview.completed_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+              )}
+            </div>
+
+            {/* Dimension scores — fetched inline */}
+            <AIInterviewDimensions candidateId={candidate.id} />
+          </div>
+        </div>
+      )}
 
       {/* Profile Activity */}
       <div className="mb-8">
