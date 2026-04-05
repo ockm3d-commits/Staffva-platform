@@ -90,6 +90,10 @@ function BrowseContent() {
   // lockStatus removed — availability computed from committed_hours
   const [sort, setSort] = useState("newest");
   const [showFilters, setShowFilters] = useState(false);
+  const [skillFilters, setSkillFilters] = useState<string[]>(() => {
+    const s = searchParams.get("skills");
+    return s ? s.split(",").map((x) => decodeURIComponent(x.trim())).filter(Boolean) : [];
+  });
 
   const fetchCandidates = useCallback(async () => {
     setLoading(true);
@@ -104,9 +108,18 @@ function BrowseContent() {
     if (tier !== "any") params.set("tier", tier);
     if (speakingLevel !== "any") params.set("speakingLevel", speakingLevel);
     if (usExperience) params.set("usExperience", usExperience);
-    // lockStatus removed
+    if (skillFilters.length > 0) params.set("skills", skillFilters.join(","));
     params.set("sort", sort);
     params.set("page", page.toString());
+
+    // Update URL without navigation
+    const urlParams = new URLSearchParams();
+    if (search) urlParams.set("search", search);
+    if (role && role !== "All") urlParams.set("role", role);
+    if (availability) urlParams.set("availability", availability);
+    if (skillFilters.length > 0) urlParams.set("skills", skillFilters.join(","));
+    const newUrl = urlParams.toString() ? `/browse?${urlParams}` : "/browse";
+    window.history.replaceState(null, "", newUrl);
 
     const res = await fetch(`/api/candidates?${params}`);
     const data = await res.json();
@@ -115,11 +128,23 @@ function BrowseContent() {
     setTotal(data.total || 0);
     setTotalPages(data.totalPages || 1);
     setLoading(false);
-  }, [search, role, country, minRate, maxRate, availability, tier, speakingLevel, usExperience, sort, page]);
+  }, [search, role, country, minRate, maxRate, availability, tier, speakingLevel, usExperience, skillFilters, sort, page]);
 
   useEffect(() => {
     fetchCandidates();
   }, [fetchCandidates]);
+
+  function toggleSkillFilter(skill: string) {
+    setSkillFilters((prev) =>
+      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]
+    );
+    setPage(1);
+  }
+
+  function clearSkillFilters() {
+    setSkillFilters([]);
+    setPage(1);
+  }
 
   // Check auth state
   useEffect(() => {
@@ -443,8 +468,25 @@ function BrowseContent() {
             </div>
           </aside>
 
-          {/* Candidate grid */}
+          {/* Candidate list */}
           <div className="flex-1 min-w-0">
+            {/* Active skill filter chips */}
+            {skillFilters.length > 0 && (
+              <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-1">
+                {skillFilters.map((skill) => (
+                  <span key={skill} className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#FE6E3E] px-3 py-1 text-xs font-medium text-white">
+                    {skill}
+                    <button onClick={() => toggleSkillFilter(skill)} className="ml-0.5 hover:text-white/70 transition-colors">
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </span>
+                ))}
+                <button onClick={clearSkillFilters} className="shrink-0 text-xs text-text-muted hover:text-primary transition-colors">
+                  Clear all
+                </button>
+              </div>
+            )}
+
             {loading ? (
               <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -468,7 +510,7 @@ function BrowseContent() {
               <>
                 <div className="rounded-xl border border-gray-100 bg-white overflow-hidden">
                   {candidates.map((candidate) => (
-                    <CandidateCard key={candidate.id} candidate={candidate} isLoggedIn={isLoggedIn} />
+                    <CandidateCard key={candidate.id} candidate={candidate} isLoggedIn={isLoggedIn} onSkillClick={toggleSkillFilter} activeSkills={skillFilters} />
                   ))}
                 </div>
 

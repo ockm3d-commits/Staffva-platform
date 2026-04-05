@@ -20,6 +20,7 @@ export async function GET(request: Request) {
   const tier = searchParams.get("tier");
   const speakingLevel = searchParams.get("speakingLevel");
   const usExperience = searchParams.get("usExperience");
+  const skillsParam = searchParams.get("skills");
   const sort = searchParams.get("sort") || "newest";
   const page = parseInt(searchParams.get("page") || "1");
   const limit = 24;
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
   let query = supabase
     .from("candidates")
     .select(
-      "id, display_name, country, role_category, hourly_rate, english_written_tier, speaking_level, availability_status, availability_date, us_client_experience, bio, total_earnings_usd, committed_hours, profile_photo_url, needs_availability_update, voice_recording_1_preview_url, created_at, english_mc_score, english_comprehension_score, reputation_score, reputation_tier, video_intro_status, skills, tagline",
+      "id, display_name, country, role_category, hourly_rate, english_written_tier, speaking_level, availability_status, availability_date, us_client_experience, bio, total_earnings_usd, committed_hours, profile_photo_url, needs_availability_update, voice_recording_1_preview_url, created_at, english_mc_score, english_comprehension_score, reputation_score, reputation_tier, video_intro_status, skills, tools, tagline",
       { count: "exact" }
     )
     .eq("admin_status", "approved");
@@ -132,15 +133,26 @@ export async function GET(request: Request) {
   }
 
   // Merge AI interview data into candidates
-  const enriched = (data || []).map((c) => ({
+  let enriched = (data || []).map((c) => ({
     ...c,
     ai_interview: aiInterviewMap[c.id] || null,
   }));
 
+  // Filter by skills (client-side since Supabase JSONB contains is limited)
+  if (skillsParam) {
+    const requiredSkills = skillsParam.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+    if (requiredSkills.length > 0) {
+      enriched = enriched.filter((c) => {
+        const candidateSkills = [...(c.skills || []), ...(c.tools || [])].map((s: string) => s.toLowerCase());
+        return requiredSkills.every((rs) => candidateSkills.some((cs) => cs.includes(rs) || rs.includes(cs)));
+      });
+    }
+  }
+
   return NextResponse.json({
     candidates: enriched,
-    total: count || 0,
+    total: skillsParam ? enriched.length : (count || 0),
     page,
-    totalPages: Math.ceil((count || 0) / limit),
+    totalPages: skillsParam ? 1 : Math.ceil((count || 0) / limit),
   });
 }

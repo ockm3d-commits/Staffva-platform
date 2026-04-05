@@ -43,9 +43,11 @@ function getAvailability(hours: number) {
 interface Props {
   candidate: CandidateCardData;
   isLoggedIn?: boolean;
+  onSkillClick?: (skill: string) => void;
+  activeSkills?: string[];
 }
 
-export default function CandidateCard({ candidate, isLoggedIn = false }: Props) {
+export default function CandidateCard({ candidate, isLoggedIn = false, onSkillClick, activeSkills = [] }: Props) {
   const availDot = getAvailability(candidate.committed_hours || 0);
   const skills = candidate.skills || [];
   const maxSkills = 6;
@@ -120,12 +122,26 @@ export default function CandidateCard({ candidate, isLoggedIn = false }: Props) 
             )}
           </div>
 
-          {/* Row 5: Skill tags */}
+          {/* Row 5: Skill tags — clickable */}
           {visibleSkills.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {visibleSkills.map((s) => (
-                <span key={s} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-text-secondary">{s}</span>
-              ))}
+            <div className="mt-2 flex flex-wrap gap-1" onClick={(e) => e.preventDefault()}>
+              {visibleSkills.map((s) => {
+                const isActive = activeSkills.includes(s);
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSkillClick?.(s); }}
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors cursor-pointer ${
+                      isActive
+                        ? "bg-[#FE6E3E] text-white"
+                        : "bg-gray-100 text-text-secondary hover:bg-gray-200"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
               {overflowCount > 0 && (
                 <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-text-tertiary">+{overflowCount}</span>
               )}
@@ -206,12 +222,24 @@ export default function CandidateCard({ candidate, isLoggedIn = false }: Props) 
           )}
         </div>
 
-        {/* Row 4: Skill tags */}
+        {/* Row 4: Skill tags — clickable */}
         {visibleSkills.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {visibleSkills.slice(0, 4).map((s) => (
-              <span key={s} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-text-secondary">{s}</span>
-            ))}
+            {visibleSkills.slice(0, 4).map((s) => {
+              const isActive = activeSkills.includes(s);
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSkillClick?.(s); }}
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors active:scale-95 ${
+                    isActive ? "bg-[#FE6E3E] text-white" : "bg-gray-100 text-text-secondary hover:bg-gray-200"
+                  }`}
+                >
+                  {s}
+                </button>
+              );
+            })}
             {skills.length > 4 && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-text-tertiary">+{skills.length - 4}</span>}
           </div>
         )}
