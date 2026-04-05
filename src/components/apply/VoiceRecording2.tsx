@@ -8,7 +8,6 @@ import {
   revokePlaybackUrl,
 } from "@/lib/audioUtils";
 
-const PREP_TIME = 30;
 const MAX_RECORDING_TIME = 90;
 const MIN_RECORDING_SECONDS = 15;
 
@@ -26,9 +25,8 @@ interface Props {
 
 export default function VoiceRecording2({ candidateId, onComplete }: Props) {
   const [phase, setPhase] = useState<
-    "instructions" | "prep" | "recording" | "review" | "uploading"
+    "instructions" | "recording" | "review" | "uploading"
   >("instructions");
-  const [countdown, setCountdown] = useState(PREP_TIME);
   const [recordingTime, setRecordingTime] = useState(0);
   const [error, setError] = useState("");
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
@@ -45,22 +43,6 @@ export default function VoiceRecording2({ candidateId, onComplete }: Props) {
       if (playbackUrl) revokePlaybackUrl(playbackUrl);
     };
   }, [playbackUrl]);
-
-  function startPrep() {
-    setPhase("prep");
-    setCountdown(PREP_TIME);
-
-    timerRef.current = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          startRecording();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }
 
   async function startRecording() {
     try {
@@ -215,7 +197,7 @@ export default function VoiceRecording2({ candidateId, onComplete }: Props) {
         <>
           <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
             <p className="text-sm text-gray-600">
-              Record a 60 to 90 second introduction. Cover all four of the
+              Record a 15 to 90 second introduction. Cover all four of the
               following points in order:
             </p>
             <ol className="mt-4 space-y-2 text-sm text-gray-600">
@@ -235,56 +217,25 @@ export default function VoiceRecording2({ candidateId, onComplete }: Props) {
                 </li>
               ))}
             </ol>
-            <p className="mt-4 text-sm text-gray-600">
-              You have 30 seconds to prepare. Your recording will begin
-              automatically. Minimum 15 seconds. You can listen and re-record
-              before submitting.
-            </p>
             <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
               <p className="text-sm text-amber-800 flex items-center gap-2">
-                <svg
-                  className="h-4 w-4 shrink-0"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-                  />
+                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                 </svg>
-                <strong>Important:</strong> Only mention your{" "}
-                <strong>first name</strong> — do not share your last name.
+                <strong>Important:</strong> Only mention your <strong>first name</strong> — do not share your last name.
               </p>
             </div>
             <p className="mt-2 text-xs text-gray-400">
-              This recording may be shared with prospective clients as part of
-              your profile. Our team reviews all recordings before publishing.
+              You can listen to your recording and re-record before submitting. This recording may be shared with prospective clients.
             </p>
           </div>
           <button
-            onClick={startPrep}
-            className="mt-6 w-full rounded-lg bg-[#FE6E3E] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors"
+            onClick={startRecording}
+            className="mt-6 w-full rounded-full bg-[#FE6E3E] px-4 py-3 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors"
           >
-            Start 30-Second Preparation
+            Start Recording
           </button>
         </>
-      )}
-
-      {phase === "prep" && (
-        <div className="mt-8 text-center">
-          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-orange-100">
-            <span className="text-3xl font-bold text-[#FE6E3E]">
-              {countdown}
-            </span>
-          </div>
-          <p className="mt-4 text-sm text-gray-500">
-            Prepare your introduction. Recording starts automatically.
-          </p>
-          <DiscussionPointsCard />
-        </div>
       )}
 
       {phase === "recording" && (
