@@ -36,7 +36,7 @@ interface Candidate {
   tagline: string;
   profile_photo_url: string;
   tools: string[];
-  work_experience: { role_title: string; industry: string; duration: string; description: string }[];
+  work_experience: { company_name?: string; role_title: string; industry: string; duration: string; description: string }[];
   english_written_tier: string;
   speaking_level: string;
   us_client_experience: string;
@@ -206,7 +206,7 @@ export default function CandidatePreviewModal({
                     {workExp.map((entry, i) => (
                       <div key={i} className="relative pl-6 border-l-2 border-primary/20">
                         <div className="absolute -left-[5px] top-1 h-2 w-2 rounded-full bg-primary" />
-                        <p className="font-semibold text-text text-sm">{entry.role_title}</p>
+                        <p className="font-semibold text-text text-sm">{entry.company_name ? `${entry.company_name} · ${entry.role_title}` : entry.role_title}</p>
                         <p className="text-xs text-text/50 mt-0.5">{entry.industry} &middot; {entry.duration}</p>
                         {entry.description && <p className="mt-1 text-sm text-text/70">{entry.description}</p>}
                       </div>

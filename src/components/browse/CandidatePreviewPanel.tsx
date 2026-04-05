@@ -23,7 +23,7 @@ interface PanelData {
     profile_photo_url: string | null;
     skills: string[] | null;
     tools: string[] | null;
-    work_experience: { role_title: string; industry: string; duration: string; description: string; start_date?: string; end_date?: string }[] | null;
+    work_experience: { company_name?: string; role_title: string; industry: string; duration: string; description: string; start_date?: string; end_date?: string }[] | null;
     reputation_score: number | null;
     reputation_tier: string | null;
     total_earnings_usd: number;
@@ -277,7 +277,7 @@ export default function CandidatePreviewPanel({ candidateId, onClose, onSkillCli
                   <div className="space-y-2">
                     {workExp.map((e, i) => (
                       <div key={i} className="rounded-lg bg-gray-50 p-2.5">
-                        <p className="text-xs font-medium text-[#1C1B1A]">{e.role_title}</p>
+                        <p className="text-xs font-medium text-[#1C1B1A]">{e.company_name ? `${e.company_name} · ${e.role_title}` : e.role_title}</p>
                         <p className="text-[10px] text-gray-500">{e.industry} &middot; {e.duration}</p>
                         {e.description && <p className="mt-0.5 text-[10px] text-gray-500 line-clamp-1">{e.description}</p>}
                       </div>

@@ -22,6 +22,7 @@ interface ProfileBuilderProps {
 type BuilderStep = 1 | 2 | 3 | 4 | 5 | 6;
 
 interface WorkEntry {
+  company_name: string;
   role_title: string;
   industry: string;
   industry_other?: string;
@@ -125,7 +126,7 @@ export default function ProfileBuilder({
 
   // Step 4 — Work Experience
   const [workEntries, setWorkEntries] = useState<WorkEntry[]>([
-    { role_title: "", industry: "", industry_other: "", duration: "", description: "", start_date: "", end_date: "", tools_used: [], skills_gained: [] },
+    { company_name: "", role_title: "", industry: "", industry_other: "", duration: "", description: "", start_date: "", end_date: "", tools_used: [], skills_gained: [] },
   ]);
 
   // Step 5 — Portfolio and Resume
@@ -314,7 +315,7 @@ export default function ProfileBuilder({
     if (workEntries.length >= 3) return;
     // Insert new entry at top (most recent position)
     setWorkEntries([
-      { role_title: "", industry: "", industry_other: "", duration: "", description: "", start_date: "", end_date: "", tools_used: [], skills_gained: [] },
+      { company_name: "", role_title: "", industry: "", industry_other: "", duration: "", description: "", start_date: "", end_date: "", tools_used: [], skills_gained: [] },
       ...workEntries,
     ]);
   }
@@ -388,6 +389,10 @@ export default function ProfileBuilder({
           return false;
         }
         for (const entry of validEntries) {
+          if (!entry.company_name?.trim()) {
+            setError("Please enter the company or business name.");
+            return false;
+          }
           if (!entry.industry || !entry.start_date) {
             setError("Each entry needs a role title, industry, and start date");
             return false;
@@ -849,6 +854,19 @@ export default function ProfileBuilder({
                       Remove
                     </button>
                   )}
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="e.g. McKinsey & Company, freelance, self-employed"
+                    value={entry.company_name}
+                    maxLength={80}
+                    onChange={(e) =>
+                      updateWorkEntry(i, "company_name", e.target.value)
+                    }
+                    className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                  />
+                  <label className="block text-xs text-text/50 mt-1">Company / Business Name <span className="text-red-500">*</span></label>
                 </div>
                 <input
                   type="text"

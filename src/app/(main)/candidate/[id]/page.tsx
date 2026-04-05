@@ -251,7 +251,7 @@ export default async function CandidateProfilePage({
   const displayedName = candidate.display_name || candidate.full_name;
   const canViewGated = isLoggedIn && (isClient || isOwnProfile || isAdmin);
   const tools: string[] = candidate.tools || [];
-  const rawWorkExperience: { role_title: string; industry: string; duration: string; description: string; start_date?: string; end_date?: string }[] = candidate.work_experience || [];
+  const rawWorkExperience: { company_name?: string; role_title: string; industry: string; duration: string; description: string; start_date?: string; end_date?: string }[] = candidate.work_experience || [];
   const workExperience = [...rawWorkExperience].sort((a, b) => {
     const aIsCurrent = !a.end_date || a.end_date === "present";
     const bIsCurrent = !b.end_date || b.end_date === "present";
@@ -676,7 +676,7 @@ export default async function CandidateProfilePage({
                   {workExperience.map((entry, i) => (
                     <div key={i} className="relative pl-6 border-l-2 border-primary/20">
                       <div className="absolute -left-[5px] top-1 h-2 w-2 rounded-full bg-primary" />
-                      <p className="font-semibold text-text text-sm">{entry.role_title}</p>
+                      <p className="font-semibold text-text text-sm">{entry.company_name ? `${entry.company_name} · ${entry.role_title}` : entry.role_title}</p>
                       <p className="text-xs text-text/50 mt-0.5">
                         {entry.industry} &middot; {entry.duration}
                       </p>
