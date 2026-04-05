@@ -860,35 +860,81 @@ export default function ProfileBuilder({
                     className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
                   />
                 )}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-text/50 mb-1">From</label>
-                    <input
-                      type="month"
-                      value={entry.start_date}
-                      onChange={(e) => updateWorkEntry(i, "start_date", e.target.value)}
-                      className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
-                    />
+                {/* Start Date */}
+                <div>
+                  <label className="block text-xs text-text/50 mb-1">Start Date</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={entry.start_date?.split("-")[1] || ""}
+                      onChange={(e) => {
+                        const year = entry.start_date?.split("-")[0] || "";
+                        updateWorkEntry(i, "start_date", year ? `${year}-${e.target.value}` : `-${e.target.value}`);
+                      }}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="">Month</option>
+                      {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, idx) => (
+                        <option key={m} value={String(idx + 1).padStart(2, "0")}>{m}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={entry.start_date?.split("-")[0] || ""}
+                      onChange={(e) => {
+                        const month = entry.start_date?.split("-")[1] || "01";
+                        updateWorkEntry(i, "start_date", `${e.target.value}-${month}`);
+                      }}
+                      className="block w-full rounded-lg border border-gray-300 px-3 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="">Year</option>
+                      {Array.from({ length: new Date().getFullYear() - 1969 }, (_, j) => new Date().getFullYear() - j).map((y) => (
+                        <option key={y} value={String(y)}>{y}</option>
+                      ))}
+                    </select>
                   </div>
-                  <div>
-                    <label className="block text-xs text-text/50 mb-1">To</label>
+                </div>
+
+                {/* End Date */}
+                <div>
+                  <label className="block text-xs text-text/50 mb-1">End Date</label>
+                  <label className="mb-2 flex items-center gap-1.5 text-xs text-text/50 cursor-pointer">
                     <input
-                      type="month"
-                      value={entry.end_date}
-                      onChange={(e) => updateWorkEntry(i, "end_date", e.target.value)}
-                      placeholder="Present"
-                      className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                      type="checkbox"
+                      checked={entry.end_date === "present"}
+                      onChange={(e) => updateWorkEntry(i, "end_date", e.target.checked ? "present" : "")}
+                      className="accent-primary h-3.5 w-3.5"
                     />
-                    <label className="mt-1 flex items-center gap-1.5 text-xs text-text/50">
-                      <input
-                        type="checkbox"
-                        checked={entry.end_date === "present"}
-                        onChange={(e) => updateWorkEntry(i, "end_date", e.target.checked ? "present" : "")}
-                        className="accent-primary"
-                      />
-                      Currently working here
-                    </label>
-                  </div>
+                    I currently work here
+                  </label>
+                  {entry.end_date !== "present" && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={entry.end_date?.split("-")[1] || ""}
+                        onChange={(e) => {
+                          const year = entry.end_date?.split("-")[0] || "";
+                          updateWorkEntry(i, "end_date", year ? `${year}-${e.target.value}` : `-${e.target.value}`);
+                        }}
+                        className="block w-full rounded-lg border border-gray-300 px-3 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">Month</option>
+                        {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m, idx) => (
+                          <option key={m} value={String(idx + 1).padStart(2, "0")}>{m}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={entry.end_date?.split("-")[0] || ""}
+                        onChange={(e) => {
+                          const month = entry.end_date?.split("-")[1] || "01";
+                          updateWorkEntry(i, "end_date", `${e.target.value}-${month}`);
+                        }}
+                        className="block w-full rounded-lg border border-gray-300 px-3 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">Year</option>
+                        {Array.from({ length: new Date().getFullYear() - 1969 }, (_, j) => new Date().getFullYear() - j).map((y) => (
+                          <option key={y} value={String(y)}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
                 <input
                   type="text"
