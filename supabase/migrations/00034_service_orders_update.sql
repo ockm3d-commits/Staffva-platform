@@ -1,0 +1,11 @@
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS requirements_text TEXT;
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS tier_selected INTEGER DEFAULT 1;
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS delivery_due_at TIMESTAMPTZ;
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ;
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS delivery_content_url TEXT;
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS delivery_message TEXT;
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS revision_count INTEGER DEFAULT 0;
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS revision_requested_at TIMESTAMPTZ;
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS revision_reason TEXT;
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS review_submitted BOOLEAN DEFAULT false;
