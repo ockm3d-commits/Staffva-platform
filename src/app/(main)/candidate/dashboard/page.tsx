@@ -737,19 +737,27 @@ export default function CandidateDashboardPage() {
         const profileLive = candidate.admin_status === "approved";
 
         // 7-stage progress bar with correct completion conditions
-        const englishTestDone = testSubmitted && !!candidate.results_display_unlocked;
-        const recruiterInterviewDone = recruiterDone && spokenScored;
-        const profileReviewDone = candidate.admin_status === "approved";
-        const profileLiveConfirmed = profileLive && !!candidate.profile_went_live_at;
+        // If admin_status is approved, all prior stages are implicitly complete
+        // (candidate may have been approved through legacy or admin-override flow)
+        const isApproved = candidate.admin_status === "approved";
+
+        const englishTestDone = testSubmitted && (!!candidate.results_display_unlocked || isApproved);
+        const recruiterInterviewDone = (recruiterDone && spokenScored) || isApproved;
+        const profileReviewDone = isApproved;
+        const profileLiveConfirmed = isApproved && !!candidate.profile_went_live_at;
+
+        // If approved, mark all stages before Review as done
+        const aiDoneForTracker = aiDone || isApproved;
+        const idVerifiedForTracker = idVerified || isApproved;
 
         const stages = [
           { label: "Application", done: true },
-          { label: "English Test", done: englishTestDone },
-          { label: "ID Verified", done: idVerified },
-          { label: "AI Interview", done: aiDone },
+          { label: "English Test", done: englishTestDone || isApproved },
+          { label: "ID Verified", done: idVerifiedForTracker },
+          { label: "AI Interview", done: aiDoneForTracker },
           { label: "Recruiter", done: recruiterInterviewDone },
           { label: "Review", done: profileReviewDone },
-          { label: "Live", done: profileLiveConfirmed },
+          { label: "Live", done: profileLiveConfirmed || isApproved },
         ];
 
         // Profile Review is active during both under_review and changes_requested
@@ -771,7 +779,12 @@ export default function CandidateDashboardPage() {
         let nextHref = "";
         let nextLabel = "";
 
-        if (!testSubmitted) {
+        if (isApproved) {
+          // Stage 9: Profile live — override all other checks
+          nextHeading = "Your profile is live";
+          nextBody = "Clients can find you right now.";
+          nextHref = `/candidate/${candidate.id}`; nextLabel = "View My Profile";
+        } else if (!testSubmitted) {
           // Stage 1: English test not started
           nextHeading = "Your application is received";
           nextBody = "Your English assessment is ready when you are.";
@@ -901,161 +914,9 @@ export default function CandidateDashboardPage() {
         );
       })()}
 
-      {/* Next Step Action Button */}
-      {(() => {
-        const hasPassedTest = (candidate.english_mc_score ?? 0) >= 70 && (candidate.english_written_tier !== null);
-        const hasRecordings = !!candidate.voice_recording_1_url && !!candidate.voice_recording_2_url;
-        const profileDone = !!candidate.profile_photo_url && !!candidate.resume_url;
-        const aiDone = !!aiInterview && aiInterview.status === "completed" && aiInterview.passed;
+      {/* Old next step action button removed — replaced by "What to do next" card above */}
 
-        if (aiDone) return null; // No button needed — green badge shows in tracker
-
-        let label = "";
-        let href = "/apply";
-
-        if (!hasPassedTest && !hasRecordings) {
-          label = candidate.english_mc_score ? "Continue English Test" : "Continue Application";
-        } else if (hasPassedTest && !hasRecordings) {
-          label = "Continue Application";
-        } else if (hasRecordings && !profileDone) {
-          label = "Continue Profile Setup";
-        } else if (profileDone && !aiDone) {
-          // Check if retake is locked
-          if (aiInterview && aiInterview.status === "completed" && !aiInterview.passed && retakeData?.next_retake_available_at) {
-            const retakeDate = new Date(retakeData.next_retake_available_at);
-            if (retakeDate > new Date()) {
-              // Retake locked — don't show button
-              label = "";
-            } else {
-              label = "Retake AI Interview";
-              href = `https://interview.staffva.com?candidate=${candidate.id}`;
-            }
-          } else {
-            label = "Start AI Interview";
-            href = `https://interview.staffva.com?candidate=${candidate.id}`;
-          }
-        }
-
-        if (!label) return null;
-
-        return (
-          <div className="mb-6">
-            <a
-              href={href}
-              target={href.startsWith("http") ? "_blank" : undefined}
-              rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
-              className="inline-flex items-center gap-2 rounded-lg bg-[#FE6E3E] px-6 py-3 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors shadow-sm"
-            >
-              {label === "Start AI Interview" && (
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              )}
-              {label} →
-            </a>
-          </div>
-        );
-      })()}
-
-      {/* Progress Tracker */}
-      {(() => {
-        const steps = getProgressSteps(candidate, interviews, aiInterview, retakeData);
-        const aiCompleted = !!aiInterview && aiInterview.status === "completed" && aiInterview.passed;
-        const profileBuilderDone = !!candidate.profile_photo_url && !!candidate.resume_url;
-
-        return (
-          <div className="mb-8 rounded-lg border border-gray-200 bg-white p-5">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-500">Your Progress</h2>
-            <div className="relative">
-              {steps.map((step, i) => (
-                <div key={step.label} className="flex items-start gap-3 pb-4 last:pb-0">
-                  {/* Vertical line */}
-                  <div className="flex flex-col items-center">
-                    {step.status === "completed" ? (
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-500">
-                        <svg className="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                    ) : step.status === "current" ? (
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#FE6E3E] ring-4 ring-orange-100">
-                        <span className="text-xs font-bold text-white">{i + 1}</span>
-                      </div>
-                    ) : (
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 border-gray-200 bg-gray-50">
-                        <span className="text-xs font-medium text-gray-400">{i + 1}</span>
-                      </div>
-                    )}
-                    {i < steps.length - 1 && (
-                      <div className={`mt-1 h-6 w-0.5 ${step.status === "completed" ? "bg-green-300" : "bg-gray-200"}`} />
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="pt-0.5">
-                    <p className={`text-sm font-medium ${
-                      step.status === "completed" ? "text-green-700" : step.status === "current" ? "text-[#1C1B1A]" : "text-gray-400"
-                    }`}>
-                      {step.label}
-                    </p>
-                    {step.detail && (
-                      <p className={`mt-0.5 text-xs ${step.status === "completed" ? "text-green-600" : step.status === "current" ? "text-gray-500" : "text-gray-400"}`}>
-                        {step.detail}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* AI Interview Button */}
-            {profileBuilderDone && !aiCompleted && !aiInterview && (
-              <div className="mt-4 border-t border-gray-100 pt-4">
-                <a
-                  href={`https://interview.staffva.com?candidate=${candidate.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#FE6E3E] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Start AI Interview
-                </a>
-                <p className="mt-1.5 text-xs text-gray-500">20-minute AI-powered structured interview. Available now.</p>
-              </div>
-            )}
-
-            {aiCompleted && aiInterview && (
-              <div className="mt-4 border-t border-gray-100 pt-4">
-                <div className="inline-flex items-center gap-2 rounded-full bg-green-50 border border-green-200 px-4 py-2">
-                  <svg className="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-sm font-medium text-green-700">
-                    AI Interview Complete — {aiInterview.overall_score}/100 — {aiInterview.badge_level?.charAt(0).toUpperCase()}{aiInterview.badge_level?.slice(1)}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {aiInterview && aiInterview.status === "completed" && !aiInterview.passed && (
-              <div className="mt-4 border-t border-gray-100 pt-4">
-                <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 border border-amber-200 px-4 py-2">
-                  <svg className="h-4 w-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  <span className="text-sm font-medium text-amber-700">
-                    Score: {aiInterview.overall_score}/100 — {retakeData?.next_retake_available_at && new Date(retakeData.next_retake_available_at) > new Date()
-                      ? `Retake available in ${Math.ceil((new Date(retakeData.next_retake_available_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days`
-                      : "Retake available"}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {/* Old vertical progress tracker removed — replaced by horizontal tracker above */}
 
       {/* Lockout card */}
       <LockoutCard />
