@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     .eq("id", user.id)
     .single();
 
-  if (!profile || (profile.role !== "recruiter" && profile.role !== "admin")) {
+  if (!profile || (profile.role !== "recruiter" && profile.role !== "admin" && profile.role !== "recruiting_manager")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
   const view = searchParams.get("view") || "recruiter"; // "recruiter" or "admin"
   const statusFilter = searchParams.get("status") || "all";
 
-  // Get assignments if recruiter
+  // Get assignments if recruiter (recruiting_manager sees all — no scope filter)
   let assignedCategories: string[] = [];
   if (profile.role === "recruiter") {
     const { data: assignments } = await supabase
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
       "id, full_name, display_name, email, country, role_category, hourly_rate, english_written_tier, speaking_level, screening_tag, screening_score, admin_status, profile_photo_url, created_at, waiting_since, second_interview_status, second_interview_scheduled_at, assigned_recruiter, assignment_pending_review, voice_recording_1_url, voice_recording_2_url"
     );
 
-  // Recruiter: filter by assigned categories
+  // Recruiter: filter by assigned categories; recruiting_manager sees all
   if (profile.role === "recruiter" && assignedCategories.length > 0) {
     query = query.in("role_category", assignedCategories);
   }
@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
     .eq("id", user.id)
     .single();
 
-  if (!profile || (profile.role !== "recruiter" && profile.role !== "admin")) {
+  if (!profile || (profile.role !== "recruiter" && profile.role !== "admin" && profile.role !== "recruiting_manager")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

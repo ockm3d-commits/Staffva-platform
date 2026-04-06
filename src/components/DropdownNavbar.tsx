@@ -190,7 +190,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
                   <Link href="/inbox" className={`text-[14px] font-medium transition-colors ${textColor}`}>Inbox</Link>
                 </>
               )}
-              {role === "recruiter" && (
+              {(role === "recruiter" || role === "recruiting_manager") && (
                 <Link href="/recruiter" className={`text-[14px] font-medium transition-colors ${textColor}`}>Recruiter</Link>
               )}
               {role === "admin" && (

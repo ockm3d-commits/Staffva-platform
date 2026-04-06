@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     .eq("id", user.id)
     .single();
 
-  if (!profile || (profile.role !== "recruiter" && profile.role !== "admin")) {
+  if (!profile || (profile.role !== "recruiter" && profile.role !== "admin" && profile.role !== "recruiting_manager")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

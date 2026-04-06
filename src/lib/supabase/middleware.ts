@@ -56,7 +56,7 @@ export async function updateSession(request: NextRequest) {
       url.pathname = "/browse";
     } else if (role === "admin") {
       url.pathname = "/admin";
-    } else if (role === "recruiter") {
+    } else if (role === "recruiter" || role === "recruiting_manager") {
       url.pathname = "/recruiter";
     } else {
       url.pathname = "/";

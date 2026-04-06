@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ScreeningQueueWidget from "@/components/admin/ScreeningQueueWidget";
 import IdentitySummaryWidget from "@/components/admin/IdentitySummaryWidget";
@@ -19,17 +20,23 @@ interface Metrics {
 }
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/metrics")
-      .then((res) => res.json())
-      .then((data) => {
-        setMetrics(data);
-        setLoading(false);
-      });
-  }, []);
+    fetch("/api/admin/metrics").then((res) => {
+      if (res.status === 403) {
+        router.replace("/recruiter");
+        return null;
+      }
+      return res.json();
+    }).then((data) => {
+      if (!data) return;
+      setMetrics(data);
+      setLoading(false);
+    });
+  }, [router]);
 
   if (loading || !metrics) {
     return <p className="text-text/60">Loading dashboard...</p>;

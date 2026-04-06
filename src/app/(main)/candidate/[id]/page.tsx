@@ -5,6 +5,8 @@ import MessageButton from "@/components/browse/MessageButton";
 import InterviewRequestSection from "@/components/InterviewRequestSection";
 import NotifyButton from "@/components/browse/NotifyButton";
 import ProfileViewTracker from "@/components/ProfileViewTracker";
+import ApproveButton from "@/components/recruiting-manager/ApproveButton";
+import BanButton from "@/components/recruiting-manager/BanButton";
 
 async function InterviewNotesPDF({ path }: { path: string }) {
   const supabase = createClient(
@@ -133,6 +135,7 @@ export default async function CandidateProfilePage({
   const isClient = user?.user_metadata?.role === "client";
   const isCandidate = user?.user_metadata?.role === "candidate";
   const isAdmin = user?.user_metadata?.role === "admin";
+  const isRecruitingManager = user?.user_metadata?.role === "recruiting_manager";
 
   // First try to find approved candidate (public view)
   let { data: candidate } = await supabase
@@ -173,8 +176,8 @@ export default async function CandidateProfilePage({
     );
   }
 
-  // If not found and user is admin, show any candidate
-  if (!candidate && isAdmin) {
+  // If not found and user is admin or recruiting_manager, show any candidate
+  if (!candidate && (isAdmin || isRecruitingManager)) {
     const { data: adminCandidate } = await supabase
       .from("candidates")
       .select("*")
@@ -248,7 +251,10 @@ export default async function CandidateProfilePage({
   const speaking = candidate.speaking_level ? SPEAKING_CONFIG[candidate.speaking_level] : null;
   const hasUSExperience = candidate.us_client_experience === "full_time" || candidate.us_client_experience === "part_time_contract";
   const displayedName = candidate.display_name || candidate.full_name;
-  const canViewGated = isLoggedIn && (isClient || isOwnProfile || isAdmin);
+  const canViewGated = isLoggedIn && (isClient || isOwnProfile || isAdmin || isRecruitingManager);
+
+  const aiInterviewCompleted = !!aiInterview;
+  const secondInterviewCompleted = candidate.second_interview_status === "completed";
   const tools: string[] = candidate.tools || [];
   const rawWorkExperience: { company_name?: string; role_title: string; industry: string; duration: string; description: string; start_date?: string; end_date?: string }[] = candidate.work_experience || [];
   const workExperience = [...rawWorkExperience].sort((a, b) => {
@@ -360,6 +366,35 @@ export default async function CandidateProfilePage({
           </div>
         );
       })()}
+
+      {/* ═══════════ RECRUITING MANAGER ACTIONS BAR ═══════════ */}
+      {isRecruitingManager && (
+        <div className="border-b border-amber-200 bg-amber-50 px-6 py-3">
+          <div className="mx-auto max-w-5xl flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Recruiting Manager View</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Status: <strong>{candidate.admin_status?.replace(/_/g, " ")}</strong>
+                {" · "}AI interview: <strong>{aiInterviewCompleted ? "completed" : "not completed"}</strong>
+                {" · "}Second interview: <strong>{secondInterviewCompleted ? "completed" : candidate.second_interview_status?.replace(/_/g, " ") || "none"}</strong>
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <ApproveButton
+                candidateId={candidate.id}
+                aiInterviewCompleted={aiInterviewCompleted}
+                secondInterviewCompleted={secondInterviewCompleted}
+                alreadyApproved={candidate.admin_status === "approved"}
+              />
+              <BanButton
+                candidateId={candidate.id}
+                candidateName={candidate.display_name || candidate.full_name}
+                alreadyBanPending={!!candidate.ban_pending_review}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══════════ HEADER — Dark Charcoal ═══════════ */}
       <div className="bg-[#1C1B1A]">

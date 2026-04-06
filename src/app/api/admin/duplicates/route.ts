@@ -16,7 +16,7 @@ export async function GET() {
 
   const admin = getAdminClient();
   const { data: profile } = await admin.from("profiles").select("role").eq("id", user.id).single();
-  if (!profile || profile.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!profile || (profile.role !== "admin" && profile.role !== "recruiting_manager")) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const supabase = getAdminClient();
 

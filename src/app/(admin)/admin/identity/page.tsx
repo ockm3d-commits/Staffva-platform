@@ -7,18 +7,22 @@ interface CandidateRef { id: string; display_name: string; full_name: string; co
 interface Lockout { id: string; identity_hash: string; candidate_id: string; failed_at: string; lockout_expires_at: string; attempt_number: number; days_remaining: number; candidate: CandidateRef | null }
 interface Duplicate { id: string; identity_hash: string; candidate_id: string; duplicate_of_candidate_id: string; created_at: string; candidate: CandidateRef | null; original: CandidateRef | null }
 interface Flagged { id: string; identity_hash: string; candidate_id: string; review_reason: string; created_at: string; flagged_for_review: boolean; candidate: CandidateRef | null }
-interface Summary { activeLockouts: number; duplicatesThisWeek: number; flaggedForReview: number; totalVerifications: number }
+interface ManualReview { id: string; display_name: string | null; full_name: string; email: string; country: string; role_category: string; id_verification_submitted_at: string | null; id_verification_review_note: string | null; id_verification_reviewed_at: string | null }
+interface Summary { activeLockouts: number; duplicatesThisWeek: number; flaggedForReview: number; totalVerifications: number; manualReviewPending: number }
 
 export default function IdentityManagementPage() {
-  const [tab, setTab] = useState<"lockouts" | "duplicates" | "flagged">("lockouts");
+  const [tab, setTab] = useState<"lockouts" | "duplicates" | "flagged" | "manual_review">("lockouts");
   const [lockouts, setLockouts] = useState<Lockout[]>([]);
   const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
   const [flagged, setFlagged] = useState<Flagged[]>([]);
+  const [manualReview, setManualReview] = useState<ManualReview[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [overrideModal, setOverrideModal] = useState<{ lockoutId: string; candidateId: string; identityHash: string } | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
   const [acting, setActing] = useState(false);
+  const [reviewModal, setReviewModal] = useState<ManualReview | null>(null);
+  const [reviewNote, setReviewNote] = useState("");
 
   useEffect(() => { loadData(); }, []);
 
@@ -31,6 +35,7 @@ export default function IdentityManagementPage() {
         setLockouts(data.lockouts || []);
         setDuplicates(data.duplicates || []);
         setFlagged(data.flagged || []);
+        setManualReview(data.manualReview || []);
         setSummary(data.summary || null);
       }
     } catch { /* silent */ }
@@ -72,14 +77,20 @@ export default function IdentityManagementPage() {
             <p className="text-2xl font-semibold text-text">{summary.totalVerifications}</p>
             <p className="text-xs text-text-tertiary mt-1">Total Verifications</p>
           </div>
+          {(summary.manualReviewPending ?? 0) > 0 && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center col-span-2 lg:col-span-1">
+              <p className="text-2xl font-semibold text-amber-700">{summary.manualReviewPending}</p>
+              <p className="text-xs text-amber-600 mt-1">Manual Review Pending</p>
+            </div>
+          )}
         </div>
       )}
 
       {/* Tabs */}
       <div className="mt-8 flex gap-1 border-b border-border-light">
-        {(["lockouts", "duplicates", "flagged"] as const).map((t) => (
+        {(["lockouts", "duplicates", "flagged", "manual_review"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${tab === t ? "border-primary text-primary" : "border-transparent text-text-muted hover:text-text"}`}>
-            {t === "lockouts" ? `Active Lockouts (${lockouts.length})` : t === "duplicates" ? `Duplicates (${duplicates.length})` : `Flagged (${flagged.length})`}
+            {t === "lockouts" ? `Active Lockouts (${lockouts.length})` : t === "duplicates" ? `Duplicates (${duplicates.length})` : t === "flagged" ? `Flagged (${flagged.length})` : `Manual Review (${manualReview.length})`}
           </button>
         ))}
       </div>
@@ -165,6 +176,84 @@ export default function IdentityManagementPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ═══ MANUAL REVIEW ═══ */}
+      {tab === "manual_review" && (
+        <div className="mt-6 space-y-3">
+          {manualReview.length === 0 ? <p className="py-12 text-center text-text-tertiary">No pending manual reviews</p> : manualReview.map((m) => {
+            const name = m.display_name || m.full_name;
+            return (
+              <div key={m.id} className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <Link href={`/candidate/${m.id}`} className="text-sm font-semibold text-text hover:text-primary">{name}</Link>
+                    <p className="text-xs text-text-tertiary">{m.country} · {m.role_category}</p>
+                    <p className="text-xs text-text-tertiary mt-0.5">{m.email}</p>
+                    {m.id_verification_submitted_at && (
+                      <p className="text-xs text-amber-700 mt-1">Submitted: {new Date(m.id_verification_submitted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => { setReviewModal(m); setReviewNote(""); }}
+                    className="shrink-0 rounded-lg border border-amber-400 bg-white px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 transition-colors"
+                  >
+                    Review
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Manual review decision modal */}
+      {reviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setReviewModal(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold text-text">Review ID Verification</h2>
+            <p className="mt-1 text-sm text-text-muted">{reviewModal.display_name || reviewModal.full_name} · {reviewModal.country}</p>
+            <p className="mt-3 text-xs text-text-tertiary">Check the candidate's Stripe Identity result, then mark the decision below.</p>
+            <textarea
+              value={reviewNote}
+              onChange={(e) => setReviewNote(e.target.value)}
+              placeholder="Review note (optional)"
+              rows={3}
+              className="mt-4 w-full rounded-xl border border-border-light bg-background px-4 py-3 text-sm text-text placeholder-text-tertiary focus:border-primary focus:outline-none resize-none"
+            />
+            <div className="mt-4 flex gap-3">
+              <button onClick={() => setReviewModal(null)} className="flex-1 rounded-full border border-border py-2.5 text-sm font-medium text-text hover:border-text transition-colors">Cancel</button>
+              <button
+                onClick={async () => {
+                  setActing(true);
+                  await fetch("/api/admin/identity", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "review_id_verification", candidateId: reviewModal.id, decision: "failed", note: reviewNote }) });
+                  setReviewModal(null);
+                  setReviewNote("");
+                  setActing(false);
+                  await loadData();
+                }}
+                disabled={acting}
+                className="flex-1 rounded-full border border-red-300 bg-red-50 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors"
+              >
+                {acting ? "..." : "Fail"}
+              </button>
+              <button
+                onClick={async () => {
+                  setActing(true);
+                  await fetch("/api/admin/identity", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "review_id_verification", candidateId: reviewModal.id, decision: "passed", note: reviewNote }) });
+                  setReviewModal(null);
+                  setReviewNote("");
+                  setActing(false);
+                  await loadData();
+                }}
+                disabled={acting}
+                className="flex-1 rounded-full bg-green-600 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                {acting ? "..." : "Pass"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

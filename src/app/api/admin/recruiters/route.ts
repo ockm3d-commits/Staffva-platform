@@ -16,7 +16,8 @@ function getAdminClient() {
 async function verifyAdmin() {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  return user?.user_metadata?.role === "admin" ? user : null;
+  const role = user?.user_metadata?.role;
+  return (role === "admin" || role === "recruiting_manager") ? user : null;
 }
 
 // GET — list all recruiters with stats

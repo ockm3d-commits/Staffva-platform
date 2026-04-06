@@ -19,7 +19,7 @@ async function verifyAdmin() {
   if (!user) return null;
   const admin = getAdminClient();
   const { data: profile } = await admin.from("profiles").select("role").eq("id", user.id).single();
-  return profile?.role === "admin" ? user : null;
+  return (profile?.role === "admin" || profile?.role === "recruiting_manager") ? user : null;
 }
 
 // GET — List all giveaway entries with candidate info

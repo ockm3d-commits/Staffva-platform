@@ -14,7 +14,8 @@ async function verifyAdmin() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  return user?.user_metadata?.role === "admin" ? user : null;
+  const role = user?.user_metadata?.role;
+  return (role === "admin" || role === "recruiting_manager") ? user : null;
 }
 
 // GET — fetch current settings

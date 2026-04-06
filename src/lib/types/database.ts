@@ -4,7 +4,7 @@
 
 // -- Enums --
 
-export type UserRole = "candidate" | "client" | "admin" | "recruiter";
+export type UserRole = "candidate" | "client" | "admin" | "recruiter" | "recruiting_manager";
 
 export type USExperience =
   | "full_time"

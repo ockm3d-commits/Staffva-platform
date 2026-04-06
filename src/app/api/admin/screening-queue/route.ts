@@ -24,7 +24,7 @@ export async function GET() {
     .eq("id", user.id)
     .single();
 
-  if (!profile || (profile.role !== "admin" && profile.role !== "recruiter")) {
+  if (!profile || (profile.role !== "admin" && profile.role !== "recruiter" && profile.role !== "recruiting_manager")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

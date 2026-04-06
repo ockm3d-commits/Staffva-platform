@@ -24,13 +24,13 @@ async function verifyAdminOrRecruiter() {
     data: { user },
   } = await supabase.auth.getUser();
   const role = user?.user_metadata?.role;
-  if (role !== "admin" && role !== "recruiter") return null;
+  if (role !== "admin" && role !== "recruiter" && role !== "recruiting_manager") return null;
   return user;
 }
 
 // GET — list candidates for review
 export async function GET(request: Request) {
-  const admin = await verifyAdmin();
+  const admin = await verifyAdminOrRecruiter();
   if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
@@ -108,9 +108,9 @@ export async function PATCH(request: Request) {
     }
   }
 
-  // Recruiters may only edit total_earnings_usd; admins may edit all allowed fields
+  // Recruiters may only edit total_earnings_usd; admins and recruiting_manager may edit all allowed fields
   const allowedFields =
-    callerRole === "admin"
+    callerRole === "admin" || callerRole === "recruiting_manager"
       ? ["total_earnings_usd", "admin_status"]
       : ["total_earnings_usd"];
   const safeUpdates: Record<string, unknown> = {};

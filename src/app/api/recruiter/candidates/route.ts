@@ -38,11 +38,11 @@ export async function GET(req: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (!profile || (profile.role !== "recruiter" && profile.role !== "admin")) {
+    if (!profile || (profile.role !== "recruiter" && profile.role !== "admin" && profile.role !== "recruiting_manager")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Get recruiter's assigned role categories
+    // Get recruiter's assigned role categories (recruiting_manager sees all — no scope filter)
     const { data: assignments } = await supabase
       .from("recruiter_assignments")
       .select("role_category")
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
 
     const assignedCategories = assignments?.map((a) => a.role_category) || [];
 
-    // If admin, show all candidates; if recruiter, filter by assignments
+    // If admin or recruiting_manager, show all candidates; if recruiter, filter by assignments
     let query = supabase
       .from("candidates")
       .select(
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
       )
       .order("created_at", { ascending: false });
 
-    // Recruiters only see candidates in their assigned categories
+    // Recruiters only see candidates in their assigned categories; recruiting_manager sees all
     if (profile.role === "recruiter" && assignedCategories.length > 0) {
       query = query.in("role_category", assignedCategories);
     }

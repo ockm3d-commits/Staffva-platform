@@ -9,9 +9,12 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const user = await getUser();
-  if (!user || user.user_metadata?.role !== "admin") {
+  if (!user || (user.user_metadata?.role !== "admin" && user.user_metadata?.role !== "recruiting_manager")) {
     redirect("/login");
   }
+
+  const isRecruitingManager = user.user_metadata?.role === "recruiting_manager";
+  const navLinkClass = "block rounded-lg px-3 py-2 text-sm font-medium text-text hover:bg-primary/5 hover:text-primary transition-colors";
 
   return (
     <>
@@ -23,66 +26,21 @@ export default async function AdminLayout({
             Admin Panel
           </h2>
           <nav className="mt-4 space-y-1">
-            <Link
-              href="/admin"
-              className="block rounded-lg px-3 py-2 text-sm font-medium text-text hover:bg-primary/5 hover:text-primary transition-colors"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/admin/candidates"
-              className="block rounded-lg px-3 py-2 text-sm font-medium text-text hover:bg-primary/5 hover:text-primary transition-colors"
-            >
-              Review Queue
-            </Link>
-            <Link
-              href="/admin/disputes"
-              className="block rounded-lg px-3 py-2 text-sm font-medium text-text hover:bg-primary/5 hover:text-primary transition-colors"
-            >
-              Disputes
-            </Link>
-            <Link
-              href="/admin/clients"
-              className="block rounded-lg px-3 py-2 text-sm font-medium text-text hover:bg-primary/5 hover:text-primary transition-colors"
-            >
-              Clients
-            </Link>
-            <Link
-              href="/admin/triage"
-              className="block rounded-lg px-3 py-2 text-sm font-medium text-text hover:bg-primary/5 hover:text-primary transition-colors"
-            >
-              Triage Queue
-            </Link>
-            <Link
-              href="/admin/duplicates"
-              className="block rounded-lg px-3 py-2 text-sm font-medium text-text hover:bg-primary/5 hover:text-primary transition-colors"
-            >
-              Duplicates
-            </Link>
-            <Link
-              href="/admin/identity"
-              className="block rounded-lg px-3 py-2 text-sm font-medium text-text hover:bg-primary/5 hover:text-primary transition-colors"
-            >
-              Identity
-            </Link>
-            <Link
-              href="/admin/recruiters"
-              className="block rounded-lg px-3 py-2 text-sm font-medium text-text hover:bg-primary/5 hover:text-primary transition-colors"
-            >
-              Recruiters
-            </Link>
-            <Link
-              href="/admin/giveaway"
-              className="block rounded-lg px-3 py-2 text-sm font-medium text-text hover:bg-primary/5 hover:text-primary transition-colors"
-            >
-              Giveaway
-            </Link>
-            <Link
-              href="/admin/settings"
-              className="block rounded-lg px-3 py-2 text-sm font-medium text-text hover:bg-primary/5 hover:text-primary transition-colors"
-            >
-              Settings
-            </Link>
+            {!isRecruitingManager && (
+              <Link href="/admin" className={navLinkClass}>Dashboard</Link>
+            )}
+            <Link href="/admin/candidates" className={navLinkClass}>Review Queue</Link>
+            <Link href="/admin/disputes" className={navLinkClass}>Disputes</Link>
+            {!isRecruitingManager && (
+              <Link href="/admin/clients" className={navLinkClass}>Clients</Link>
+            )}
+            <Link href="/admin/triage" className={navLinkClass}>Triage Queue</Link>
+            <Link href="/admin/duplicates" className={navLinkClass}>Duplicates</Link>
+            <Link href="/admin/identity" className={navLinkClass}>Identity</Link>
+            <Link href="/admin/recruiters" className={navLinkClass}>Recruiters</Link>
+            <Link href="/admin/giveaway" className={navLinkClass}>Giveaway</Link>
+            <Link href="/admin/pending-bans" className={navLinkClass}>Pending Bans</Link>
+            <Link href="/admin/settings" className={navLinkClass}>Settings</Link>
           </nav>
         </div>
       </aside>

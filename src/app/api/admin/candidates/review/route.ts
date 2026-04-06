@@ -25,7 +25,7 @@ async function verifyAdminOrRecruiter() {
     data: { user },
   } = await supabase.auth.getUser();
   const role = user?.user_metadata?.role;
-  if (role !== "admin" && role !== "recruiter") return null;
+  if (role !== "admin" && role !== "recruiter" && role !== "recruiting_manager") return null;
   return user;
 }
 

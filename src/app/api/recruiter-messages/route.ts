@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     candidateId = candidate.id;
     recruiterId = candidate.assigned_recruiter;
-  } else if (role === "recruiter" || role === "admin") {
+  } else if (role === "recruiter" || role === "admin" || role === "recruiting_manager") {
     // Recruiter: candidateId required in query params
     if (!candidateId) {
       return NextResponse.json({ error: "candidateId required" }, { status: 400 });
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
     candidateId = candidate.id;
     recruiterId = candidate.assigned_recruiter;
     senderRole = "candidate";
-  } else if (role === "recruiter" || role === "admin") {
+  } else if (role === "recruiter" || role === "admin" || role === "recruiting_manager") {
     // Recruiter sending to a candidate
     if (!bodyCandidate) {
       return NextResponse.json({ error: "candidateId required" }, { status: 400 });

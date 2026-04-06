@@ -15,7 +15,7 @@ async function verifyAdmin() {
   if (!user) return null;
   const admin = getAdminClient();
   const { data: profile } = await admin.from("profiles").select("role, full_name, email").eq("id", user.id).single();
-  return profile?.role === "admin" ? { ...user, adminName: profile.full_name, adminEmail: profile.email } : null;
+  return (profile?.role === "admin" || profile?.role === "recruiting_manager") ? { ...user, adminName: profile.full_name, adminEmail: profile.email } : null;
 }
 
 async function notifyAdmin(action: string, detail: string, adminName: string) {
@@ -103,6 +103,13 @@ export async function GET() {
     candidate: fcMap.get(f.candidate_id) || null,
   }));
 
+  // Manual review — candidates where id_verification_status = 'manual_review'
+  const { data: manualReviewCandidates } = await supabase
+    .from("candidates")
+    .select("id, display_name, full_name, email, country, role_category, id_verification_submitted_at, id_verification_review_note, id_verification_reviewed_at")
+    .eq("id_verification_status", "manual_review")
+    .order("id_verification_submitted_at", { ascending: true });
+
   // Summary stats
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { count: totalVerifications } = await supabase
@@ -119,11 +126,13 @@ export async function GET() {
     lockouts: enrichedLockouts,
     duplicates: enrichedDuplicates,
     flagged: enrichedFlagged,
+    manualReview: manualReviewCandidates || [],
     summary: {
       activeLockouts: enrichedLockouts.length,
       duplicatesThisWeek: duplicatesThisWeek || 0,
       flaggedForReview: enrichedFlagged.length,
       totalVerifications: totalVerifications || 0,
+      manualReviewPending: (manualReviewCandidates || []).length,
     },
   });
 }
@@ -214,6 +223,27 @@ export async function POST(req: NextRequest) {
     }
 
     await notifyAdmin("Flagged Review Decision", `Identity ${identityId}: ${decision}`, adminName);
+    return NextResponse.json({ success: true });
+  }
+
+  // ═══ Review manual ID verification ═══
+  if (action === "review_id_verification") {
+    const { candidateId, decision, note } = params; // decision: "passed" or "failed"
+    if (!candidateId || !decision) return NextResponse.json({ error: "candidateId and decision required" }, { status: 400 });
+    if (decision !== "passed" && decision !== "failed") return NextResponse.json({ error: "decision must be passed or failed" }, { status: 400 });
+
+    await supabase.from("candidates").update({
+      id_verification_status: decision,
+      id_verification_review_note: note?.trim() || null,
+      id_verification_reviewed_by: admin.id,
+      id_verification_reviewed_at: new Date().toISOString(),
+    }).eq("id", candidateId);
+
+    await notifyAdmin(
+      "Manual ID Review Decision",
+      `Candidate ${candidateId} ID verification marked as ${decision}${note ? `. Note: ${note.trim()}` : ""}`,
+      adminName
+    );
     return NextResponse.json({ success: true });
   }
 

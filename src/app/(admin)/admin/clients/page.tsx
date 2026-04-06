@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 interface Client {
   id: string;
@@ -14,17 +15,23 @@ interface Client {
 }
 
 export default function ClientManagementPage() {
+  const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/clients")
-      .then((res) => res.json())
-      .then((data) => {
-        setClients(data.clients || []);
-        setLoading(false);
-      });
-  }, []);
+    fetch("/api/admin/clients").then((res) => {
+      if (res.status === 403) {
+        router.replace("/recruiter");
+        return null;
+      }
+      return res.json();
+    }).then((data) => {
+      if (!data) return;
+      setClients(data.clients || []);
+      setLoading(false);
+    });
+  }, [router]);
 
   const totalEngagements = clients.reduce(
     (sum, c) => sum + (c.active_engagements || 0),
