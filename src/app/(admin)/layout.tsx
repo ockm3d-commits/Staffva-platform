@@ -40,6 +40,7 @@ export default async function AdminLayout({
             <Link href="/admin/recruiters" className={navLinkClass}>Recruiters</Link>
             <Link href="/admin/giveaway" className={navLinkClass}>Giveaway</Link>
             <Link href="/admin/pending-bans" className={navLinkClass}>Pending Bans</Link>
+            <Link href="/talent-pool" className={navLinkClass}>Talent Pool</Link>
             <Link href="/admin/settings" className={navLinkClass}>Settings</Link>
           </nav>
         </div>

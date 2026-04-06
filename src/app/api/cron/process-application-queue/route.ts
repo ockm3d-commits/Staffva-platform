@@ -181,6 +181,7 @@ async function processApplication(
     us_client_description: (appData.us_client_description as string) || null,
     has_college_degree: appData.has_college_degree as boolean,
     custom_role_description: (appData.custom_role_description as string) || null,
+    role_category_custom: appData.role_category === "Other" ? ((appData.custom_role_description as string) || null) : null,
     skills: appData.skills || [],
     tools: appData.tools || [],
     computer_specs: (appData.computer_specs as string) || null,
@@ -252,28 +253,37 @@ async function processApplication(
     }
   }
 
-  // Recruiter auto-assignment
-  try {
-    const { data: settings } = await supabase
-      .from("platform_settings")
-      .select("recruiter_counter")
-      .limit(1)
-      .single();
-
-    const counter = settings?.recruiter_counter ?? 0;
-    const recruiter = counter % 2 === 0 ? "Shelly" : "Jerome";
-
+  // Recruiter auto-assignment — skip for "Other" role (surfaces in Manar's unrouted queue)
+  const roleCategory = appData.role_category as string;
+  if (roleCategory === "Other") {
+    // Mark for manual routing — assigned_recruiter stays null
     await supabase
       .from("candidates")
-      .update({ assigned_recruiter: recruiter })
+      .update({ assignment_pending_review: true })
       .eq("id", candidate.id);
+  } else {
+    try {
+      const { data: settings } = await supabase
+        .from("platform_settings")
+        .select("recruiter_counter")
+        .limit(1)
+        .single();
 
-    await supabase
-      .from("platform_settings")
-      .update({ recruiter_counter: counter + 1 })
-      .limit(1);
-  } catch {
-    // Non-fatal
+      const counter = settings?.recruiter_counter ?? 0;
+      const recruiter = counter % 2 === 0 ? "Shelly" : "Jerome";
+
+      await supabase
+        .from("candidates")
+        .update({ assigned_recruiter: recruiter })
+        .eq("id", candidate.id);
+
+      await supabase
+        .from("platform_settings")
+        .update({ recruiter_counter: counter + 1 })
+        .limit(1);
+    } catch {
+      // Non-fatal
+    }
   }
 
   // Trigger application received email (fire-and-forget)
