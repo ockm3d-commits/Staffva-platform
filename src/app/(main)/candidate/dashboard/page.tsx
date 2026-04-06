@@ -54,6 +54,7 @@ interface CandidateData {
   results_display_unlocked: boolean | null;
   profile_went_live_at: string | null;
   video_intro_admin_note: string | null;
+  assigned_recruiter: string | null;
 }
 
 interface InterviewData {
@@ -538,6 +539,8 @@ export default function CandidateDashboardPage() {
   const [retakeData, setRetakeData] = useState<RetakeData | null>(null);
   const [hasPortfolio, setHasPortfolio] = useState(false);
   const [changeRequests, setChangeRequests] = useState<{ area: string; instruction: string }[]>([]);
+  const [recruiterProfile, setRecruiterProfile] = useState<{ full_name: string; avatar_url: string | null; calendar_link: string | null } | null>(null);
+  const [recruiterUnread, setRecruiterUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -549,7 +552,7 @@ export default function CandidateDashboardPage() {
 
       const { data: c } = await supabase
         .from("candidates")
-        .select("id, display_name, admin_status, role_category, hourly_rate, availability_status, total_earnings_usd, profile_photo_url, english_written_tier, speaking_level, tagline, bio, skills, tools, work_experience, resume_url, payout_method, english_mc_score, voice_recording_1_url, voice_recording_2_url, profile_completed_at, id_verification_status, id_verification_consent, application_step, video_intro_status, video_intro_url, video_intro_admin_note, spoken_english_score, spoken_english_result, results_display_unlocked, profile_went_live_at")
+        .select("id, display_name, admin_status, role_category, hourly_rate, availability_status, total_earnings_usd, profile_photo_url, english_written_tier, speaking_level, tagline, bio, skills, tools, work_experience, resume_url, payout_method, english_mc_score, voice_recording_1_url, voice_recording_2_url, profile_completed_at, id_verification_status, id_verification_consent, application_step, video_intro_status, video_intro_url, video_intro_admin_note, spoken_english_score, spoken_english_result, results_display_unlocked, profile_went_live_at, assigned_recruiter")
         .eq("user_id", session.user.id)
         .single();
 
@@ -604,6 +607,25 @@ export default function CandidateDashboardPage() {
         if (cr?.change_items && Array.isArray(cr.change_items)) {
           setChangeRequests(cr.change_items as { area: string; instruction: string }[]);
         }
+      }
+
+      // Load recruiter profile if assigned
+      if (c && c.assigned_recruiter) {
+        const { data: rp } = await supabase
+          .from("profiles")
+          .select("full_name, avatar_url, calendar_link")
+          .eq("id", c.assigned_recruiter)
+          .single();
+        if (rp) setRecruiterProfile(rp);
+
+        // Count unread recruiter messages
+        const { count: unread } = await supabase
+          .from("recruiter_messages")
+          .select("*", { count: "exact", head: true })
+          .eq("candidate_id", c.id)
+          .eq("sender_role", "recruiter")
+          .is("read_at", null);
+        setRecruiterUnread(unread || 0);
       }
 
       try {
@@ -804,8 +826,13 @@ export default function CandidateDashboardPage() {
           }
         } else if (aiDone && !recruiterScheduled && !recruiterDone) {
           // Stage 5: AI interview complete, awaiting recruiter
-          nextHeading = "Your AI interview is complete";
-          nextBody = "A recruiter will contact you within 48 hours to schedule your second interview.";
+          if (recruiterProfile) {
+            nextHeading = "Meet your recruiter";
+            nextBody = "";
+          } else {
+            nextHeading = "Your AI interview is complete";
+            nextBody = "A recruiter will be assigned to you shortly to schedule your second interview.";
+          }
         } else if (recruiterScheduled && !recruiterDone) {
           // Stage 6: Recruiter interview scheduled
           nextHeading = "Your recruiter interview is scheduled";
@@ -876,7 +903,61 @@ export default function CandidateDashboardPage() {
             <div className="mt-3 rounded-xl border border-[#FE6E3E]/20 bg-[#FE6E3E]/5 p-5">
               <p className="text-[10px] font-bold uppercase tracking-wider text-[#FE6E3E]">What to do next</p>
               <h3 className="mt-1 text-lg font-semibold text-[#1C1B1A]">{nextHeading}</h3>
-              <p className="mt-1 text-sm text-gray-500">{nextBody}</p>
+              {nextBody && <p className="mt-1 text-sm text-gray-500">{nextBody}</p>}
+
+              {/* Recruiter intro card — Step 5 */}
+              {recruiterProfile && aiDone && !recruiterScheduled && !recruiterDone && (
+                <div className="mt-4 rounded-xl border border-gray-200 bg-white p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-gray-100">
+                      {recruiterProfile.avatar_url ? (
+                        <img src={recruiterProfile.avatar_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-lg font-bold text-gray-400">
+                          {recruiterProfile.full_name?.charAt(0) || "R"}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-[#1C1B1A]">{recruiterProfile.full_name}</p>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Hi {candidate.display_name?.split(" ")[0] || "there"}, I reviewed your application and I am excited to connect. Book a time below for your second interview.
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {recruiterProfile.calendar_link ? (
+                          <a
+                            href={recruiterProfile.calendar_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-full bg-[#FE6E3E] px-5 py-2 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                            </svg>
+                            Schedule My Interview
+                          </a>
+                        ) : (
+                          <p className="text-xs text-gray-400 italic">Your recruiter will reach out to schedule shortly.</p>
+                        )}
+                        <Link
+                          href={`/candidate/dashboard/recruiter-chat`}
+                          className="relative inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-5 py-2 text-sm font-semibold text-[#1C1B1A] hover:bg-gray-50 transition-colors"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                          </svg>
+                          Message {recruiterProfile.full_name?.split(" ")[0] || "Recruiter"}
+                          {recruiterUnread > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#FE6E3E] text-[10px] font-bold text-white">
+                              {recruiterUnread}
+                            </span>
+                          )}
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Change requests list for Stage 8 */}
               {changesRequested && changeRequests.length > 0 && (

@@ -49,6 +49,31 @@ export async function POST(req: NextRequest) {
       console.log("[AI Interview Webhook] Auto-approved candidate:", candidateId);
     }
 
+    // Auto-assign recruiter based on role_category
+    const { data: candidate } = await supabase
+      .from("candidates")
+      .select("role_category")
+      .eq("id", candidateId)
+      .single();
+
+    if (candidate?.role_category) {
+      const { data: assignment } = await supabase
+        .from("recruiter_assignments")
+        .select("recruiter_id")
+        .eq("role_category", candidate.role_category)
+        .limit(1)
+        .maybeSingle();
+
+      if (assignment?.recruiter_id) {
+        await supabase
+          .from("candidates")
+          .update({ assigned_recruiter: assignment.recruiter_id })
+          .eq("id", candidateId);
+
+        console.log("[AI Interview Webhook] Assigned recruiter:", assignment.recruiter_id, "to candidate:", candidateId);
+      }
+    }
+
     // Fire and forget — don't block the response
     generateInsights(candidateId).catch((err) =>
       console.error("[AI Insights Webhook] Error:", err)
