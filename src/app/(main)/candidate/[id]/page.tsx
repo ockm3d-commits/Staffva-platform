@@ -296,7 +296,7 @@ export default async function CandidateProfilePage({
       {isClient && !isOwnProfile && <ProfileViewTracker candidateId={id} />}
 
       {/* Status banner for own profile — reads actual admin_status */}
-      {isOwnProfile && (candidate.admin_status === "pending_speaking_review" || candidate.admin_status === "under_review") && (
+      {isOwnProfile && (candidate.admin_status === "pending_speaking_review" || candidate.admin_status === "active" || candidate.admin_status === "profile_review" || candidate.admin_status === "under_review") && (
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 text-center">
           <p className="text-sm text-amber-800">
             <strong>Profile under review</strong> — Our team is reviewing your profile. Check your dashboard for the latest status.

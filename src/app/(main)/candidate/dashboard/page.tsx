@@ -705,14 +705,16 @@ export default function CandidateDashboardPage() {
   }
 
   const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-    pending_speaking_review: { label: "Under Review", color: "text-yellow-700", bgColor: "bg-yellow-50 border-yellow-200" },
+    active: { label: "In Pipeline", color: "text-blue-700", bgColor: "bg-blue-50 border-blue-200" },
+    profile_review: { label: "Under Review", color: "text-yellow-700", bgColor: "bg-yellow-50 border-yellow-200" },
+    pending_speaking_review: { label: "In Pipeline", color: "text-blue-700", bgColor: "bg-blue-50 border-blue-200" },
     approved: { label: "Live", color: "text-green-700", bgColor: "bg-green-50 border-green-200" },
     rejected: { label: "Not Approved", color: "text-red-700", bgColor: "bg-red-50 border-red-200" },
     revision_required: { label: "Revision Needed", color: "text-orange-700", bgColor: "bg-orange-50 border-orange-200" },
     deactivated: { label: "Deactivated", color: "text-gray-700", bgColor: "bg-gray-50 border-gray-200" },
   };
 
-  const status = statusConfig[candidate.admin_status] || statusConfig.pending_speaking_review;
+  const status = statusConfig[candidate.admin_status] || statusConfig.active;
   const { score: completenessScore, items: completenessItems } = calculateCompleteness(candidate, hasPortfolio);
   const nextTip = completenessItems.find((item) => !item.complete);
 

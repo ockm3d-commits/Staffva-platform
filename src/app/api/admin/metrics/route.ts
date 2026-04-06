@@ -67,7 +67,7 @@ export async function GET() {
     admin.from("clients").select("id", { count: "exact", head: true }).gte("created_at", weekAgo),
     admin.from("clients").select("id", { count: "exact", head: true }).gte("created_at", monthAgo),
     admin.from("messages").select("thread_id").limit(500),
-    admin.from("candidates").select("id", { count: "exact", head: true }).eq("admin_status", "pending_speaking_review"),
+    admin.from("candidates").select("id", { count: "exact", head: true }).in("admin_status", ["active", "profile_review"]),
     admin.from("disputes").select("id", { count: "exact", head: true }).is("resolved_at", null),
     // Alerts
     admin.from("candidates").select("id", { count: "exact", head: true }).eq("ban_pending_review", true),

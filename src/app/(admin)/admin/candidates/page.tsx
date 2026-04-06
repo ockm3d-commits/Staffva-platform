@@ -27,6 +27,8 @@ const US_EXP_LABELS: Record<string, string> = {
 };
 
 const STATUS_BADGE: Record<string, { label: string; color: string }> = {
+  active: { label: "Active", color: "bg-blue-100 text-blue-700" },
+  profile_review: { label: "Profile Review", color: "bg-amber-100 text-amber-700" },
   pending_speaking_review: { label: "Pending Review", color: "bg-amber-100 text-amber-700" },
   approved: { label: "Approved", color: "bg-green-100 text-green-700" },
   rejected: { label: "Rejected", color: "bg-red-100 text-red-700" },
@@ -488,7 +490,7 @@ export default function CandidateReviewPage() {
     const params = new URLSearchParams();
 
     if (mainTab === "pending") {
-      params.set("status", "pending_speaking_review");
+      params.set("status", "active");
     } else {
       params.set("view", "all");
       if (statusFilter !== "all") params.set("status", statusFilter);
@@ -647,7 +649,8 @@ export default function CandidateReviewPage() {
             className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-text focus:border-primary focus:outline-none"
           >
             <option value="all">All Statuses</option>
-            <option value="pending_speaking_review">Pending Review</option>
+            <option value="active">Active (In Pipeline)</option>
+            <option value="profile_review">Profile Review</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
             <option value="revision_required">Revision Required</option>
@@ -806,7 +809,7 @@ export default function CandidateReviewPage() {
                           >
                             Edit Verified Earnings
                           </button>
-                          {c.admin_status === "pending_speaking_review" && (
+                          {(c.admin_status === "active" || c.admin_status === "profile_review" || c.admin_status === "pending_speaking_review") && (
                             <>
                               <div className="border-t border-gray-100 my-1" />
                               <button
@@ -1256,7 +1259,7 @@ export default function CandidateReviewPage() {
           revisionNote={revisionNotes[previewCandidate.id] || ""}
           onRevisionNoteChange={(note) => setRevisionNotes((prev) => ({ ...prev, [previewCandidate.id]: note }))}
           actionLoading={actionLoading === previewCandidate.id}
-          showActions={previewCandidate.admin_status === "pending_speaking_review" || previewCandidate.admin_status === "revision_required"}
+          showActions={previewCandidate.admin_status === "active" || previewCandidate.admin_status === "profile_review" || previewCandidate.admin_status === "pending_speaking_review" || previewCandidate.admin_status === "revision_required"}
         />
       )}
     </div>

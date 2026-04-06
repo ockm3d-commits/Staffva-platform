@@ -21,12 +21,26 @@ const STATUS_CONFIG: Record<string, {
     title: "Your Profile is Live!",
     message: "Your profile is approved and visible to clients. Complete the AI interview to boost your profile ranking and attract more clients.",
   },
+  active: {
+    icon: "check",
+    iconBg: "bg-green-100",
+    iconColor: "text-green-600",
+    title: "Application In Progress",
+    message: "Your profile is in the pipeline. Complete your next steps to move forward in the process.",
+  },
+  profile_review: {
+    icon: "check",
+    iconBg: "bg-blue-100",
+    iconColor: "text-blue-600",
+    title: "Profile Under Review",
+    message: "Your recruiter is reviewing your profile. You will be notified once your profile goes live.",
+  },
   pending_speaking_review: {
     icon: "check",
     iconBg: "bg-green-100",
     iconColor: "text-green-600",
-    title: "Your Profile is Live!",
-    message: "Your profile is approved and visible to clients. Complete the AI interview to boost your profile ranking and attract more clients.",
+    title: "Application In Progress",
+    message: "Your profile is in the pipeline. Complete your next steps to move forward in the process.",
   },
   rejected: {
     icon: "x",
@@ -88,7 +102,7 @@ export default function CandidateStatusScreen({ adminStatus, candidateId }: Prop
       )}
 
       {/* Approved or pending — show next steps */}
-      {(adminStatus === "approved" || adminStatus === "pending_speaking_review") && (
+      {(adminStatus === "approved" || adminStatus === "active" || adminStatus === "pending_speaking_review") && (
         <div className="mt-8 text-left mx-auto max-w-sm">
           <h3 className="font-semibold text-text mb-3">What you can do now:</h3>
           <ul className="space-y-2">

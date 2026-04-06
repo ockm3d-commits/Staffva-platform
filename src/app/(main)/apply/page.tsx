@@ -312,12 +312,12 @@ export default function ApplyPage() {
       !!latest.payout_method &&
       latest.interview_consent !== false;
 
-    if (allComplete && !["approved", "under_review", "changes_requested", "pending_speaking_review"].includes(latest.admin_status)) {
-      // Set to pending — candidate enters the recruiter pipeline
+    if (allComplete && !["approved", "under_review", "changes_requested", "active", "profile_review"].includes(latest.admin_status)) {
+      // Set to active — candidate enters the recruiter pipeline
       await supabase
         .from("candidates")
         .update({
-          admin_status: "pending_speaking_review",
+          admin_status: "active",
           profile_completed_at: new Date().toISOString(),
         })
         .eq("id", latest.id);

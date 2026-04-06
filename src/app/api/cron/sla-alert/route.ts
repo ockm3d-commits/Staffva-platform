@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     .select("id, display_name, full_name, email, country, role_category, assigned_recruiter, waiting_since, screening_tag")
     .not("waiting_since", "is", null)
     .lt("waiting_since", fortyEightHoursAgo)
-    .in("admin_status", ["pending_speaking_review"])
+    .in("admin_status", ["active", "profile_review"])
     .order("waiting_since", { ascending: true });
 
   if (!redCandidates || redCandidates.length === 0) {

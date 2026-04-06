@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     .in("second_interview_status", ["none", "pending"])
     .not("waiting_since", "is", null)
     .lt("waiting_since", twentyFourHoursAgo)
-    .eq("admin_status", "pending_speaking_review");
+    .in("admin_status", ["active", "profile_review"]);
 
   if (!candidates || candidates.length === 0) {
     return NextResponse.json({ message: "No nudges needed", count: 0 });
