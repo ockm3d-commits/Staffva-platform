@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     // Fetch candidate with all fields required for 11-gate check
     const { data: candidate } = await admin
       .from("candidates")
-      .select("id, email, full_name, display_name, second_interview_status, english_mc_score, english_comprehension_score, voice_recording_1_url, voice_recording_2_url, id_verification_status, profile_photo_url, resume_url, tagline, bio, payout_method, interview_consent, speaking_level, admin_status")
+      .select("id, email, full_name, display_name, second_interview_status, english_mc_score, english_comprehension_score, voice_recording_1_url, voice_recording_2_url, id_verification_status, profile_photo_url, resume_url, tagline, bio, payout_method, interview_consent_at, speaking_level, admin_status")
       .eq("id", candidateId)
       .single();
 
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     if (!candidate.payout_method) {
       failingConditions.push("Payout method not selected");
     }
-    if (candidate.interview_consent !== true) {
+    if (!candidate.interview_consent_at) {
       failingConditions.push("Interview consent not confirmed");
     }
     if (candidate.speaking_level == null) {

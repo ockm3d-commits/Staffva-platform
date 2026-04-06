@@ -134,6 +134,17 @@ export default function ManagerDashboard() {
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [expandedApproval, setExpandedApproval] = useState<string | null>(null);
   const [failedApprovals, setFailedApprovals] = useState<Record<string, string[]>>({});
+  const [loadError, setLoadError] = useState(false);
+
+  // 10-second timeout fallback — never leave the spinner hanging
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setTimeout(() => {
+      setLoading(false);
+      setLoadError(true);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // Personal recruiter data (for "Mine" tab)
   const [personalData, setPersonalData] = useState<{
@@ -218,7 +229,14 @@ export default function ManagerDashboard() {
   }
 
   if (!data) {
-    return <div className="flex items-center justify-center py-20"><p className="text-gray-500">Failed to load dashboard</p></div>;
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <p className="text-gray-500">{loadError ? "Unable to load dashboard. Please refresh." : "Failed to load dashboard"}</p>
+        <button onClick={() => { setLoadError(false); setLoading(true); loadDashboard(); }} className="rounded-lg bg-[#FE6E3E] px-4 py-2 text-sm font-semibold text-white hover:bg-[#E55A2B]">
+          Retry
+        </button>
+      </div>
+    );
   }
 
   const candidateMap = new Map<string, { name: string; photo: string | null }>();

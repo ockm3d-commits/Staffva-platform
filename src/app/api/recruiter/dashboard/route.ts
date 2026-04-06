@@ -127,11 +127,14 @@ export async function GET(req: NextRequest) {
     return { candidate_id: candidateId, last_message: latest.body, last_message_at: latest.created_at, unread_count: unread };
   }).sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
 
-  // Calendar link validation (async, non-blocking)
+  // Calendar link validation — 3-second timeout to avoid blocking the response
   let calendarValid: boolean | null = null;
   if (profile.calendar_link) {
     try {
-      const res = await fetch(profile.calendar_link, { method: "HEAD", redirect: "follow" });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(profile.calendar_link, { method: "HEAD", redirect: "follow", signal: controller.signal });
+      clearTimeout(timeout);
       calendarValid = res.ok;
     } catch {
       calendarValid = false;
