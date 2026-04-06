@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { generateInsights } from "@/lib/generateInsights";
+import { assertRecruiterScope } from "@/lib/recruiterScope";
 
 function getAdminClient() {
   return createClient(
@@ -16,6 +17,16 @@ async function verifyAdmin() {
     data: { user },
   } = await supabase.auth.getUser();
   return user?.user_metadata?.role === "admin" ? user : null;
+}
+
+async function verifyAdminOrRecruiter() {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const role = user?.user_metadata?.role;
+  if (role !== "admin" && role !== "recruiter") return null;
+  return user;
 }
 
 async function sendEmail(to: string, subject: string, html: string) {
@@ -45,13 +56,27 @@ async function sendEmail(to: string, subject: string, html: string) {
 
 // POST — approve, reject, revision_required, or flag a candidate
 export async function POST(request: Request) {
-  const admin = await verifyAdmin();
-  if (!admin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-  }
-
   const body = await request.json();
   const { candidateId, action, speakingLevel, revisionNote } = body;
+
+  // revision_required is open to recruiters and admins; all other actions are admin-only
+  if (action === "revision_required") {
+    const caller = await verifyAdminOrRecruiter();
+    if (!caller) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+    if (caller.user_metadata?.role === "recruiter") {
+      const scopeError = await assertRecruiterScope(caller.id, candidateId);
+      if (scopeError) {
+        return NextResponse.json({ error: scopeError.error }, { status: scopeError.status });
+      }
+    }
+  } else {
+    const admin = await verifyAdmin();
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+  }
 
   if (!candidateId || !action) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });

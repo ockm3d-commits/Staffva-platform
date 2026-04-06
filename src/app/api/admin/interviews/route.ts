@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { generateInsights } from "@/lib/generateInsights";
+import { assertRecruiterScope } from "@/lib/recruiterScope";
 
 function getAdminClient() {
   return createClient(
@@ -16,9 +17,17 @@ async function verifyAdmin() {
   return user?.user_metadata?.role === "admin" ? user : null;
 }
 
+async function verifyAdminOrRecruiter() {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const role = user?.user_metadata?.role;
+  if (role !== "admin" && role !== "recruiter") return null;
+  return user;
+}
+
 // GET — list interviews for a candidate
 export async function GET(req: NextRequest) {
-  const admin = await verifyAdmin();
+  const admin = await verifyAdminOrRecruiter();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
   const candidateId = req.nextUrl.searchParams.get("candidateId");
@@ -36,12 +45,36 @@ export async function GET(req: NextRequest) {
 
 // POST — create or update an interview
 export async function POST(req: NextRequest) {
-  const admin = await verifyAdmin();
+  const admin = await verifyAdminOrRecruiter();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
   const body = await req.json();
   const { action } = body;
   const supabase = getAdminClient();
+
+  // Scope enforcement: recruiters may only act on candidates in their assigned categories
+  if (admin.user_metadata?.role === "recruiter") {
+    let scopeCandidateId: string | undefined = body.candidateId;
+
+    // update_status uses interviewId — resolve the candidateId from the interview record
+    if (action === "update_status" && body.interviewId) {
+      const { data: interview } = await supabase
+        .from("candidate_interviews")
+        .select("candidate_id")
+        .eq("id", body.interviewId)
+        .single();
+      scopeCandidateId = interview?.candidate_id;
+    }
+
+    if (!scopeCandidateId) {
+      return NextResponse.json({ error: "Missing candidateId" }, { status: 400 });
+    }
+
+    const scopeError = await assertRecruiterScope(admin.id, scopeCandidateId);
+    if (scopeError) {
+      return NextResponse.json({ error: scopeError.error }, { status: scopeError.status });
+    }
+  }
 
   // Request a new interview
   if (action === "request") {

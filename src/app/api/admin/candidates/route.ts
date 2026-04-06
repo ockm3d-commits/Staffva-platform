@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { assertRecruiterScope } from "@/lib/recruiterScope";
 
 function getAdminClient() {
   return createClient(
@@ -15,6 +16,16 @@ async function verifyAdmin() {
     data: { user },
   } = await supabase.auth.getUser();
   return user?.user_metadata?.role === "admin" ? user : null;
+}
+
+async function verifyAdminOrRecruiter() {
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const role = user?.user_metadata?.role;
+  if (role !== "admin" && role !== "recruiter") return null;
+  return user;
 }
 
 // GET — list candidates for review
@@ -77,18 +88,31 @@ export async function GET(request: Request) {
 
 // PATCH — update specific candidate fields (earnings, deactivate, etc.)
 export async function PATCH(request: Request) {
-  const admin = await verifyAdmin();
-  if (!admin) {
+  const caller = await verifyAdminOrRecruiter();
+  if (!caller) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
+
+  const callerRole = caller.user_metadata?.role;
 
   const { candidateId, updates } = await request.json();
   if (!candidateId || !updates) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
-  // Only allow specific fields to be updated
-  const allowedFields = ["total_earnings_usd", "admin_status"];
+  // Scope enforcement: recruiters may only act on candidates in their assigned categories
+  if (callerRole === "recruiter") {
+    const scopeError = await assertRecruiterScope(caller.id, candidateId);
+    if (scopeError) {
+      return NextResponse.json({ error: scopeError.error }, { status: scopeError.status });
+    }
+  }
+
+  // Recruiters may only edit total_earnings_usd; admins may edit all allowed fields
+  const allowedFields =
+    callerRole === "admin"
+      ? ["total_earnings_usd", "admin_status"]
+      : ["total_earnings_usd"];
   const safeUpdates: Record<string, unknown> = {};
   for (const key of Object.keys(updates)) {
     if (allowedFields.includes(key)) {
