@@ -306,12 +306,15 @@ export default function ManagerDashboard() {
                 <tbody>
                   {[...data.teamStatus]
                     .sort((a, b) => {
-                      const aRatio = a.dailyTarget > 0 ? a.interviewsToday / a.dailyTarget : 1;
-                      const bRatio = b.dailyTarget > 0 ? b.interviewsToday / b.dailyTarget : 1;
+                      const aTarget = typeof a.dailyTarget === "number" && a.dailyTarget > 0 ? a.dailyTarget : 14;
+                      const bTarget = typeof b.dailyTarget === "number" && b.dailyTarget > 0 ? b.dailyTarget : 14;
+                      const aRatio = a.interviewsToday / aTarget;
+                      const bRatio = b.interviewsToday / bTarget;
                       return aRatio - bRatio;
                     })
                     .map((r) => {
-                      const pace = r.dailyTarget > 0 ? r.interviewsToday / r.dailyTarget : 1;
+                      const rTarget = typeof r.dailyTarget === "number" && r.dailyTarget > 0 ? r.dailyTarget : 14;
+                      const pace = r.interviewsToday / rTarget;
                       const isNoon = new Date().getHours() >= 12;
                       const rowColor = pace < 0.5 ? "bg-red-50" : pace < 0.8 ? "bg-amber-50" : "";
                       return (
@@ -322,7 +325,7 @@ export default function ManagerDashboard() {
                               <div className="w-16 h-1.5 rounded-full bg-gray-200 overflow-hidden">
                                 <div className="h-full rounded-full" style={{ width: `${Math.min(pace * 100, 100)}%`, backgroundColor: pace >= 0.8 ? "#22c55e" : pace >= 0.5 ? "#f59e0b" : "#ef4444" }} />
                               </div>
-                              <span className="text-[10px] text-gray-500">{r.interviewsToday}/{r.dailyTarget}</span>
+                              <span className="text-[10px] text-gray-500">{r.interviewsToday}/{rTarget}</span>
                             </div>
                           </td>
                           <td className="px-4 py-2.5 text-center">

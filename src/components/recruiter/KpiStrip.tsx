@@ -34,7 +34,8 @@ export default function KpiStrip({ kpi, token, onCalendarSaved, onPostLogged }: 
   const [calendarValidState, setCalendarValidState] = useState(kpi.calendarValid);
 
   // Interview progress
-  const progress = kpi.dailyTarget > 0 ? kpi.interviewsToday / kpi.dailyTarget : 0;
+  const dailyTarget = typeof kpi.dailyTarget === "number" && kpi.dailyTarget > 0 ? kpi.dailyTarget : 14;
+  const progress = dailyTarget > 0 ? kpi.interviewsToday / dailyTarget : 0;
   const now = new Date();
   const hoursIntoDay = now.getHours() + now.getMinutes() / 60;
   const expectedPace = hoursIntoDay / 10; // ~10 working hours
@@ -109,7 +110,7 @@ export default function KpiStrip({ kpi, token, onCalendarSaved, onPostLogged }: 
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-lg font-bold text-[#1C1B1A]">{kpi.interviewsToday}</span>
-              <span className="text-[9px] text-gray-400">/{kpi.dailyTarget}</span>
+              <span className="text-[9px] text-gray-400">/{dailyTarget}</span>
             </div>
           </div>
           <div>
