@@ -25,7 +25,7 @@ export default async function Home() {
     if (role === "candidate") redirect("/candidate/dashboard");
     if (role === "client") redirect("/browse");
     if (role === "admin") redirect("/admin");
-    if (role === "recruiter") redirect("/recruiter");
+    if (role === "recruiter" || role === "recruiting_manager") redirect("/recruiter");
   }
 
   // Fetch approved available candidates for hero preview + live section

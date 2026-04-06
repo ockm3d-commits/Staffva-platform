@@ -63,6 +63,8 @@ function LoginForm() {
       router.push("/browse");
     } else if (role === "admin") {
       router.push("/admin");
+    } else if (role === "recruiter" || role === "recruiting_manager") {
+      router.push("/recruiter");
     } else {
       router.push("/");
     }
