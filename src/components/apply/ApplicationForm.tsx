@@ -29,17 +29,125 @@ const ROLE_CATEGORIES = [
   { group: "Other", roles: ["Other"] },
 ];
 
-const SKILLS_SUGGESTIONS = [
-  "Legal Research", "Contract Drafting", "Client Communication", "Document Review", "Case Management",
-  "Bookkeeping", "Financial Reporting", "Data Analysis", "Report Writing", "Project Management",
-  "Cold Calling", "Lead Generation", "Sales Outreach", "Appointment Setting", "CRM Management",
-  "SEO Strategy", "Content Strategy", "Email Marketing", "Social Media Management", "Paid Advertising",
-  "Written Communication", "Time Management", "Problem Solving", "Attention to Detail", "Organization",
-  "Medical Billing", "Insurance Verification", "Patient Scheduling", "HIPAA Compliance",
-  "Calendar Management", "Travel Coordination", "Customer Service", "Data Entry",
-];
+const SKILLS_BY_ROLE: Record<string, string[]> = {
+  // ── Legal ──
+  "Paralegal": ["Legal research", "Document drafting", "Case management", "Deposition summaries", "Discovery support", "Court filing", "Client communication", "Contract review"],
+  "Legal Assistant": ["Document preparation", "Legal research", "Calendar management", "Client intake", "Filing and docketing", "Correspondence drafting", "Billing support", "Court scheduling"],
+  "Legal Secretary": ["Document formatting", "Docket management", "Correspondence drafting", "Records management", "Client communication", "Billing support", "Transcript preparation", "Court scheduling"],
+  "Litigation Support": ["Document review", "eDiscovery management", "Trial preparation", "Case chronology", "Deposition summaries", "Evidence organization", "Legal research", "Data room management"],
+  "Contract Reviewer": ["Contract analysis", "Risk identification", "Redlining", "Clause comparison", "Legal research", "Summary drafting", "Compliance review", "Document management"],
+  // ── Accounting & Finance ──
+  "Bookkeeper": ["Bank reconciliation", "Accounts payable", "Accounts receivable", "Expense tracking", "Financial reporting", "Invoice processing", "Payroll support", "Month-end close"],
+  "Accounts Payable Specialist": ["Invoice processing", "Vendor management", "Payment scheduling", "Reconciliation", "Expense reporting", "Purchase order matching", "Month-end close", "Compliance tracking"],
+  "Accounts Receivable Specialist": ["Invoice generation", "Collections management", "Payment application", "Reconciliation", "Aging report analysis", "Customer billing", "Month-end close", "Dispute resolution"],
+  "Payroll Specialist": ["Payroll processing", "Tax withholding", "Benefits administration", "Timekeeping", "Compliance reporting", "Off-cycle payroll", "Reconciliation", "Employee records"],
+  "Tax Preparer": ["Tax return preparation", "Client documentation", "Federal and state filings", "Bookkeeping review", "Deduction analysis", "E-filing", "Client communication", "IRS correspondence"],
+  "Financial Analyst": ["Financial modeling", "Budget analysis", "Variance reporting", "Forecasting", "KPI tracking", "Data visualization", "P&L analysis", "Investor reporting"],
+  // ── Administrative ──
+  "Administrative Assistant": ["Calendar management", "Email management", "Document preparation", "Travel coordination", "Data entry", "Meeting coordination", "Expense reporting", "Stakeholder communication"],
+  "Executive Assistant": ["Executive calendar management", "Board communications", "Travel planning", "Meeting preparation", "Project coordination", "Expense management", "Confidential correspondence", "Stakeholder management"],
+  "Virtual Assistant": ["Calendar management", "Email management", "Research", "Data entry", "Social media scheduling", "Customer service", "Document preparation", "Administrative support"],
+  "Office Manager": ["Operations coordination", "Vendor management", "Budget tracking", "HR support", "Onboarding", "Policy documentation", "Scheduling", "Facilities coordination"],
+  "Data Entry Specialist": ["Data validation", "Spreadsheet management", "CRM data entry", "Quality checking", "Database management", "Report generation", "Error correction", "Record keeping"],
+  "Transcriptionist": ["Audio transcription", "Verbatim transcription", "Timestamping", "Proofreading", "Document formatting", "Medical terminology", "Legal terminology", "Quality assurance"],
+  // ── Sales & Outreach ──
+  "Cold Caller": ["Prospecting", "Script delivery", "Objection handling", "Lead qualification", "CRM logging", "Follow-up scheduling", "Pipeline management", "Callback coordination"],
+  "Sales Representative": ["Lead qualification", "Product presentations", "Proposal writing", "Objection handling", "CRM management", "Deal closing", "Pipeline management", "Client follow-up"],
+  "Sales Development Representative (SDR)": ["Lead prospecting", "Cold outreach", "Email sequences", "Qualifying calls", "CRM logging", "Meeting booking", "Account research", "Pipeline building"],
+  "Appointment Setter": ["Prospect outreach", "Call handling", "Objection handling", "Calendar coordination", "CRM logging", "Lead qualification", "Follow-up sequences", "Confirmation calls"],
+  "Account Manager": ["Client relationship management", "Upselling", "Renewal management", "QBR preparation", "Issue resolution", "Contract management", "Performance reporting", "Stakeholder communication"],
+  "Lead Generation Specialist": ["Prospect research", "List building", "Email outreach", "LinkedIn prospecting", "Data enrichment", "CRM management", "Campaign tracking", "Reporting"],
+  // ── Marketing & SEO ──
+  "Social Media Manager": ["Content creation", "Post scheduling", "Community management", "Analytics reporting", "Campaign management", "Hashtag research", "Audience engagement", "Trend monitoring"],
+  "Content Writer": ["Blog writing", "Copywriting", "SEO optimization", "Research", "Editing and proofreading", "Content strategy", "Keyword integration", "Content calendar management"],
+  "SEO Specialist": ["Keyword research", "On-page optimization", "Technical SEO audits", "Link building", "Content optimization", "Rank tracking", "Competitor analysis", "Analytics reporting"],
+  "Paid Ads Specialist": ["Campaign setup", "Ad copywriting", "A/B testing", "Bid management", "Audience targeting", "Performance reporting", "Budget optimization", "Conversion tracking"],
+  "Email Marketing Specialist": ["Campaign creation", "List segmentation", "A/B testing", "Automation setup", "Performance reporting", "Copywriting", "List hygiene", "Deliverability optimization"],
+  "CRM Manager": ["CRM configuration", "Pipeline management", "Automation setup", "Data hygiene", "Reporting", "Contact segmentation", "Lead scoring", "Integration management"],
+  // ── Scheduling & Support ──
+  "Scheduling Coordinator": ["Appointment booking", "Calendar management", "Rescheduling", "Client communication", "Reminder systems", "Schedule optimization", "Documentation", "Intake coordination"],
+  "Customer Support Representative": ["Ticket management", "Live chat support", "Email support", "Issue resolution", "Escalation handling", "Knowledge base updates", "Customer communication", "Refund processing"],
+  // ── Medical ──
+  "Medical Billing Specialist": ["Claims submission", "Denial management", "Insurance verification", "ICD-10 coding", "CPT coding", "EOB reconciliation", "Patient billing", "AR follow-up"],
+  "Medical Administrative Assistant": ["Patient scheduling", "Insurance verification", "Medical records management", "EMR data entry", "Prior authorizations", "Patient communication", "Referral coordination", "Billing support"],
+  "Insurance Verification Specialist": ["Benefits verification", "Prior authorization", "Eligibility checks", "Coverage documentation", "EOB review", "Patient communication", "Denial follow-up", "Payer coordination"],
+  "Dental Office Administrator": ["Patient scheduling", "Dental billing", "Insurance verification", "Treatment plan coordination", "Patient communication", "Records management", "Collections follow-up", "Front desk support"],
+  // ── Real Estate ──
+  "Real Estate Assistant": ["MLS listing management", "Client coordination", "Document preparation", "Showing scheduling", "Transaction support", "Social media posting", "Email management", "CRM management"],
+  "Transaction Coordinator": ["Contract management", "Timeline tracking", "Title coordination", "Escrow management", "Document collection", "Closing coordination", "Communication management", "Compliance review"],
+  // ── HR & Recruitment ──
+  "HR Assistant": ["Onboarding coordination", "Employee records", "Benefits administration", "Policy compliance", "Job posting", "Interview scheduling", "HR communications", "Offboarding support"],
+  "Recruitment Coordinator": ["Job posting", "Resume screening", "Interview scheduling", "Candidate communication", "ATS management", "Offer coordination", "Background check coordination", "Reporting"],
+  // ── Creative & Design ──
+  "Graphic Designer": ["Brand design", "Social media graphics", "Layout design", "Print design", "Illustration", "Photo editing", "Typography", "File preparation for print/web"],
+  "Video Editor": ["Footage editing", "Color grading", "Audio mixing", "Motion graphics", "Subtitling and captions", "Thumbnail design", "Social media video formatting", "Export optimization"],
+  // ── Operations & E-Commerce ──
+  "Project Manager": ["Project planning", "Timeline management", "Stakeholder communication", "Risk management", "Budget tracking", "Team coordination", "Status reporting", "Process documentation"],
+  "Operations Assistant": ["Process documentation", "Vendor coordination", "Data management", "Reporting", "Logistics support", "Internal communication", "Budget tracking", "Workflow optimization"],
+  "E-Commerce Manager": ["Product listing", "Inventory management", "Order fulfillment coordination", "Customer service", "Marketing campaigns", "Performance reporting", "Conversion optimization", "Competitor analysis"],
+  "Shopify Manager": ["Store management", "Product uploads", "Theme customization", "App integration", "Order management", "SEO optimization", "Analytics reporting", "Customer service"],
+  "Amazon Store Manager": ["Listing optimization", "PPC campaign management", "Inventory forecasting", "Review management", "Account health monitoring", "Competitor research", "FBA coordination", "Performance reporting"],
+};
 
-const TOOLS_SUGGESTIONS = ["Microsoft Office", "Google Workspace", "Zoom", "Slack", "Asana", "Trello", "Notion", "HubSpot", "Salesforce", "QuickBooks", "Clio", "Excel", "Canva", "Adobe"];
+const TOOLS_BY_ROLE: Record<string, string[]> = {
+  // ── Legal ──
+  "Paralegal": ["Clio", "MyCase", "PracticePanther", "LexisNexis", "Westlaw", "Microsoft Word", "Adobe Acrobat", "Outlook", "Dropbox", "Zoom"],
+  "Legal Assistant": ["Clio", "MyCase", "PracticePanther", "LexisNexis", "Westlaw", "Microsoft Word", "Adobe Acrobat", "Outlook", "Dropbox", "Zoom"],
+  "Legal Secretary": ["Clio", "MyCase", "Microsoft Word", "Outlook", "Adobe Acrobat", "LexisNexis", "Dropbox", "DocuSign", "Zoom", "Google Workspace"],
+  "Litigation Support": ["Relativity", "Clio", "Westlaw", "LexisNexis", "CaseMap", "Adobe Acrobat", "Microsoft Word", "Dropbox", "Zoom", "Outlook"],
+  "Contract Reviewer": ["DocuSign", "Adobe Acrobat", "Microsoft Word", "LexisNexis", "Westlaw", "Ironclad", "ContractPodAi", "Google Drive", "Outlook", "Notion"],
+  // ── Accounting & Finance ──
+  "Bookkeeper": ["QuickBooks", "Xero", "FreshBooks", "Bill.com", "Excel", "Gusto", "Stripe", "Expensify", "Sage", "Google Sheets"],
+  "Accounts Payable Specialist": ["QuickBooks", "Bill.com", "NetSuite", "SAP", "Concur", "Excel", "Tipalti", "Outlook", "Sage", "Expensify"],
+  "Accounts Receivable Specialist": ["QuickBooks", "Xero", "NetSuite", "Stripe", "FreshBooks", "Excel", "Bill.com", "Outlook", "Google Sheets", "Sage"],
+  "Payroll Specialist": ["Gusto", "ADP", "Paychex", "Rippling", "QuickBooks Payroll", "Excel", "BambooHR", "Workday", "Outlook", "Google Sheets"],
+  "Tax Preparer": ["TurboTax Business", "ProConnect", "Drake Tax", "Lacerte", "TaxSlayer Pro", "QuickBooks", "Excel", "Adobe Acrobat", "IRS e-Services", "Google Sheets"],
+  "Financial Analyst": ["Excel", "Google Sheets", "QuickBooks", "NetSuite", "Xero", "Tableau", "Power BI", "Bloomberg", "Looker Studio", "Notion"],
+  // ── Administrative ──
+  "Administrative Assistant": ["Google Workspace", "Microsoft 365", "Zoom", "Slack", "Asana", "Trello", "Calendly", "HubSpot", "Notion", "Dropbox"],
+  "Executive Assistant": ["Google Workspace", "Microsoft 365", "Zoom", "Calendly", "Notion", "Slack", "Asana", "Expensify", "Trello", "Dropbox"],
+  "Virtual Assistant": ["Google Workspace", "Microsoft 365", "Asana", "Trello", "Notion", "Slack", "Zoom", "Calendly", "HubSpot", "Airtable"],
+  "Office Manager": ["Google Workspace", "Microsoft 365", "QuickBooks", "Slack", "Zoom", "Asana", "Gusto", "Expensify", "Notion", "Trello"],
+  "Data Entry Specialist": ["Microsoft Excel", "Google Sheets", "Airtable", "Salesforce", "HubSpot", "Zoho CRM", "Notion", "Microsoft Access", "Smartsheet", "Google Forms"],
+  "Transcriptionist": ["Otter.ai", "Rev", "Microsoft Word", "Express Scribe", "oTranscribe", "Google Docs", "Descript", "Trint", "Zoom", "Adobe Audition"],
+  // ── Sales & Outreach ──
+  "Cold Caller": ["HubSpot", "Salesforce", "Pipedrive", "Dialpad", "RingCentral", "Outreach", "Apollo.io", "Close", "Zoom", "Slack"],
+  "Sales Representative": ["HubSpot", "Salesforce", "Pipedrive", "Zoom", "Outreach", "Apollo.io", "LinkedIn Sales Navigator", "Slack", "Close", "Google Workspace"],
+  "Sales Development Representative (SDR)": ["Outreach", "Salesloft", "HubSpot", "Salesforce", "Apollo.io", "LinkedIn Sales Navigator", "ZoomInfo", "Slack", "Close", "Zoom"],
+  "Appointment Setter": ["HubSpot", "Salesforce", "Calendly", "Pipedrive", "Dialpad", "RingCentral", "Close", "Outreach", "Zoom", "Slack"],
+  "Account Manager": ["HubSpot", "Salesforce", "Pipedrive", "Zoom", "Slack", "Notion", "Asana", "Microsoft 365", "Google Workspace", "Gainsight"],
+  "Lead Generation Specialist": ["Apollo.io", "ZoomInfo", "LinkedIn Sales Navigator", "HubSpot", "Salesforce", "Hunter.io", "Lusha", "Instantly", "Lemlist", "Google Sheets"],
+  // ── Marketing & SEO ──
+  "Social Media Manager": ["Hootsuite", "Buffer", "Sprout Social", "Canva", "Later", "Meta Business Suite", "TikTok Ads Manager", "Google Analytics", "Notion", "Slack"],
+  "Content Writer": ["Google Docs", "WordPress", "Notion", "Grammarly", "Surfer SEO", "SEMrush", "Ahrefs", "Canva", "Hemingway Editor", "HubSpot"],
+  "SEO Specialist": ["Ahrefs", "SEMrush", "Google Search Console", "Moz", "Surfer SEO", "Screaming Frog", "Google Analytics", "WordPress", "Looker Studio", "Yoast"],
+  "Paid Ads Specialist": ["Google Ads", "Meta Ads Manager", "LinkedIn Ads", "TikTok Ads Manager", "Google Analytics", "Looker Studio", "Canva", "ClickUp", "Hotjar", "Slack"],
+  "Email Marketing Specialist": ["Mailchimp", "Klaviyo", "ActiveCampaign", "HubSpot", "Constant Contact", "ConvertKit", "Zapier", "Google Analytics", "Canva", "Beehiiv"],
+  "CRM Manager": ["HubSpot", "Salesforce", "Pipedrive", "Zoho CRM", "ActiveCampaign", "Zapier", "Airtable", "Slack", "Monday.com", "Google Sheets"],
+  // ── Scheduling & Support ──
+  "Scheduling Coordinator": ["Calendly", "Acuity", "Google Calendar", "Outlook", "Mindbody", "Jane App", "Zoom", "Slack", "OpenDental", "Dentrix"],
+  "Customer Support Representative": ["Zendesk", "Intercom", "Freshdesk", "Gorgias", "HubSpot", "Salesforce", "Slack", "LiveChat", "Front", "Zoom"],
+  // ── Medical ──
+  "Medical Billing Specialist": ["Kareo", "AdvancedMD", "eClinicalWorks", "Athenahealth", "DrChrono", "Excel", "Change Healthcare", "Availity", "Waystar", "Outlook"],
+  "Medical Administrative Assistant": ["Epic", "Cerner", "Athenahealth", "Kareo", "DrChrono", "Microsoft 365", "Zoom", "Outlook", "Google Workspace", "AdvancedMD"],
+  "Insurance Verification Specialist": ["Availity", "Kareo", "Epic", "eClinicalWorks", "Athenahealth", "Excel", "Change Healthcare", "Outlook", "Waystar", "Cerner"],
+  "Dental Office Administrator": ["Dentrix", "Eaglesoft", "OpenDental", "Carestream", "Dolphin", "Microsoft 365", "Zoom", "Outlook", "Google Workspace", "Dentimax"],
+  // ── Real Estate ──
+  "Real Estate Assistant": ["Follow Up Boss", "Chime", "DocuSign", "Dotloop", "MLS", "Google Workspace", "Trello", "Canva", "Zoom", "Slack"],
+  "Transaction Coordinator": ["Dotloop", "DocuSign", "SkySlope", "Zipforms", "MLS", "Google Workspace", "Trello", "Outlook", "Notary Cam", "Slack"],
+  // ── HR & Recruitment ──
+  "HR Assistant": ["BambooHR", "Gusto", "ADP", "Rippling", "Workday", "Google Workspace", "Zoom", "Slack", "Notion", "Microsoft 365"],
+  "Recruitment Coordinator": ["LinkedIn Recruiter", "Greenhouse", "Lever", "Workable", "Indeed", "BambooHR", "Zoom", "Google Workspace", "Slack", "Calendly"],
+  // ── Creative & Design ──
+  "Graphic Designer": ["Adobe Photoshop", "Adobe Illustrator", "Canva", "Figma", "Adobe InDesign", "Adobe After Effects", "Procreate", "Slack", "Google Drive", "Notion"],
+  "Video Editor": ["Adobe Premiere Pro", "DaVinci Resolve", "Final Cut Pro", "Adobe After Effects", "CapCut", "Canva", "Frame.io", "Slack", "Google Drive", "Descript"],
+  // ── Operations & E-Commerce ──
+  "Project Manager": ["Asana", "Monday.com", "Jira", "Trello", "Notion", "Slack", "Zoom", "ClickUp", "Google Workspace", "Confluence"],
+  "Operations Assistant": ["Asana", "Monday.com", "Google Workspace", "Slack", "Notion", "Airtable", "Trello", "Zoom", "ClickUp", "Smartsheet"],
+  "E-Commerce Manager": ["Shopify", "WooCommerce", "Amazon Seller Central", "Google Analytics", "Meta Ads Manager", "Klaviyo", "Canva", "Airtable", "Slack", "Looker Studio"],
+  "Shopify Manager": ["Shopify", "Google Analytics", "Klaviyo", "Canva", "Meta Ads Manager", "Airtable", "Slack", "Loox", "Yotpo", "Gorgias"],
+  "Amazon Store Manager": ["Amazon Seller Central", "Helium 10", "Jungle Scout", "Google Sheets", "Airtable", "Canva", "Asana", "Slack", "DataDive", "Keepa"],
+};
 
 const EXPERIENCE_OPTIONS = ["0-1", "1-3", "3-5", "5-10", "10+"];
 
@@ -621,12 +729,12 @@ export default function ApplicationForm({ onComplete, initialStage = 0, existing
 
           <div>
             <label className="block text-sm font-medium text-text mb-1">Key Skills</label>
-            <TagInput tags={skills} setTags={setSkills} max={10} placeholder="Type a skill and press Enter" suggestions={SKILLS_SUGGESTIONS} />
+            <TagInput tags={skills} setTags={setSkills} max={10} placeholder="Type a skill and press Enter" suggestions={SKILLS_BY_ROLE[roleCategory] ?? []} />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-text mb-1">Tools & Software You Use</label>
-            <TagInput tags={tools} setTags={setTools} max={8} placeholder="Type and press Enter" suggestions={TOOLS_SUGGESTIONS} />
+            <TagInput tags={tools} setTags={setTools} max={8} placeholder="Type and press Enter" suggestions={TOOLS_BY_ROLE[roleCategory] ?? []} />
           </div>
 
           <div>
