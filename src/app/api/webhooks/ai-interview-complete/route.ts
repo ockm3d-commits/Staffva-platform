@@ -65,12 +65,16 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (assignment?.recruiter_id) {
+        const isPendingReview = candidate.role_category === "Other";
         await supabase
           .from("candidates")
-          .update({ assigned_recruiter: assignment.recruiter_id })
+          .update({
+            assigned_recruiter: assignment.recruiter_id,
+            assignment_pending_review: isPendingReview,
+          })
           .eq("id", candidateId);
 
-        console.log("[AI Interview Webhook] Assigned recruiter:", assignment.recruiter_id, "to candidate:", candidateId);
+        console.log("[AI Interview Webhook] Assigned recruiter:", assignment.recruiter_id, "to candidate:", candidateId, isPendingReview ? "(pending review)" : "");
       }
     }
 

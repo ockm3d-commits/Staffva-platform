@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from("candidates")
     .select(
-      "id, full_name, display_name, email, country, role_category, hourly_rate, english_written_tier, speaking_level, screening_tag, screening_score, admin_status, profile_photo_url, created_at, waiting_since, second_interview_status, second_interview_scheduled_at, assigned_recruiter, voice_recording_1_url, voice_recording_2_url"
+      "id, full_name, display_name, email, country, role_category, hourly_rate, english_written_tier, speaking_level, screening_tag, screening_score, admin_status, profile_photo_url, created_at, waiting_since, second_interview_status, second_interview_scheduled_at, assigned_recruiter, assignment_pending_review, voice_recording_1_url, voice_recording_2_url"
     );
 
   // Recruiter: filter by assigned categories
@@ -74,10 +74,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ candidates: [], workload: {} });
   }
 
-  // Priority sort: screening_tag Priority first, then by waiting_since ascending (longest wait first)
+  // Priority sort: assignment_pending_review first, then screening_tag, then waiting_since
   const tagOrder: Record<string, number> = { Priority: 0, Review: 1, Hold: 2 };
 
   const sorted = candidates.sort((a, b) => {
+    // Pending routing always floats to top
+    if (a.assignment_pending_review && !b.assignment_pending_review) return -1;
+    if (!a.assignment_pending_review && b.assignment_pending_review) return 1;
+
     const aTag = tagOrder[a.screening_tag || "Review"] ?? 1;
     const bTag = tagOrder[b.screening_tag || "Review"] ?? 1;
     if (aTag !== bTag) return aTag - bTag;

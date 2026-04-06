@@ -24,8 +24,14 @@ interface Candidate {
   second_interview_status: string;
   second_interview_scheduled_at: string | null;
   assigned_recruiter: string | null;
+  assignment_pending_review: boolean;
   sla_status: "green" | "yellow" | "red";
   wait_hours: number;
+}
+
+interface RecruiterOption {
+  id: string;
+  full_name: string;
 }
 
 interface MessageThread {
@@ -87,6 +93,10 @@ export default function RecruiterDashboardPage() {
   const [threadLoading, setThreadLoading] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [reassignModal, setReassignModal] = useState<{ candidateId: string; name: string } | null>(null);
+  const [recruiters, setRecruiters] = useState<RecruiterOption[]>([]);
+  const [selectedRecruiterId, setSelectedRecruiterId] = useState("");
+  const [reassigning, setReassigning] = useState(false);
 
   const loadQueue = useCallback(async () => {
     setLoading(true);
@@ -116,6 +126,14 @@ export default function RecruiterDashboardPage() {
         .eq("id", session.user.id)
         .single();
       if (profile?.calendar_link) setCalendarLink(profile.calendar_link);
+
+      // Load all recruiters for the reassign dropdown
+      const { data: recruiterProfiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("role", "recruiter")
+        .order("full_name");
+      if (recruiterProfiles) setRecruiters(recruiterProfiles);
 
       // Load message threads — get all recruiter_messages for this recruiter, grouped by candidate
       const { data: msgs } = await supabase
@@ -194,6 +212,26 @@ export default function RecruiterDashboardPage() {
     setCalendarSaving(false);
     setCalendarSaved(true);
     setTimeout(() => setCalendarSaved(false), 2000);
+  }
+
+  async function handleReassign() {
+    if (!reassignModal || !selectedRecruiterId) return;
+    setReassigning(true);
+
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    await fetch("/api/recruiter/reassign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ candidateId: reassignModal.candidateId, newRecruiterId: selectedRecruiterId }),
+    });
+
+    setReassignModal(null);
+    setSelectedRecruiterId("");
+    setReassigning(false);
+    loadQueue();
   }
 
   async function openThread(candidateId: string, candidateName: string) {
@@ -301,17 +339,28 @@ export default function RecruiterDashboardPage() {
         <div className="mt-6 space-y-3">
           {candidates.map((c) => {
             const sla = SLA_COLORS[c.sla_status];
+            const isPending = c.assignment_pending_review;
 
             return (
               <div
                 key={c.id}
-                className={`rounded-lg border ${sla.border} ${sla.bg} p-4 transition-colors`}
+                className={`rounded-lg border p-4 transition-colors ${
+                  isPending
+                    ? "border-orange-300 bg-orange-50"
+                    : `${sla.border} ${sla.bg}`
+                }`}
               >
                 <div className="flex items-start gap-4">
-                  {/* SLA dot */}
+                  {/* SLA dot or pending indicator */}
                   <div className="flex flex-col items-center gap-1 pt-1">
-                    <span className={`h-3 w-3 rounded-full ${sla.dot}`} />
-                    <span className={`text-[9px] font-medium ${sla.text}`}>{c.wait_hours}h</span>
+                    {isPending ? (
+                      <span className="h-3 w-3 rounded-full bg-orange-400" />
+                    ) : (
+                      <>
+                        <span className={`h-3 w-3 rounded-full ${sla.dot}`} />
+                        <span className={`text-[9px] font-medium ${sla.text}`}>{c.wait_hours}h</span>
+                      </>
+                    )}
                   </div>
 
                   {/* Photo */}
@@ -332,7 +381,12 @@ export default function RecruiterDashboardPage() {
                         <p className="font-semibold text-[#1C1B1A] text-sm">{c.display_name || c.full_name}</p>
                         <p className="text-xs text-gray-500">{c.country} · {c.role_category} · ${c.hourly_rate?.toLocaleString()}/hr</p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        {isPending && (
+                          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold text-orange-700 border border-orange-300">
+                            Needs Routing
+                          </span>
+                        )}
                         {c.screening_tag && (
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${SCREENING_COLORS[c.screening_tag] || "bg-gray-100 text-gray-600"}`}>
                             {c.screening_tag} {c.screening_score}/10
@@ -360,7 +414,7 @@ export default function RecruiterDashboardPage() {
                       )}
 
                       {/* Actions */}
-                      <div className="ml-auto flex gap-2">
+                      <div className="ml-auto flex gap-2 flex-wrap">
                         <Link
                           href={`/candidate/${c.id}`}
                           className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-[#1C1B1A] hover:border-[#FE6E3E] hover:text-[#FE6E3E] transition-colors"
@@ -373,7 +427,15 @@ export default function RecruiterDashboardPage() {
                         >
                           Message
                         </button>
-                        {c.second_interview_status !== "scheduled" && c.second_interview_status !== "completed" && (
+                        {isPending && (
+                          <button
+                            onClick={() => { setReassignModal({ candidateId: c.id, name: c.display_name || c.full_name }); setSelectedRecruiterId(""); }}
+                            className="rounded-lg bg-orange-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-orange-600 transition-colors"
+                          >
+                            Reassign
+                          </button>
+                        )}
+                        {!isPending && c.second_interview_status !== "scheduled" && c.second_interview_status !== "completed" && (
                           <button
                             onClick={() => setScheduleModal({ candidateId: c.id, name: c.display_name || c.full_name })}
                             className="rounded-lg bg-[#FE6E3E] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#E55A2B] transition-colors"
@@ -532,6 +594,43 @@ export default function RecruiterDashboardPage() {
           Approval actions are managed by the admin team.
         </p>
       </div>
+
+      {/* Reassign modal */}
+      {reassignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setReassignModal(null)}>
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-[#1C1B1A]">Reassign Candidate</h2>
+            <p className="mt-1 text-sm text-gray-500">Route <strong>{reassignModal.name}</strong> to a recruiter.</p>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-[#1C1B1A] mb-1">Select Recruiter</label>
+              <select
+                value={selectedRecruiterId}
+                onChange={(e) => setSelectedRecruiterId(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+              >
+                <option value="">Choose a recruiter...</option>
+                {recruiters.map((r) => (
+                  <option key={r.id} value={r.id}>{r.full_name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button onClick={() => setReassignModal(null)} className="flex-1 rounded-lg border border-gray-300 py-2.5 text-sm font-medium text-[#1C1B1A] hover:bg-gray-50">
+                Cancel
+              </button>
+              <button
+                onClick={handleReassign}
+                disabled={reassigning || !selectedRecruiterId}
+                className="flex-1 rounded-lg bg-orange-500 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
+              >
+                {reassigning ? "Routing..." : "Confirm Reassign"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Schedule interview modal */}
       {scheduleModal && (
