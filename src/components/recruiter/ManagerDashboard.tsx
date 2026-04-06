@@ -24,7 +24,7 @@ interface ManagerData {
     totalInterviewsToday: number;
     totalTarget: number;
     postingCompliance: { at2Posts: number; totalRecruiters: number };
-    approvalQueueCount: number;
+    unroutedAlertCount: number;
   };
   teamStatus: {
     id: string;
@@ -49,28 +49,31 @@ interface ManagerData {
     created_at: string;
     english_written_tier: string | null;
   }[];
-  approvalQueue: {
+  unroutedAlerts: {
+    id: string;
+    candidate_id: string;
+    ai_interview_result: boolean;
+    created_at: string;
+    candidate_name: string;
+    role_category_custom: string | null;
+  }[];
+  managerNotifications: {
+    id: string;
+    message: string;
+    candidate_id: string | null;
+    recruiter_id: string | null;
+    created_at: string;
+    read_at: string | null;
+  }[];
+  recentGoLives: {
     id: string;
     display_name: string;
     full_name: string;
     role_category: string;
     profile_photo_url: string | null;
-    screening_score: number | null;
-    second_interview_completed_at: string | null;
-    admin_status: string;
+    profile_went_live_at: string;
     assigned_recruiter: string | null;
-    assigned_recruiter_name: string;
-    tagline: string | null;
-    bio: string | null;
-    resume_url: string | null;
-    payout_method: string | null;
-    id_verification_status: string | null;
-    voice_recording_1_url: string | null;
-    voice_recording_2_url: string | null;
-    english_mc_score: number | null;
-    recruiter_ai_score_results: { dimension: string; score: number; justification?: string }[] | null;
-    video_intro_url: string | null;
-    id_verification_consent: boolean | null;
+    recruiter_name: string;
   }[];
   banQueue: {
     id: string;
@@ -105,22 +108,6 @@ interface ManagerData {
 
 type MobileTab = "mine" | "team";
 
-function getGateChecks(c: ManagerData["approvalQueue"][0]) {
-  return [
-    { label: "Voice 1", pass: !!c.voice_recording_1_url },
-    { label: "Voice 2", pass: !!c.voice_recording_2_url },
-    { label: "ID verified", pass: c.id_verification_status === "passed" },
-    { label: "Photo", pass: !!c.profile_photo_url },
-    { label: "Resume", pass: !!c.resume_url },
-    { label: "Tagline", pass: !!c.tagline },
-    { label: "Bio", pass: !!c.bio },
-    { label: "Payout", pass: !!c.payout_method },
-    { label: "Consent", pass: !!c.id_verification_consent },
-    { label: "MC >= 70%", pass: (c.english_mc_score ?? 0) >= 70 },
-    { label: "Video intro", pass: !!c.video_intro_url },
-  ];
-}
-
 export default function ManagerDashboard() {
   const router = useRouter();
   const [data, setData] = useState<ManagerData | null>(null);
@@ -131,9 +118,6 @@ export default function ManagerDashboard() {
   const [assignModal, setAssignModal] = useState<{ candidateId: string; name: string } | null>(null);
   const [selectedRecruiterId, setSelectedRecruiterId] = useState("");
   const [assigning, setAssigning] = useState(false);
-  const [approvingId, setApprovingId] = useState<string | null>(null);
-  const [expandedApproval, setExpandedApproval] = useState<string | null>(null);
-  const [failedApprovals, setFailedApprovals] = useState<Record<string, string[]>>({});
   const [loadError, setLoadError] = useState(false);
   const [authError, setAuthError] = useState(false);
 
@@ -200,27 +184,6 @@ export default function ManagerDashboard() {
     setAssigning(false);
   }
 
-  async function handleApprove(candidateId: string) {
-    setApprovingId(candidateId);
-    try {
-      const res = await fetch("/api/recruiting-manager/approve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ candidateId }),
-      });
-      if (res.ok) {
-        setFailedApprovals((prev) => { const next = { ...prev }; delete next[candidateId]; return next; });
-        loadDashboard();
-      } else if (res.status === 400) {
-        const body = await res.json();
-        if (body.failingConditions) {
-          setFailedApprovals((prev) => ({ ...prev, [candidateId]: body.failingConditions }));
-        }
-      }
-    } catch { /* silent */ }
-    setApprovingId(null);
-  }
-
   async function handleCalendarSave(link: string) {
     const supabase = createClient();
     const { data: { session } } = await supabase.auth.getSession();
@@ -253,8 +216,8 @@ export default function ManagerDashboard() {
   }
 
   const candidateMap = new Map<string, { name: string; photo: string | null }>();
-  for (const c of data.approvalQueue) candidateMap.set(c.id, { name: c.display_name || c.full_name, photo: c.profile_photo_url });
   for (const c of data.unroutedQueue) candidateMap.set(c.id, { name: c.display_name || c.full_name, photo: c.profile_photo_url });
+  for (const c of data.recentGoLives) candidateMap.set(c.id, { name: c.display_name || c.full_name, photo: c.profile_photo_url });
 
   const teamView = (
     <>
@@ -275,10 +238,12 @@ export default function ManagerDashboard() {
               <p className="text-lg font-bold text-[#1C1B1A]">{data.teamSummary.postingCompliance.at2Posts}<span className="text-sm text-gray-400">/{data.teamSummary.postingCompliance.totalRecruiters}</span></p>
               <p className="text-[10px] text-gray-400 uppercase font-medium">Posts Complete</p>
             </div>
-            <div className="text-center px-3">
-              <p className={`text-lg font-bold ${data.teamSummary.approvalQueueCount > 10 ? "text-[#FE6E3E]" : "text-[#1C1B1A]"}`}>{data.teamSummary.approvalQueueCount}</p>
-              <p className="text-[10px] text-gray-400 uppercase font-medium">Approval Queue</p>
-            </div>
+            {data.teamSummary.unroutedAlertCount > 0 && (
+              <div className="text-center px-3">
+                <p className="text-lg font-bold text-red-600">{data.teamSummary.unroutedAlertCount}</p>
+                <p className="text-[10px] text-red-500 uppercase font-semibold">Urgent Alerts</p>
+              </div>
+            )}
             <Link href="/talent-pool" className="text-center px-3 hover:opacity-80 transition-opacity">
               <p className="text-[10px] text-[#FE6E3E] font-semibold uppercase">Talent Pool</p>
               <p className="text-[10px] text-gray-400">Health &rarr;</p>
@@ -396,153 +361,76 @@ export default function ManagerDashboard() {
           </section>
         )}
 
-        {/* Approval Queue */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-sm font-semibold text-[#1C1B1A]">Approval Queue</h2>
-            <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-gray-200 px-1.5 text-[10px] font-bold text-gray-600">{data.approvalQueue.length}</span>
-          </div>
-          {data.approvalQueue.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-white p-8 text-center"><p className="text-sm text-gray-400">No candidates pending approval</p></div>
-          ) : (
-            <div className="space-y-3">
-              {data.approvalQueue.map((c) => {
-                const gates = getGateChecks(c);
-                const passCount = gates.filter((g) => g.pass).length;
-                const allGreen = passCount === gates.length;
-                const hasFailed = !!failedApprovals[c.id];
-                const ringColor = hasFailed ? "#ef4444" : allGreen ? "#22c55e" : "#ef4444";
-                const daysSince = c.second_interview_completed_at ? Math.floor((Date.now() - new Date(c.second_interview_completed_at).getTime()) / (1000 * 60 * 60 * 24)) : null;
-                const isExpanded = expandedApproval === c.id;
-
-                // AI score dimensions
-                const aiScores = c.recruiter_ai_score_results || [];
-                const commScore = aiScores.find((d) => d.dimension?.toLowerCase().includes("communication"));
-                const demeScore = aiScores.find((d) => d.dimension?.toLowerCase().includes("demeanor") || d.dimension?.toLowerCase().includes("professional"));
-                const roleScore = aiScores.find((d) => d.dimension?.toLowerCase().includes("role") || d.dimension?.toLowerCase().includes("knowledge"));
-
+        {/* Urgent Unrouted Alerts */}
+        {data.unroutedAlerts.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-sm font-semibold text-red-700">Urgent — Needs Recruiter Assignment</h2>
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">{data.unroutedAlerts.length}</span>
+            </div>
+            <div className="space-y-2">
+              {data.unroutedAlerts.map((alert) => {
+                const hoursAgo = Math.floor((Date.now() - new Date(alert.created_at).getTime()) / (1000 * 60 * 60));
                 return (
-                  <div key={c.id} className="rounded-lg border border-gray-200 bg-white p-4">
-                    <div className="flex items-start gap-3">
-                      {/* Gate ring indicator */}
-                      <div className="relative h-10 w-10 shrink-0">
-                        <svg viewBox="0 0 40 40" className="h-10 w-10 -rotate-90">
-                          <circle cx="20" cy="20" r="17" fill="none" stroke="#e5e7eb" strokeWidth="3" />
-                          <circle cx="20" cy="20" r="17" fill="none" stroke={ringColor} strokeWidth="3"
-                            strokeDasharray={`${(2 * Math.PI * 17 * passCount) / gates.length} ${2 * Math.PI * 17}`}
-                            strokeLinecap="round"
-                          />
-                        </svg>
-                        {c.profile_photo_url ? (
-                          <img src={c.profile_photo_url} alt="" className="absolute inset-[5px] rounded-full object-cover" />
-                        ) : (
-                          <div className="absolute inset-[5px] rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-400">{(c.display_name || c.full_name)?.[0]}</div>
-                        )}
-                        {!allGreen && (
-                          <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-bold text-white">{gates.length - passCount}</span>
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-[#1C1B1A]">{c.display_name || c.full_name}</p>
-                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">{c.role_category}</span>
-                          <span className="text-[10px] text-gray-400">via {c.assigned_recruiter_name}</span>
-                          {c.screening_score != null && (
-                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">{c.screening_score}/10</span>
-                          )}
-                        </div>
-
-                        {/* Score indicators */}
-                        <div className="mt-1 flex items-center gap-3 text-[10px] text-gray-500">
-                          {commScore && <span>Comm: {commScore.score}/10</span>}
-                          {demeScore && <span>Prof: {demeScore.score}/10</span>}
-                          {roleScore && <span>Role: {roleScore.score}/10</span>}
-                          {daysSince != null && <span className={daysSince > 5 ? "text-red-500 font-semibold" : ""}>{daysSince}d waiting</span>}
-                        </div>
-
-                        {/* Failed gates (if any) */}
-                        {!allGreen && (
-                          <div className="mt-1.5 flex flex-wrap gap-1">
-                            {gates.filter((g) => !g.pass).map((g, i) => (
-                              <span key={i} className="rounded-full bg-red-50 border border-red-200 px-2 py-0.5 text-[9px] text-red-600">{g.label}</span>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className="mt-3 flex gap-2 flex-wrap">
-                          <button
-                            onClick={() => handleApprove(c.id)}
-                            disabled={!allGreen || approvingId === c.id}
-                            className="rounded-lg bg-green-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                          >
-                            {approvingId === c.id ? "Approving..." : "Approve"}
-                          </button>
-                          <button
-                            onClick={() => setRevisionModal({ candidateId: c.id, name: c.display_name || c.full_name })}
-                            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-[#1C1B1A] hover:border-[#FE6E3E] hover:text-[#FE6E3E]"
-                          >
-                            Needs Revision
-                          </button>
-                          <button
-                            onClick={() => { setAssignModal({ candidateId: c.id, name: c.display_name || c.full_name }); setSelectedRecruiterId(""); }}
-                            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-500 hover:text-[#1C1B1A]"
-                          >
-                            Reassign
-                          </button>
-                          <button
-                            onClick={() => setExpandedApproval(isExpanded ? null : c.id)}
-                            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-500 hover:text-[#1C1B1A]"
-                          >
-                            {isExpanded ? "Collapse" : "View Profile"}
-                          </button>
-                        </div>
-
-                        {/* Expanded profile */}
-                        {isExpanded && (
-                          <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50 p-3 space-y-2 text-xs text-gray-600">
-                            <p><strong>Tagline:</strong> {c.tagline || "—"}</p>
-                            <p><strong>Bio:</strong> {c.bio || "—"}</p>
-                            <p><strong>Resume:</strong> {c.resume_url ? <a href={c.resume_url} target="_blank" className="text-[#FE6E3E] underline">View</a> : "—"}</p>
-                            <p><strong>Video:</strong> {c.video_intro_url ? <a href={c.video_intro_url} target="_blank" className="text-[#FE6E3E] underline">View</a> : "—"}</p>
-                            <p><strong>ID Status:</strong> {c.id_verification_status || "—"}</p>
-                            <p><strong>MC Score:</strong> {c.english_mc_score ?? "—"}%</p>
-                            <p><strong>Payout:</strong> {c.payout_method || "—"}</p>
-                            <div className="mt-2">
-                              <p className="font-semibold text-[#1C1B1A] mb-1">Gate Checklist:</p>
-                              {gates.map((g, i) => (
-                                <div key={i} className="flex items-center gap-1.5">
-                                  {g.pass ? <span className="text-green-500">&#10003;</span> : <span className="text-red-500">&#10007;</span>}
-                                  <span>{g.label}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Server-side failing conditions from approval attempt */}
-                        {failedApprovals[c.id] && (
-                          <div className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3">
-                            <p className="text-xs font-semibold text-red-700 mb-1.5">Approval blocked — failing conditions:</p>
-                            <ul className="space-y-1">
-                              {failedApprovals[c.id].map((condition, i) => (
-                                <li key={i} className="flex items-start gap-1.5 text-xs text-red-600">
-                                  <span className="mt-0.5 shrink-0">&#10007;</span>
-                                  <span>{condition}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                      </div>
+                  <div key={alert.id} className="rounded-lg border-2 border-red-300 bg-red-50 p-3 flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold">!</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#1C1B1A]">{alert.candidate_name}</p>
+                      <p className="text-xs text-red-700 font-medium">{alert.role_category_custom || "Custom role"}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${alert.ai_interview_result ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                        AI: {alert.ai_interview_result ? "Passed" : "Failed"}
+                      </span>
+                      <p className={`mt-1 text-[10px] font-medium ${hoursAgo > 24 ? "text-red-600" : "text-gray-500"}`}>{hoursAgo}h ago</p>
                     </div>
                   </div>
                 );
               })}
             </div>
-          )}
-        </section>
+          </section>
+        )}
+
+        {/* Recent Go-Lives */}
+        {data.recentGoLives.length > 0 && (
+          <section>
+            <h2 className="text-sm font-semibold text-[#1C1B1A] mb-3">Recent Go-Lives</h2>
+            <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+              <div className="divide-y divide-gray-100">
+                {data.recentGoLives.map((c) => {
+                  const isUnread = data.managerNotifications.some(
+                    (n) => n.candidate_id === c.id && !n.read_at
+                  );
+                  const timeAgo = (() => {
+                    const mins = Math.floor((Date.now() - new Date(c.profile_went_live_at).getTime()) / 60000);
+                    if (mins < 60) return `${mins}m ago`;
+                    const hours = Math.floor(mins / 60);
+                    if (hours < 24) return `${hours}h ago`;
+                    return `${Math.floor(hours / 24)}d ago`;
+                  })();
+                  return (
+                    <div key={c.id} className="flex items-center gap-3 px-4 py-3">
+                      {isUnread && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#FE6E3E]" />}
+                      {!isUnread && <span className="h-2.5 w-2.5 shrink-0" />}
+                      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-gray-100">
+                        {c.profile_photo_url ? (
+                          <img src={c.profile_photo_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-gray-400">{(c.display_name || c.full_name)?.[0]}</div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-[#1C1B1A] truncate">{c.display_name || c.full_name}</p>
+                        <p className="text-[10px] text-gray-500">{c.role_category} &middot; via {c.recruiter_name}</p>
+                      </div>
+                      <span className="text-[10px] text-gray-400 shrink-0">{timeAgo}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Pipeline Velocity & Metrics */}
         <section>

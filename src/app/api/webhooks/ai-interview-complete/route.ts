@@ -35,24 +35,10 @@ export async function POST(req: NextRequest) {
       .limit(1)
       .maybeSingle();
 
-    if (aiInterview) {
-      // Auto-approve — skip manual admin review
-      await supabase
-        .from("candidates")
-        .update({
-          admin_status: "approved",
-          profile_went_live_at: new Date().toISOString(),
-        })
-        .eq("id", candidateId)
-        .neq("admin_status", "approved");
-
-      console.log("[AI Interview Webhook] Auto-approved candidate:", candidateId);
-    }
-
     // Auto-assign recruiter based on role_category
     const { data: candidate } = await supabase
       .from("candidates")
-      .select("role_category")
+      .select("role_category, email, display_name, full_name")
       .eq("id", candidateId)
       .single();
 
@@ -76,6 +62,60 @@ export async function POST(req: NextRequest) {
 
         console.log("[AI Interview Webhook] Assigned recruiter:", assignment.recruiter_id, "to candidate:", candidateId, isPendingReview ? "(pending review)" : "");
       }
+    }
+
+    // "Other" role: create unrouted alert + send candidate email + notify managers
+    if (candidate?.role_category === "Other") {
+      // Insert unrouted alert
+      await supabase.from("unrouted_alerts").insert({
+        candidate_id: candidateId,
+        ai_interview_result: !!aiInterview,
+      });
+
+      // Send candidate email
+      const firstName =
+        (candidate.display_name || candidate.full_name || "").split(" ")[0] || "there";
+
+      if (process.env.RESEND_API_KEY && candidate.email) {
+        try {
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: "StaffVA <notifications@staffva.com>",
+              to: candidate.email,
+              subject: "You're in the queue — a recruiter will be assigned to you shortly",
+              html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+                <h2 style="color:#1C1B1A;">You're in the Queue</h2>
+                <p style="color:#444;font-size:14px;">Hi ${firstName},</p>
+                <p style="color:#444;font-size:14px;">We have reviewed your AI interview. You will be assigned a recruiter within 24 hours. You will receive a notification when your recruiter is assigned.</p>
+                <p style="color:#999;margin-top:24px;font-size:12px;">— The StaffVA Team</p>
+              </div>`,
+            }),
+          });
+        } catch { /* silent */ }
+      }
+
+      // Notify all recruiting managers
+      const { data: managers } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("role", "recruiting_manager");
+
+      if (managers && managers.length > 0) {
+        const candidateName = candidate.display_name || candidate.full_name || "A candidate";
+        const notifications = managers.map((m: { id: string }) => ({
+          manager_id: m.id,
+          candidate_id: candidateId,
+          message: `URGENT: ${candidateName} (Other role) completed AI interview — needs recruiter assignment.`,
+        }));
+        await supabase.from("manager_notifications").insert(notifications);
+      }
+
+      console.log("[AI Interview Webhook] Other role alert created for candidate:", candidateId);
     }
 
     // Fire and forget — don't block the response

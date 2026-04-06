@@ -924,35 +924,43 @@ export default function CandidateDashboardPage() {
                         Hi {candidate.display_name?.split(" ")[0] || "there"}, I reviewed your application and I am excited to connect. Book a time below for your second interview.
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {recruiterProfile.calendar_link ? (
-                          <a
-                            href={recruiterProfile.calendar_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-full bg-[#FE6E3E] px-5 py-2 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors"
-                          >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                            </svg>
-                            Schedule My Interview
-                          </a>
+                        {candidate.role_category === "Other" && !candidate.assigned_recruiter ? (
+                          <div className="w-full rounded-lg bg-amber-50 border border-amber-200 p-3">
+                            <p className="text-xs text-amber-800 font-medium">Your recruiter will be assigned within 24 hours. You will be notified when this happens.</p>
+                          </div>
                         ) : (
-                          <p className="text-xs text-gray-400 italic">Your recruiter will reach out to schedule shortly.</p>
+                          <>
+                            {recruiterProfile.calendar_link ? (
+                              <a
+                                href={recruiterProfile.calendar_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 rounded-full bg-[#FE6E3E] px-5 py-2 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors"
+                              >
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                                </svg>
+                                Schedule My Interview
+                              </a>
+                            ) : (
+                              <p className="text-xs text-gray-400 italic">Your recruiter will reach out to schedule shortly.</p>
+                            )}
+                            <Link
+                              href={`/candidate/dashboard/recruiter-chat`}
+                              className="relative inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-5 py-2 text-sm font-semibold text-[#1C1B1A] hover:bg-gray-50 transition-colors"
+                            >
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                              </svg>
+                              Message {recruiterProfile.full_name?.split(" ")[0] || "Recruiter"}
+                              {recruiterUnread > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#FE6E3E] text-[10px] font-bold text-white">
+                                  {recruiterUnread}
+                                </span>
+                              )}
+                            </Link>
+                          </>
                         )}
-                        <Link
-                          href={`/candidate/dashboard/recruiter-chat`}
-                          className="relative inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-5 py-2 text-sm font-semibold text-[#1C1B1A] hover:bg-gray-50 transition-colors"
-                        >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-                          </svg>
-                          Message {recruiterProfile.full_name?.split(" ")[0] || "Recruiter"}
-                          {recruiterUnread > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#FE6E3E] text-[10px] font-bold text-white">
-                              {recruiterUnread}
-                            </span>
-                          )}
-                        </Link>
                       </div>
                     </div>
                   </div>

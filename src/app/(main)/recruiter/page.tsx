@@ -48,6 +48,9 @@ interface DashboardData {
     voice_recording_1_url: string | null;
     voice_recording_2_url: string | null;
     english_mc_score: number | null;
+    english_comprehension_score: number | null;
+    speaking_level: string | null;
+    interview_consent_at: string | null;
     recruiter_ai_score_results: { dimension: string; score: number }[] | null;
     video_intro_url?: string | null;
     id_verification_consent: boolean | null;

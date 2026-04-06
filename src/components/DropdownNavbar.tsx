@@ -191,7 +191,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
                 </>
               )}
               {(role === "recruiter" || role === "recruiting_manager") && (
-                <Link href="/recruiter" className={`text-[14px] font-medium transition-colors ${textColor}`}>Recruiter</Link>
+                <Link href="/recruiter" className={`text-[14px] font-medium transition-colors ${textColor}`}>{role === "recruiting_manager" ? "Recruiting Manager" : "Recruiter"}</Link>
               )}
               {role === "admin" && (
                 <>

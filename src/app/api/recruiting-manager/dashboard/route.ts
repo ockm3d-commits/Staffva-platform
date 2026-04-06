@@ -54,8 +54,12 @@ export async function GET(req: NextRequest) {
     allSocialTodayRes,
     // Unrouted queue
     unroutedRes,
-    // Approval queue
-    approvalRes,
+    // Manager notifications
+    notificationsRes,
+    // Unrouted alerts
+    unroutedAlertsRes,
+    // Recent go-lives
+    recentGoLivesRes,
     // Ban requests
     banRes,
     // Stalled revisions (>72h)
@@ -101,12 +105,27 @@ export async function GET(req: NextRequest) {
       .eq("role_category", "Other")
       .is("assigned_recruiter", null)
       .order("created_at", { ascending: true }),
-    // Approval queue
+    // Manager notifications (unread)
+    supabase
+      .from("manager_notifications")
+      .select("id, message, candidate_id, recruiter_id, created_at, read_at")
+      .eq("manager_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    // Unrouted alerts (unresolved)
+    supabase
+      .from("unrouted_alerts")
+      .select("id, candidate_id, ai_interview_result, created_at, resolved_at")
+      .is("resolved_at", null)
+      .order("created_at", { ascending: true }),
+    // Recent go-lives
     supabase
       .from("candidates")
-      .select("id, display_name, full_name, role_category, profile_photo_url, screening_score, second_interview_completed_at, admin_status, assigned_recruiter, tagline, bio, resume_url, payout_method, id_verification_status, voice_recording_1_url, voice_recording_2_url, english_mc_score, recruiter_ai_score_results, video_intro_url, id_verification_consent, profile_photo_url")
-      .eq("admin_status", "pending_speaking_review")
-      .order("created_at", { ascending: true }),
+      .select("id, display_name, full_name, role_category, profile_photo_url, profile_went_live_at, assigned_recruiter")
+      .eq("admin_status", "approved")
+      .not("profile_went_live_at", "is", null)
+      .order("profile_went_live_at", { ascending: false })
+      .limit(10),
     // Ban requests
     supabase
       .from("candidates")
@@ -191,13 +210,37 @@ export async function GET(req: NextRequest) {
   const totalTeamInterviews = teamInterviews.length;
   const recruitersAt2Posts = recruiters.filter((r) => (socialByRecruiter.get(r.id) || 0) >= 2).length;
 
-  // Approval queue enrichment — map recruiter names
+  // Recruiter name map for enrichment
   const recruiterNameMap = new Map<string, string>();
   for (const r of recruiters) recruiterNameMap.set(r.id, r.full_name);
 
-  const approvalQueue = (approvalRes.data || []).map((c) => ({
+  // Enrich unrouted alerts with candidate info
+  const unroutedAlerts = unroutedAlertsRes.data || [];
+  // Fetch candidate details for alerts
+  const alertCandidateIds = unroutedAlerts.map((a: { candidate_id: string }) => a.candidate_id);
+  let alertCandidates: Record<string, { display_name: string; full_name: string; role_category_custom: string | null }> = {};
+  if (alertCandidateIds.length > 0) {
+    const { data: alertCandidateData } = await supabase
+      .from("candidates")
+      .select("id, display_name, full_name, role_category_custom")
+      .in("id", alertCandidateIds);
+    if (alertCandidateData) {
+      for (const c of alertCandidateData) {
+        alertCandidates[c.id] = { display_name: c.display_name, full_name: c.full_name, role_category_custom: c.role_category_custom };
+      }
+    }
+  }
+
+  const enrichedAlerts = unroutedAlerts.map((a: { id: string; candidate_id: string; ai_interview_result: boolean; created_at: string }) => ({
+    ...a,
+    candidate_name: alertCandidates[a.candidate_id]?.display_name || alertCandidates[a.candidate_id]?.full_name || "Unknown",
+    role_category_custom: alertCandidates[a.candidate_id]?.role_category_custom || null,
+  }));
+
+  // Enrich recent go-lives with recruiter names
+  const recentGoLives = (recentGoLivesRes.data || []).map((c: { id: string; display_name: string; full_name: string; role_category: string; profile_photo_url: string | null; profile_went_live_at: string; assigned_recruiter: string | null }) => ({
     ...c,
-    assigned_recruiter_name: c.assigned_recruiter ? recruiterNameMap.get(c.assigned_recruiter) || "Unknown" : "Unassigned",
+    recruiter_name: c.assigned_recruiter ? recruiterNameMap.get(c.assigned_recruiter) || "Unknown" : "Unassigned",
   }));
 
   // Ban requests enrichment
@@ -258,11 +301,13 @@ export async function GET(req: NextRequest) {
       totalInterviewsToday: totalTeamInterviews,
       totalTarget: totalTeamTarget,
       postingCompliance: { at2Posts: recruitersAt2Posts, totalRecruiters: recruiters.length },
-      approvalQueueCount: approvalQueue.length,
+      unroutedAlertCount: enrichedAlerts.length,
     },
     teamStatus,
     unroutedQueue: unroutedRes.data || [],
-    approvalQueue,
+    unroutedAlerts: enrichedAlerts,
+    managerNotifications: notificationsRes.data || [],
+    recentGoLives,
     banQueue,
     stalledRevisions: stalledRes.data || [],
     metrics: {

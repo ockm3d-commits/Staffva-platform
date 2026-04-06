@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { generateInsights } from "@/lib/generateInsights";
+import { checkApprovalGates } from "@/lib/approvalGates";
 
 function getAdminClient() {
   return createClient(
@@ -37,47 +38,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
     }
 
-    // 11-gate approval check
-    const failingConditions: string[] = [];
+    // 11-gate approval check (shared)
+    const { pass, failingConditions } = checkApprovalGates(candidate);
 
-    if (candidate.english_mc_score == null || candidate.english_mc_score < 70) {
-      failingConditions.push("English grammar score below passing threshold");
-    }
-    if (candidate.english_comprehension_score == null || candidate.english_comprehension_score < 70) {
-      failingConditions.push("English comprehension score below passing threshold");
-    }
-    if (!candidate.voice_recording_1_url) {
-      failingConditions.push("Oral reading recording missing");
-    }
-    if (!candidate.voice_recording_2_url) {
-      failingConditions.push("Self-introduction recording missing");
-    }
-    if (candidate.id_verification_status !== "passed") {
-      failingConditions.push("ID verification not passed");
-    }
-    if (!candidate.profile_photo_url) {
-      failingConditions.push("Profile photo missing");
-    }
-    if (!candidate.resume_url) {
-      failingConditions.push("Resume missing");
-    }
-    if (!candidate.tagline) {
-      failingConditions.push("Tagline missing");
-    }
-    if (!candidate.bio) {
-      failingConditions.push("Bio missing");
-    }
-    if (!candidate.payout_method) {
-      failingConditions.push("Payout method not selected");
-    }
-    if (!candidate.interview_consent_at) {
-      failingConditions.push("Interview consent not confirmed");
-    }
-    if (candidate.speaking_level == null) {
-      failingConditions.push("Speaking level not assigned — recruiter must assign before approval");
-    }
-
-    if (failingConditions.length > 0) {
+    if (!pass) {
       return NextResponse.json(
         { error: "Candidate does not meet all approval requirements", failingConditions },
         { status: 400 }

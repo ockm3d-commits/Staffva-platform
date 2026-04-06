@@ -57,10 +57,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Candidate is not pending routing" }, { status: 400 });
   }
 
-  // Get new recruiter name
+  // Get new recruiter name and calendar link
   const { data: newRecruiter } = await supabase
     .from("profiles")
-    .select("full_name")
+    .select("full_name, calendar_link")
     .eq("id", newRecruiterId)
     .single();
 
@@ -88,6 +88,51 @@ export async function POST(req: NextRequest) {
     candidate_id: candidateId,
     message: `${candidateName} (${candidate.role_category}) has been routed to you by ${profile.full_name || "Manar"}.`,
   });
+
+  // Resolve any unrouted alerts for this candidate
+  await supabase
+    .from("unrouted_alerts")
+    .update({ resolved_at: new Date().toISOString() })
+    .eq("candidate_id", candidateId)
+    .is("resolved_at", null);
+
+  // For "Other" role candidates: send email notification with recruiter info
+  if (candidate.role_category === "Other") {
+    const { data: candidateFull } = await supabase
+      .from("candidates")
+      .select("email, display_name, full_name")
+      .eq("id", candidateId)
+      .single();
+
+    if (process.env.RESEND_API_KEY && candidateFull?.email) {
+      const firstName =
+        (candidateFull.display_name || candidateFull.full_name || "").split(" ")[0] || "there";
+      const recruiterName = newRecruiter.full_name || "your recruiter";
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://staffva.com";
+
+      try {
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "StaffVA <notifications@staffva.com>",
+            to: candidateFull.email,
+            subject: "Your recruiter has been assigned",
+            html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+              <h2 style="color:#1C1B1A;">Your Recruiter Has Been Assigned</h2>
+              <p style="color:#444;font-size:14px;">Hi ${firstName},</p>
+              <p style="color:#444;font-size:14px;">You have been assigned a recruiter: <strong>${recruiterName}</strong>. You can now schedule your second interview.</p>
+              ${newRecruiter.calendar_link ? `<a href="${newRecruiter.calendar_link}" style="display:inline-block;background:#FE6E3E;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">Schedule My Interview</a>` : `<a href="${siteUrl}/candidate/dashboard" style="display:inline-block;background:#FE6E3E;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">Go to Dashboard</a>`}
+              <p style="color:#999;margin-top:24px;font-size:12px;">— The StaffVA Team</p>
+            </div>`,
+          }),
+        });
+      } catch { /* silent */ }
+    }
+  }
 
   return NextResponse.json({ success: true });
 }
