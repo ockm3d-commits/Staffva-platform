@@ -26,6 +26,7 @@ const ROLE_CATEGORIES = [
   { group: "HR & Recruitment", roles: ["HR Assistant", "Recruitment Coordinator"] },
   { group: "Creative & Design", roles: ["Graphic Designer", "Video Editor"] },
   { group: "Operations & E-commerce", roles: ["Project Manager", "Operations Assistant", "E-Commerce Manager", "Shopify Manager", "Amazon Store Manager"] },
+  { group: "Tech", roles: ["Software Developer", "Web Developer", "Mobile Developer", "UI/UX Designer", "DevOps Engineer", "Data Analyst", "QA Engineer", "IT Support", "Software Engineer", "Full Stack Developer", "Frontend Developer", "Backend Developer", "LLM Engineer", "AI Engineer"] },
   { group: "Other", roles: ["Other"] },
 ];
 
