@@ -32,10 +32,20 @@ export async function GET(req: NextRequest) {
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { user, profile } = auth;
+  console.log(`[RECRUITER DASHBOARD] user.id: ${user.id}, profile.role: ${profile.role}`);
   const supabase = getAdminClient();
   const today = new Date().toISOString().split("T")[0];
   const todayStart = `${today}T00:00:00.000Z`;
   const todayEnd = `${today}T23:59:59.999Z`;
+
+  const recruiterId = user.id.toString();
+
+  // Step 1: Get this recruiter's assigned candidate IDs for Lane 3
+  const { data: assignedCandidates } = await supabase
+    .from("candidates")
+    .select("id")
+    .eq("assigned_recruiter", recruiterId);
+  const assignedCandidateIds = (assignedCandidates || []).map((c: { id: string }) => c.id);
 
   // Parallel fetches
   const [
@@ -50,7 +60,7 @@ export async function GET(req: NextRequest) {
     supabase
       .from("candidates")
       .select("id", { count: "exact", head: true })
-      .eq("assigned_recruiter", user.id)
+      .eq("assigned_recruiter", recruiterId)
       .eq("second_interview_status", "completed")
       .gte("second_interview_completed_at", todayStart)
       .lte("second_interview_completed_at", todayEnd),
@@ -59,7 +69,7 @@ export async function GET(req: NextRequest) {
     supabase
       .from("social_posts")
       .select("id, post_url, created_at")
-      .eq("recruiter_id", user.id)
+      .eq("recruiter_id", recruiterId)
       .eq("post_date", today)
       .order("created_at", { ascending: true }),
 
@@ -67,7 +77,7 @@ export async function GET(req: NextRequest) {
     supabase
       .from("candidates")
       .select("id, display_name, full_name, role_category, profile_photo_url, second_interview_scheduled_at, screening_score, resume_url, recruiter_ai_score_results")
-      .eq("assigned_recruiter", user.id)
+      .eq("assigned_recruiter", recruiterId)
       .eq("second_interview_status", "scheduled")
       .gte("second_interview_scheduled_at", todayStart)
       .order("second_interview_scheduled_at", { ascending: true }),
@@ -76,25 +86,30 @@ export async function GET(req: NextRequest) {
     supabase
       .from("candidates")
       .select("id, display_name, full_name, role_category, profile_photo_url, screening_score, second_interview_completed_at, admin_status, profile_photo_url, tagline, bio, resume_url, payout_method, id_verification_status, voice_recording_1_url, voice_recording_2_url, english_mc_score, english_comprehension_score, speaking_level, interview_consent_at, recruiter_ai_score_results, video_intro_url, id_verification_consent")
-      .eq("assigned_recruiter", user.id)
+      .eq("assigned_recruiter", recruiterId)
       .eq("second_interview_status", "completed")
       .eq("admin_status", "profile_review"),
 
     // Lane 3: Revision follow-ups — pending revisions for assigned candidates
-    supabase
-      .from("profile_revisions")
-      .select("id, candidate_id, items, status, created_at, candidates!inner(id, display_name, full_name, role_category, profile_photo_url, assigned_recruiter)")
-      .eq("status", "pending")
-      .eq("candidates.assigned_recruiter", user.id),
+    // Two-step approach: filter by candidate IDs instead of nested join filter
+    assignedCandidateIds.length > 0
+      ? supabase
+          .from("profile_revisions")
+          .select("id, candidate_id, items, status, created_at, candidates!inner(id, display_name, full_name, role_category, profile_photo_url, assigned_recruiter)")
+          .eq("status", "pending")
+          .in("candidate_id", assignedCandidateIds)
+      : Promise.resolve({ data: [], error: null }),
 
     // Message threads
     supabase
       .from("recruiter_messages")
       .select("candidate_id, sender_role, body, created_at, read_at")
-      .eq("recruiter_id", user.id)
+      .eq("recruiter_id", recruiterId)
       .order("created_at", { ascending: false })
       .limit(200),
   ]);
+
+  console.log(`[RECRUITER DASHBOARD] recruiterId: ${recruiterId}, assignedTotal: ${assignedCandidateIds.length}, Lane1: ${lane1Res.data?.length ?? 0}, Lane2: ${lane2Res.data?.length ?? 0}, Lane3: ${lane3Res.data?.length ?? 0}, errors: ${JSON.stringify({ l1: lane1Res.error?.message, l2: lane2Res.error?.message, l3: lane3Res.error?.message })}`);
 
   // Process interviews count
   const interviewsToday = interviewsRes.count ?? 0;
