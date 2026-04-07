@@ -19,6 +19,32 @@ function LoginForm() {
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
 
+  // Forgot password state
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
+  const [resetError, setResetError] = useState("");
+
+  async function handleForgotPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setResetError("");
+    setResetSuccess(false);
+    setResetLoading(true);
+
+    const supabase = createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: process.env.NEXT_PUBLIC_SITE_URL + "/reset-password",
+    });
+
+    if (error) {
+      setResetError(error.message);
+    } else {
+      setResetSuccess(true);
+    }
+    setResetLoading(false);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -159,6 +185,16 @@ function LoginForm() {
             className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-text placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             placeholder="Your password"
           />
+          <button
+            type="button"
+            onClick={() => {
+              setShowForgotPassword(true);
+              setResetEmail(email);
+            }}
+            className="mt-1 text-xs font-medium text-primary hover:text-primary-dark hover:underline"
+          >
+            Forgot password?
+          </button>
         </div>
 
         {error && (
@@ -173,6 +209,50 @@ function LoginForm() {
           {loading ? "Signing in..." : "Sign In"}
         </button>
       </form>
+
+      {showForgotPassword && (
+        <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-text">Reset your password</h3>
+            <button
+              onClick={() => {
+                setShowForgotPassword(false);
+                setResetSuccess(false);
+                setResetError("");
+              }}
+              className="text-xs text-text/40 hover:text-text/60"
+            >
+              Close
+            </button>
+          </div>
+          {resetSuccess ? (
+            <p className="mt-2 text-sm text-green-700">
+              Check your email for a reset link.
+            </p>
+          ) : (
+            <form onSubmit={handleForgotPassword} className="mt-3 space-y-3">
+              <input
+                type="email"
+                required
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-text placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="Enter your email"
+              />
+              {resetError && (
+                <p className="text-sm text-red-600">{resetError}</p>
+              )}
+              <button
+                type="submit"
+                disabled={resetLoading}
+                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {resetLoading ? "Sending..." : "Send Reset Link"}
+              </button>
+            </form>
+          )}
+        </div>
+      )}
 
       <div className="mt-6 space-y-2 text-center text-sm text-text/60">
         <p>
