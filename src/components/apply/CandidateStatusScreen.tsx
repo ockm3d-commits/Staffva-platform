@@ -102,7 +102,7 @@ export default function CandidateStatusScreen({ adminStatus, candidateId }: Prop
       )}
 
       {/* Approved or pending — show next steps */}
-      {(adminStatus === "approved" || adminStatus === "active" || adminStatus === "pending_speaking_review") && (
+      {(adminStatus === "approved" || adminStatus === "active") && (
         <div className="mt-8 text-left mx-auto max-w-sm">
           <h3 className="font-semibold text-text mb-3">What you can do now:</h3>
           <ul className="space-y-2">

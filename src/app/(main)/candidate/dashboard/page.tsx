@@ -55,6 +55,7 @@ interface CandidateData {
   profile_went_live_at: string | null;
   video_intro_admin_note: string | null;
   assigned_recruiter: string | null;
+  ai_interview_completed_at: string | null;
 }
 
 interface InterviewData {
@@ -90,8 +91,8 @@ function getProgressSteps(c: CandidateData, interviews: InterviewData[], aiInter
   const step3Done = c.id_verification_status === "passed" || !!c.voice_recording_1_url;
   const step4Done = !!c.profile_photo_url && !!c.resume_url;
 
-  // Use AI interview data from ai_interviews table (new system)
-  const step5Done = !!aiInterviewData && aiInterviewData.status === "completed" && aiInterviewData.passed;
+  // Step 5 complete when candidate has completed their AI interview (reliable field on candidates table)
+  const step5Done = !!c.ai_interview_completed_at;
   const step6Done = aiInterviewData?.second_interview_status === "completed";
   const step7Done = c.admin_status === "approved";
 
@@ -552,7 +553,7 @@ export default function CandidateDashboardPage() {
 
       const { data: c } = await supabase
         .from("candidates")
-        .select("id, display_name, admin_status, role_category, hourly_rate, availability_status, total_earnings_usd, profile_photo_url, english_written_tier, speaking_level, tagline, bio, skills, tools, work_experience, resume_url, payout_method, english_mc_score, voice_recording_1_url, voice_recording_2_url, profile_completed_at, id_verification_status, id_verification_consent, application_step, video_intro_status, video_intro_url, video_intro_admin_note, spoken_english_score, spoken_english_result, results_display_unlocked, profile_went_live_at, assigned_recruiter")
+        .select("id, display_name, admin_status, role_category, hourly_rate, availability_status, total_earnings_usd, profile_photo_url, english_written_tier, speaking_level, tagline, bio, skills, tools, work_experience, resume_url, payout_method, english_mc_score, voice_recording_1_url, voice_recording_2_url, profile_completed_at, id_verification_status, id_verification_consent, application_step, video_intro_status, video_intro_url, video_intro_admin_note, spoken_english_score, spoken_english_result, results_display_unlocked, profile_went_live_at, assigned_recruiter, ai_interview_completed_at")
         .eq("user_id", session.user.id)
         .single();
 
@@ -653,7 +654,7 @@ export default function CandidateDashboardPage() {
     if (!candidate) return;
     const idVerified = candidate.id_verification_status === "passed";
     const testDone = (candidate.english_mc_score ?? 0) > 0;
-    const aiDone = !!aiInterview && aiInterview.status === "completed" && aiInterview.passed;
+    const aiDone = !!candidate.ai_interview_completed_at;
 
     // Only poll if ID verified, test done, and AI not yet done
     if (!idVerified || !testDone || aiDone) return;
@@ -751,7 +752,7 @@ export default function CandidateDashboardPage() {
         const idConsentGiven = !!candidate.id_verification_consent;
         const idVerified = candidate.id_verification_status === "passed";
         const idManualReview = candidate.id_verification_status === "manual_review";
-        const aiDone = !!aiInterview && aiInterview.status === "completed" && aiInterview.passed;
+        const aiDone = !!candidate.ai_interview_completed_at;
         const recruiterScheduled = aiInterview?.second_interview_status === "scheduled";
         const recruiterDone = aiInterview?.second_interview_status === "completed";
         const spokenScored = (candidate.spoken_english_score ?? 0) > 0;
