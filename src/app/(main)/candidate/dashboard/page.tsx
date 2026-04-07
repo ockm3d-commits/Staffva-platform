@@ -466,11 +466,15 @@ export default function CandidateDashboardPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const { data: c } = await supabase
+      const { data: c, error: candidateError } = await supabase
         .from("candidates")
         .select("id, display_name, admin_status, role_category, hourly_rate, availability_status, total_earnings_usd, profile_photo_url, english_written_tier, speaking_level, tagline, bio, skills, tools, work_experience, resume_url, payout_method, english_mc_score, english_comprehension_score, voice_recording_1_url, voice_recording_2_url, profile_completed_at, id_verification_status, id_verification_consent, application_step, video_intro_status, video_intro_url, video_intro_admin_note, spoken_english_score, spoken_english_result, results_display_unlocked, profile_went_live_at, assigned_recruiter, ai_interview_completed_at, interview_consent_at, second_interview_status")
         .eq("user_id", session.user.id)
         .single();
+
+      if (candidateError) {
+        console.error("[DASHBOARD] Candidate query failed:", candidateError.message, candidateError.code);
+      }
 
       if (c) {
         setCandidate(c as CandidateData);
