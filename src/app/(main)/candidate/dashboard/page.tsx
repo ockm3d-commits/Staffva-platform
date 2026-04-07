@@ -56,6 +56,9 @@ interface CandidateData {
   video_intro_admin_note: string | null;
   assigned_recruiter: string | null;
   ai_interview_completed_at: string | null;
+  english_comprehension_score: number | null;
+  interview_consent_at: string | null;
+  second_interview_status: string | null;
 }
 
 interface InterviewData {
@@ -80,94 +83,6 @@ interface AIInterviewData {
 interface RetakeData {
   next_retake_available_at: string | null;
   attempt_number: number;
-}
-
-type StepStatus = "completed" | "current" | "upcoming";
-
-function getProgressSteps(c: CandidateData, interviews: InterviewData[], aiInterviewData: AIInterviewData | null, retake: RetakeData | null): { label: string; status: StepStatus; detail?: string }[] {
-  // Determine completion state for each step based on actual data only
-  const step1Done = true; // Candidate record exists = application submitted
-  const step2Done = (c.english_mc_score ?? 0) > 0;
-  const step3Done = c.id_verification_status === "passed" || !!c.voice_recording_1_url;
-  const step4Done = !!c.profile_photo_url && !!c.resume_url;
-
-  // Step 5 complete when candidate has completed their AI interview (reliable field on candidates table)
-  const step5Done = !!c.ai_interview_completed_at;
-  const step6Done = aiInterviewData?.second_interview_status === "completed";
-  const step7Done = c.admin_status === "approved";
-
-  function status(done: boolean, prevDone: boolean): StepStatus {
-    if (done) return "completed";
-    if (prevDone) return "current";
-    return "upcoming";
-  }
-
-  const steps: { label: string; status: StepStatus; detail?: string }[] = [
-    {
-      label: "Application Submitted",
-      status: "completed",
-      detail: undefined,
-    },
-    {
-      label: "English Assessment",
-      status: status(step2Done, step1Done),
-      detail: step2Done ? undefined : "Complete the English grammar and comprehension test",
-    },
-    {
-      label: "ID Verification",
-      status: status(step3Done, step2Done),
-      detail: step3Done ? undefined : "Verify your identity",
-    },
-    {
-      label: "Profile Builder",
-      status: status(step4Done, step3Done),
-      detail: step4Done ? undefined : "Complete your profile — photo, bio, experience, and resume",
-    },
-    {
-      label: "AI First Interview",
-      status: status(step5Done, step4Done),
-      detail: (() => {
-        if (step5Done && aiInterviewData) {
-          return `Score: ${aiInterviewData.overall_score}/100 — ${aiInterviewData.badge_level?.charAt(0).toUpperCase()}${aiInterviewData.badge_level?.slice(1) || ""}`;
-        }
-        if (aiInterviewData && aiInterviewData.status === "completed" && !aiInterviewData.passed) {
-          // Failed — check retake lockout
-          if (retake?.next_retake_available_at) {
-            const retakeDate = new Date(retake.next_retake_available_at);
-            const now = new Date();
-            if (retakeDate > now) {
-              const days = Math.ceil((retakeDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-              return `Score: ${aiInterviewData.overall_score}/100 — Retake available in ${days} day${days === 1 ? "" : "s"}`;
-            }
-            return `Score: ${aiInterviewData.overall_score}/100 — Retake available now`;
-          }
-          return `Score: ${aiInterviewData.overall_score}/100 — Did not pass`;
-        }
-        if (aiInterviewData && aiInterviewData.status === "in_progress") {
-          return "Interview in progress";
-        }
-        if (step4Done) return "Start your AI-powered interview";
-        return undefined;
-      })(),
-    },
-    {
-      label: "Second Interview",
-      status: status(step6Done, step5Done),
-      detail: (() => {
-        if (step6Done) return "Second interview completed";
-        if (aiInterviewData?.second_interview_status === "scheduled") return "Second interview scheduled — your recruiter will contact you";
-        if (step5Done) return "Awaiting assignment by StaffVA team";
-        return undefined;
-      })(),
-    },
-    {
-      label: "Profile Live",
-      status: status(step7Done, step6Done),
-      detail: step7Done ? "Your profile is visible to clients" : step6Done ? "Awaiting admin approval" : undefined,
-    },
-  ];
-
-  return steps;
 }
 
 interface CompletenessItem {
@@ -553,7 +468,7 @@ export default function CandidateDashboardPage() {
 
       const { data: c } = await supabase
         .from("candidates")
-        .select("id, display_name, admin_status, role_category, hourly_rate, availability_status, total_earnings_usd, profile_photo_url, english_written_tier, speaking_level, tagline, bio, skills, tools, work_experience, resume_url, payout_method, english_mc_score, voice_recording_1_url, voice_recording_2_url, profile_completed_at, id_verification_status, id_verification_consent, application_step, video_intro_status, video_intro_url, video_intro_admin_note, spoken_english_score, spoken_english_result, results_display_unlocked, profile_went_live_at, assigned_recruiter, ai_interview_completed_at")
+        .select("id, display_name, admin_status, role_category, hourly_rate, availability_status, total_earnings_usd, profile_photo_url, english_written_tier, speaking_level, tagline, bio, skills, tools, work_experience, resume_url, payout_method, english_mc_score, english_comprehension_score, voice_recording_1_url, voice_recording_2_url, profile_completed_at, id_verification_status, id_verification_consent, application_step, video_intro_status, video_intro_url, video_intro_admin_note, spoken_english_score, spoken_english_result, results_display_unlocked, profile_went_live_at, assigned_recruiter, ai_interview_completed_at, interview_consent_at, second_interview_status")
         .eq("user_id", session.user.id)
         .single();
 
@@ -747,42 +662,39 @@ export default function CandidateDashboardPage() {
 
       {/* ═══ PROGRESS TRACKER + NEXT STEP (9-stage pipeline) ═══ */}
       {(() => {
-        // Derive stage from actual DB fields
+        // Derive stage from actual DB fields — each step reads directly from its completion field
+        const step1Done = true; // Candidate record exists
+        const step2Done = (candidate.english_mc_score ?? 0) >= 70 && (candidate.english_comprehension_score ?? 0) >= 70 && !!candidate.voice_recording_1_url && !!candidate.voice_recording_2_url;
+        const step3Done = candidate.id_verification_status === "passed";
+        const step4Done = !!candidate.profile_photo_url && !!candidate.resume_url && !!candidate.tagline && !!candidate.bio && !!candidate.payout_method && !!candidate.interview_consent_at;
+        const step5Done = !!candidate.ai_interview_completed_at;
+        const step6Done = candidate.second_interview_status === "completed";
+        const step7Done = candidate.admin_status === "approved";
+
+        // Derived flags for 9-stage message card logic
         const testSubmitted = (candidate.english_mc_score ?? 0) > 0;
         const idConsentGiven = !!candidate.id_verification_consent;
-        const idVerified = candidate.id_verification_status === "passed";
+        const idVerified = step3Done;
         const idManualReview = candidate.id_verification_status === "manual_review";
-        const aiDone = !!candidate.ai_interview_completed_at;
-        const recruiterScheduled = aiInterview?.second_interview_status === "scheduled";
-        const recruiterDone = aiInterview?.second_interview_status === "completed";
+        const aiDone = step5Done;
+        const recruiterScheduled = candidate.second_interview_status === "scheduled";
+        const recruiterDone = step6Done;
         const spokenScored = (candidate.spoken_english_score ?? 0) > 0;
-        const profileUnderReview = recruiterDone && spokenScored && candidate.admin_status !== "approved" && candidate.admin_status !== "changes_requested";
+        const profileUnderReview = recruiterDone && spokenScored && !step7Done && candidate.admin_status !== "changes_requested";
         const changesRequested = candidate.admin_status === "changes_requested";
-        const profileLive = candidate.admin_status === "approved";
-
-        // 7-stage progress bar — each stage reflects actual DB state
-        const englishTestDone = testSubmitted && !!candidate.results_display_unlocked;
-        const recruiterInterviewDone = recruiterDone && spokenScored;
-        const profileReviewDone = candidate.admin_status === "approved";
-        const profileLiveConfirmed = profileLive && !!candidate.profile_went_live_at;
+        const profileLive = step7Done;
 
         const stages = [
-          { label: "Application", done: true },
-          { label: "English Test", done: englishTestDone },
-          { label: "ID Verified", done: idVerified },
-          { label: "AI Interview", done: aiDone },
-          { label: "Recruiter", done: recruiterInterviewDone },
-          { label: "Review", done: profileReviewDone },
-          { label: "Live", done: profileLiveConfirmed },
+          { label: "Application", done: step1Done },
+          { label: "English Test", done: step2Done },
+          { label: "ID Verified", done: step3Done },
+          { label: "Profile", done: step4Done },
+          { label: "AI Interview", done: step5Done },
+          { label: "Recruiter", done: step6Done },
+          { label: "Live", done: step7Done },
         ];
 
-        // Profile Review is active during both under_review and changes_requested
-        const reviewIsActive = recruiterInterviewDone && !profileReviewDone &&
-          (candidate.admin_status === "under_review" || changesRequested);
-
         let currentIndex = stages.findIndex((s) => !s.done);
-        // Override: if review is active, force currentIndex to 5 (Review stage)
-        if (reviewIsActive) currentIndex = 5;
         if (currentIndex === -1) currentIndex = stages.length;
 
         const completedCount = stages.filter((s) => s.done).length;
