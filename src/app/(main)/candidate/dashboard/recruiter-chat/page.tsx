@@ -16,6 +16,7 @@ interface Message {
 
 interface RecruiterProfile {
   full_name: string;
+  calendar_link: string | null;
 }
 
 export default function RecruiterChatPage() {
@@ -23,6 +24,7 @@ export default function RecruiterChatPage() {
   const [recruiter, setRecruiter] = useState<RecruiterProfile | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -35,28 +37,27 @@ export default function RecruiterChatPage() {
 
   useEffect(() => {
     async function init() {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      try {
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setLoading(false);
+          return;
+        }
 
-      // Get candidate's assigned recruiter
-      const { data: candidate } = await supabase
-        .from("candidates")
-        .select("assigned_recruiter")
-        .eq("user_id", session.user.id)
-        .single();
+        // Use the service-role API (same as dashboard) to avoid RLS issues
+        const rpRes = await fetch("/api/candidate/recruiter-profile", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (rpRes.ok) {
+          const rpData = await rpRes.json();
+          if (rpData.recruiter_profile) setRecruiter(rpData.recruiter_profile);
+        }
 
-      if (candidate?.assigned_recruiter) {
-        const { data: rp } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", candidate.assigned_recruiter)
-          .single();
-        if (rp) setRecruiter(rp);
+        await loadMessages();
+      } finally {
+        setLoading(false);
       }
-
-      await loadMessages();
-      setLoading(false);
     }
     init();
 
@@ -74,6 +75,8 @@ export default function RecruiterChatPage() {
     if (!newMessage.trim() || sending) return;
 
     setSending(true);
+    setSendError(null);
+
     const res = await fetch("/api/recruiter-messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -83,6 +86,9 @@ export default function RecruiterChatPage() {
     if (res.ok) {
       setNewMessage("");
       await loadMessages();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setSendError(data.error || `Failed to send (${res.status})`);
     }
     setSending(false);
   }
@@ -150,12 +156,19 @@ export default function RecruiterChatPage() {
           <div ref={bottomRef} />
         </div>
 
+        {/* Send error */}
+        {sendError && (
+          <div className="border-t border-red-100 bg-red-50 px-4 py-2">
+            <p className="text-xs text-red-600">{sendError}</p>
+          </div>
+        )}
+
         {/* Input */}
         <form onSubmit={handleSend} className="border-t border-gray-200 p-3 flex gap-2">
           <input
             type="text"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={(e) => { setNewMessage(e.target.value); setSendError(null); }}
             placeholder="Type a message..."
             className="flex-1 rounded-full border border-gray-300 px-4 py-2.5 text-sm focus:border-[#FE6E3E] focus:outline-none focus:ring-1 focus:ring-[#FE6E3E]"
           />
