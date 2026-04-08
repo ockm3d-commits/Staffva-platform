@@ -24,9 +24,11 @@ interface MessageSidebarProps {
   candidateMap: Map<string, { name: string; photo: string | null }>;
   token: string;
   isMobileFullScreen?: boolean;
+  defaultOpenCandidateId?: string | null;
+  onThreadOpened?: () => void;
 }
 
-export default function MessageSidebar({ threads, candidateMap, token, isMobileFullScreen }: MessageSidebarProps) {
+export default function MessageSidebar({ threads, candidateMap, token, isMobileFullScreen, defaultOpenCandidateId, onThreadOpened }: MessageSidebarProps) {
   const [activeThread, setActiveThread] = useState<string | null>(null);
   const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,6 +39,15 @@ export default function MessageSidebar({ threads, candidateMap, token, isMobileF
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Auto-open thread when defaultOpenCandidateId is set
+  useEffect(() => {
+    if (defaultOpenCandidateId && token) {
+      openThread(defaultOpenCandidateId);
+      onThreadOpened?.();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultOpenCandidateId]);
 
   async function openThread(candidateId: string) {
     setActiveThread(candidateId);

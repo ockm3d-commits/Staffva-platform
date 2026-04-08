@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import KpiStrip from "@/components/recruiter/KpiStrip";
 import Lane1Resumes from "@/components/recruiter/Lane1Resumes";
@@ -108,6 +109,7 @@ export default function RecruiterDashboardPage() {
   const [loadError, setLoadError] = useState(false);
   const [authError, setAuthError] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("messages");
+  const [pendingMessageCandidateId, setPendingMessageCandidateId] = useState<string | null>(null);
 
   // 10-second timeout fallback — never leave the spinner hanging
   useEffect(() => {
@@ -221,34 +223,45 @@ export default function RecruiterDashboardPage() {
         onPostLogged={loadDashboard}
       />
 
-      {/* Queue — candidates ready to schedule (AI done, second interview not yet scheduled) */}
+      {/* Queue — candidates ready to reach out (AI done, second interview not yet scheduled) */}
       {data.queue.length > 0 && (
         <div className="mx-auto max-w-[1600px] px-4 pt-4">
           <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
             <div className="flex items-center gap-2 mb-3">
-              <h2 className="text-sm font-semibold text-blue-900">New Candidates — Schedule Second Interview</h2>
+              <h2 className="text-sm font-semibold text-blue-900">New Candidates</h2>
               <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-200 px-1.5 text-[10px] font-bold text-blue-800">{data.queue.length}</span>
             </div>
             <div className="flex flex-wrap gap-3">
               {data.queue.map((c) => (
-                <div key={c.id} className="flex items-center gap-2.5 rounded-lg border border-blue-200 bg-white px-3 py-2.5 shadow-sm">
-                  <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-400">
-                    {(c.display_name || c.full_name)?.charAt(0) || "?"}
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-[#1C1B1A]">{c.display_name || c.full_name}</p>
-                    <p className="text-[10px] text-gray-500">{c.role_category}</p>
-                  </div>
-                  {data.kpi.calendarLink && (
-                    <a
-                      href={data.kpi.calendarLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ml-2 rounded-full bg-[#FE6E3E] px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-[#E55A2B] transition-colors"
-                    >
-                      Schedule
-                    </a>
-                  )}
+                <div key={c.id} className="flex items-center gap-2.5 rounded-lg border border-blue-200 bg-white shadow-sm overflow-hidden">
+                  <Link
+                    href={`/candidate/${c.id}`}
+                    className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-blue-50 transition-colors"
+                  >
+                    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-400">
+                      {c.profile_photo_url ? (
+                        <img src={c.profile_photo_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        (c.display_name || c.full_name)?.charAt(0) || "?"
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-[#1C1B1A]">{c.display_name || c.full_name}</p>
+                      <p className="text-[10px] text-gray-500">{c.role_category}</p>
+                    </div>
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setSidebarTab("messages");
+                      setPendingMessageCandidateId(c.id);
+                    }}
+                    className="px-2.5 py-2.5 border-l border-blue-100 text-blue-400 hover:text-[#FE6E3E] hover:bg-blue-50 transition-colors"
+                    title="Message candidate"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                    </svg>
+                  </button>
                 </div>
               ))}
             </div>
@@ -311,7 +324,13 @@ export default function RecruiterDashboardPage() {
             </button>
           </div>
           {sidebarTab === "messages" ? (
-            <MessageSidebar threads={data.threads} candidateMap={candidateMap} token={token} />
+            <MessageSidebar
+              threads={data.threads}
+              candidateMap={candidateMap}
+              token={token}
+              defaultOpenCandidateId={pendingMessageCandidateId}
+              onThreadOpened={() => setPendingMessageCandidateId(null)}
+            />
           ) : (
             <InternalChat />
           )}
@@ -327,17 +346,35 @@ export default function RecruiterDashboardPage() {
               <p className="text-xs font-semibold text-blue-900 mb-2">New Candidates ({data.queue.length})</p>
               <div className="space-y-2">
                 {data.queue.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-white border border-blue-100 px-3 py-2">
-                    <div>
-                      <p className="text-xs font-semibold text-[#1C1B1A]">{c.display_name || c.full_name}</p>
-                      <p className="text-[10px] text-gray-500">{c.role_category}</p>
-                    </div>
-                    {data.kpi.calendarLink && (
-                      <a href={data.kpi.calendarLink} target="_blank" rel="noopener noreferrer"
-                        className="rounded-full bg-[#FE6E3E] px-2.5 py-1 text-[10px] font-semibold text-white">
-                        Schedule
-                      </a>
-                    )}
+                  <div key={c.id} className="flex items-center gap-2 rounded-lg bg-white border border-blue-100 overflow-hidden">
+                    <Link
+                      href={`/candidate/${c.id}`}
+                      className="flex-1 flex items-center gap-2.5 px-3 py-2 hover:bg-blue-50 transition-colors"
+                    >
+                      <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-400">
+                        {c.profile_photo_url ? (
+                          <img src={c.profile_photo_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          (c.display_name || c.full_name)?.charAt(0) || "?"
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-[#1C1B1A]">{c.display_name || c.full_name}</p>
+                        <p className="text-[10px] text-gray-500">{c.role_category}</p>
+                      </div>
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setMobileTab("messages");
+                        setPendingMessageCandidateId(c.id);
+                      }}
+                      className="px-3 py-2 border-l border-blue-100 text-blue-400 hover:text-[#FE6E3E] transition-colors"
+                      title="Message candidate"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                      </svg>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -368,7 +405,14 @@ export default function RecruiterDashboardPage() {
           )}
           {mobileTab === "messages" && (
             <div className="h-[calc(100vh-200px)]">
-              <MessageSidebar threads={data.threads} candidateMap={candidateMap} token={token} isMobileFullScreen />
+              <MessageSidebar
+                threads={data.threads}
+                candidateMap={candidateMap}
+                token={token}
+                isMobileFullScreen
+                defaultOpenCandidateId={pendingMessageCandidateId}
+                onThreadOpened={() => setPendingMessageCandidateId(null)}
+              />
             </div>
           )}
           {mobileTab === "team" && (
