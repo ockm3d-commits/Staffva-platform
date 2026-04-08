@@ -65,6 +65,7 @@ export default function InternalChat({ isMobileFullScreen }: InternalChatProps) 
   const [token, setToken] = useState("");
   const [userProfileId, setUserProfileId] = useState("");
   const [userRole, setUserRole] = useState("");
+  const [userFullName, setUserFullName] = useState("");
   const [threads, setThreads] = useState<InternalThread[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
@@ -104,6 +105,7 @@ export default function InternalChat({ isMobileFullScreen }: InternalChatProps) 
         const data = await res.json();
         setThreads(data.threads || []);
         setTeamMembers(data.teamMembers || []);
+        if (data.currentUserName) setUserFullName(data.currentUserName);
       }
     } catch { /* silent */ }
   }, []);
@@ -186,7 +188,7 @@ export default function InternalChat({ isMobileFullScreen }: InternalChatProps) 
           {
             id: msg.id,
             sender_id: msg.sender_id,
-            sender_name: "You",
+            sender_name: userFullName,
             body: msg.body,
             created_at: msg.created_at,
             is_mine: true,
@@ -267,8 +269,11 @@ export default function InternalChat({ isMobileFullScreen }: InternalChatProps) 
             ) : (
               messages.map((msg) => (
                 <div key={msg.id} className={`flex flex-col ${msg.is_mine ? "items-end" : "items-start"}`}>
-                  {!msg.is_mine && (
-                    <p className="text-[9px] font-semibold text-gray-400 mb-0.5 ml-1">{msg.sender_name}</p>
+                  {/* Always show sender name in group threads; only for others in DMs */}
+                  {(activeThread?.is_group || !msg.is_mine) && (
+                    <p className={`text-[9px] font-semibold mb-0.5 ${msg.is_mine ? "text-[#FE6E3E]/70 mr-1" : "text-gray-400 ml-1"}`}>
+                      {msg.sender_name}
+                    </p>
                   )}
                   <div className={`max-w-[80%] rounded-2xl px-3 py-2 ${msg.is_mine ? "bg-[#FE6E3E] text-white" : "bg-gray-100 text-[#1C1B1A]"}`}>
                     <p className="text-xs whitespace-pre-wrap">{msg.body}</p>

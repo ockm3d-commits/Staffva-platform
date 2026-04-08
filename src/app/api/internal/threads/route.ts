@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
     teamMembers = members || [];
   }
 
-  return NextResponse.json({ threads: result, teamMembers, profileId });
+  return NextResponse.json({ threads: result, teamMembers, profileId, currentUserName: auth.profile.full_name });
 }
 
 // POST — create a new DM thread (admin/recruiting_manager only)
