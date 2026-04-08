@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+
+export const revalidate = 300; // cache landing page for 5 minutes
 import AnnouncementBar from "@/components/landing/AnnouncementBar";
 import LandingNavbar from "@/components/landing/LandingNavbar";
 import HeroSection from "@/components/landing/HeroSection";
@@ -18,45 +19,21 @@ import MatchCTASection from "@/components/landing/MatchCTASection";
 export default async function Home() {
   const supabase = await createClient();
 
-  // Redirect logged-in users to their dashboard
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    const role = user.user_metadata?.role;
-    if (role === "candidate") redirect("/candidate/dashboard");
-    if (role === "client") redirect("/browse");
-    if (role === "admin") redirect("/admin");
-    if (role === "recruiter" || role === "recruiting_manager") redirect("/recruiter");
-  }
-
-  // Fetch approved available candidates for hero preview + live section
+  // Auth redirect is handled by middleware — no getUser() needed here.
+  // Fetch approved available candidates for the live section.
   const { data: candidates } = await supabase
     .from("candidates")
     .select(
-      "id, display_name, country, role_category, hourly_rate, english_written_tier, speaking_level, availability_status, total_earnings_usd, lock_status, bio, us_client_experience, profile_photo_url"
+      "id, display_name, country, role_category, hourly_rate, english_written_tier, speaking_level, availability_status, total_earnings_usd, lock_status, profile_photo_url"
     )
     .eq("admin_status", "approved")
+    .eq("availability_status", "available_now")
+    .neq("lock_status", "locked")
     .order("created_at", { ascending: false })
-    .limit(12);
+    .limit(6);
 
-  const allCandidates = candidates || [];
-  const availableCandidates = allCandidates.filter(
-    (c) => c.availability_status === "available_now" && c.lock_status !== "locked"
-  );
-  const heroPreview = availableCandidates.slice(0, 3);
-  const liveCandidates = availableCandidates.slice(0, 6);
-
-  // Stats for "For Candidates" section
-  const { count: totalApproved } = await supabase
-    .from("candidates")
-    .select("*", { count: "exact", head: true })
-    .eq("admin_status", "approved");
-
-  const { data: countryData } = await supabase
-    .from("candidates")
-    .select("country")
-    .eq("admin_status", "approved");
-
-  const uniqueCountries = new Set(countryData?.map((c) => c.country)).size;
+  const liveCandidates = candidates || [];
+  const heroPreview = liveCandidates.slice(0, 3);
 
   return (
     <main className="overflow-x-hidden">
@@ -66,10 +43,7 @@ export default async function Home() {
       <LiveCandidatesSection candidates={liveCandidates} />
       <HowItWorksSection />
       <WhyStaffVASection />
-      <ForCandidatesSection
-        totalApproved={totalApproved || 0}
-        uniqueCountries={uniqueCountries || 0}
-      />
+      <ForCandidatesSection totalApproved={0} uniqueCountries={0} />
       <FinalCTASection />
       <MatchCTASection />
       <Footer />

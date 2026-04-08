@@ -11,8 +11,6 @@ interface LiveCandidate {
   availability_status: string;
   total_earnings_usd: number;
   lock_status: string;
-  bio: string | null;
-  us_client_experience: string;
   profile_photo_url: string | null;
 }
 

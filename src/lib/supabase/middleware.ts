@@ -7,6 +7,14 @@ const protectedRoutes = ["/apply", "/inbox", "/admin", "/team", "/hire", "/candi
 // Routes only for unauthenticated users
 const authRoutes = ["/login", "/signup"];
 
+function dashboardForRole(role: string | undefined): string | null {
+  if (role === "candidate") return "/candidate/dashboard";
+  if (role === "client") return "/browse";
+  if (role === "admin") return "/admin";
+  if (role === "recruiter" || role === "recruiting_manager") return "/recruiter";
+  return null;
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -45,24 +53,15 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users away from auth pages
-  if (user && authRoutes.some((route) => pathname.startsWith(route))) {
+  // Redirect authenticated users away from auth pages and the landing page
+  if (user && (authRoutes.some((route) => pathname.startsWith(route)) || pathname === "/")) {
     const role = user.user_metadata?.role;
-    const url = request.nextUrl.clone();
-
-    if (role === "candidate") {
-      url.pathname = "/candidate/dashboard";
-    } else if (role === "client") {
-      url.pathname = "/browse";
-    } else if (role === "admin") {
-      url.pathname = "/admin";
-    } else if (role === "recruiter" || role === "recruiting_manager") {
-      url.pathname = "/recruiter";
-    } else {
-      url.pathname = "/";
+    const dest = dashboardForRole(role);
+    if (dest) {
+      const url = request.nextUrl.clone();
+      url.pathname = dest;
+      return NextResponse.redirect(url);
     }
-
-    return NextResponse.redirect(url);
   }
 
   return supabaseResponse;
