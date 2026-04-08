@@ -20,6 +20,21 @@ interface DashboardData {
     calendarLink: string | null;
     calendarValid: boolean | null;
   };
+  queue: {
+    id: string;
+    display_name: string;
+    full_name: string;
+    role_category: string;
+    profile_photo_url: string | null;
+    ai_interview_completed_at: string;
+    email: string;
+  }[];
+  allAssigned: {
+    id: string;
+    display_name: string | null;
+    full_name: string;
+    profile_photo_url: string | null;
+  }[];
   lane1: {
     id: string;
     display_name: string;
@@ -135,9 +150,13 @@ export default function RecruiterDashboardPage() {
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
 
-  // Build candidate map for message sidebar
+  // Build candidate map for message sidebar — from ALL assigned candidates so threads always show a name
   const candidateMap = new Map<string, { name: string; photo: string | null }>();
   if (data) {
+    for (const c of data.allAssigned) {
+      candidateMap.set(c.id, { name: c.display_name || c.full_name, photo: c.profile_photo_url });
+    }
+    // Lane candidates override with more complete data if present
     for (const c of [...data.lane1, ...data.lane2]) {
       candidateMap.set(c.id, { name: c.display_name || c.full_name, photo: c.profile_photo_url });
     }
@@ -199,6 +218,41 @@ export default function RecruiterDashboardPage() {
         onPostLogged={loadDashboard}
       />
 
+      {/* Queue — candidates ready to schedule (AI done, second interview not yet scheduled) */}
+      {data.queue.length > 0 && (
+        <div className="mx-auto max-w-[1600px] px-4 pt-4">
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-sm font-semibold text-blue-900">New Candidates — Schedule Second Interview</h2>
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-200 px-1.5 text-[10px] font-bold text-blue-800">{data.queue.length}</span>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {data.queue.map((c) => (
+                <div key={c.id} className="flex items-center gap-2.5 rounded-lg border border-blue-200 bg-white px-3 py-2.5 shadow-sm">
+                  <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-400">
+                    {(c.display_name || c.full_name)?.charAt(0) || "?"}
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-[#1C1B1A]">{c.display_name || c.full_name}</p>
+                    <p className="text-[10px] text-gray-500">{c.role_category}</p>
+                  </div>
+                  {data.kpi.calendarLink && (
+                    <a
+                      href={data.kpi.calendarLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-2 rounded-full bg-[#FE6E3E] px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-[#E55A2B] transition-colors"
+                    >
+                      Schedule
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Desktop: three lanes + message sidebar */}
       <div className="hidden md:flex mx-auto max-w-[1600px]">
         {/* Three lanes */}
@@ -245,6 +299,28 @@ export default function RecruiterDashboardPage() {
       {/* Mobile: single view with bottom tab bar */}
       <div className="md:hidden">
         <div className="px-4 py-4 pb-24">
+          {/* Queue always shown at top on mobile */}
+          {data.queue.length > 0 && (
+            <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
+              <p className="text-xs font-semibold text-blue-900 mb-2">New Candidates ({data.queue.length})</p>
+              <div className="space-y-2">
+                {data.queue.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-white border border-blue-100 px-3 py-2">
+                    <div>
+                      <p className="text-xs font-semibold text-[#1C1B1A]">{c.display_name || c.full_name}</p>
+                      <p className="text-[10px] text-gray-500">{c.role_category}</p>
+                    </div>
+                    {data.kpi.calendarLink && (
+                      <a href={data.kpi.calendarLink} target="_blank" rel="noopener noreferrer"
+                        className="rounded-full bg-[#FE6E3E] px-2.5 py-1 text-[10px] font-semibold text-white">
+                        Schedule
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {mobileTab === "resumes" && (
             <>
               <h2 className="text-sm font-semibold text-[#1C1B1A] mb-3">Resumes to Review</h2>

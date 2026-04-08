@@ -40,10 +40,10 @@ export async function GET(req: NextRequest) {
 
   const recruiterId = user.id.toString();
 
-  // Step 1: Get this recruiter's assigned candidate IDs for Lane 3
+  // Step 1: Get all assigned candidates (name+photo for candidateMap, IDs for Lane 3 filter)
   const { data: assignedCandidates } = await supabase
     .from("candidates")
-    .select("id")
+    .select("id, display_name, full_name, profile_photo_url")
     .eq("assigned_recruiter", recruiterId);
   const assignedCandidateIds = (assignedCandidates || []).map((c: { id: string }) => c.id);
 
@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
   const [
     interviewsRes,
     socialRes,
+    queueRes,
     lane1Res,
     lane2Res,
     lane3Res,
@@ -72,6 +73,15 @@ export async function GET(req: NextRequest) {
       .eq("recruiter_id", recruiterId)
       .eq("post_date", today)
       .order("created_at", { ascending: true }),
+
+    // Queue: assigned candidates who completed AI interview but haven't been scheduled yet
+    supabase
+      .from("candidates")
+      .select("id, display_name, full_name, role_category, profile_photo_url, ai_interview_completed_at, email")
+      .eq("assigned_recruiter", recruiterId)
+      .not("ai_interview_completed_at", "is", null)
+      .eq("second_interview_status", "none")
+      .order("ai_interview_completed_at", { ascending: true }),
 
     // Lane 1: Resumes to review — interviews scheduled today or upcoming
     supabase
@@ -109,7 +119,7 @@ export async function GET(req: NextRequest) {
       .limit(200),
   ]);
 
-  console.log(`[RECRUITER DASHBOARD] recruiterId: ${recruiterId}, assignedTotal: ${assignedCandidateIds.length}, Lane1: ${lane1Res.data?.length ?? 0}, Lane2: ${lane2Res.data?.length ?? 0}, Lane3: ${lane3Res.data?.length ?? 0}, errors: ${JSON.stringify({ l1: lane1Res.error?.message, l2: lane2Res.error?.message, l3: lane3Res.error?.message })}`);
+  console.log(`[RECRUITER DASHBOARD] recruiterId: ${recruiterId}, assignedTotal: ${assignedCandidateIds.length}, Queue: ${queueRes.data?.length ?? 0}, Lane1: ${lane1Res.data?.length ?? 0}, Lane2: ${lane2Res.data?.length ?? 0}, Lane3: ${lane3Res.data?.length ?? 0}, errors: ${JSON.stringify({ q: queueRes.error?.message, l1: lane1Res.error?.message, l2: lane2Res.error?.message, l3: lane3Res.error?.message })}`);
 
   // Process interviews count
   const interviewsToday = interviewsRes.count ?? 0;
@@ -165,6 +175,8 @@ export async function GET(req: NextRequest) {
       calendarLink: profile.calendar_link || null,
       calendarValid,
     },
+    queue: queueRes.data || [],
+    allAssigned: assignedCandidates || [],
     lane1: lane1Res.data || [],
     lane2: lane2Filtered,
     lane3: lane3Data,
