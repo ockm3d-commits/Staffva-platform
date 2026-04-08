@@ -540,14 +540,17 @@ export default function CandidateDashboardPage() {
         }
       }
 
-      // Load recruiter profile if assigned
+      // Load recruiter profile if assigned — via API (service role bypasses profiles RLS)
       if (c && c.assigned_recruiter) {
-        const { data: rp } = await supabase
-          .from("profiles")
-          .select("full_name, avatar_url, calendar_link")
-          .eq("id", c.assigned_recruiter)
-          .single();
-        if (rp) setRecruiterProfile(rp);
+        try {
+          const rpRes = await fetch("/api/candidate/recruiter-profile", {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          });
+          if (rpRes.ok) {
+            const rpData = await rpRes.json();
+            if (rpData.recruiter_profile) setRecruiterProfile(rpData.recruiter_profile);
+          }
+        } catch { /* silent — recruiter card just won't show */ }
 
         // Count unread recruiter messages
         const { count: unread } = await supabase
