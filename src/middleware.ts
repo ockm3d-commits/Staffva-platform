@@ -8,12 +8,11 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder assets
+     * Run session middleware only on page routes — NOT on API routes.
+     * API routes authenticate via their own Bearer token / cookie checks.
+     * Excluding /api/ eliminates a getUser() DB round-trip on every
+     * client-side fetch (including polling intervals in Conversation.tsx etc.)
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!api/|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

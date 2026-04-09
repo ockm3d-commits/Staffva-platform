@@ -27,7 +27,7 @@ export default function ScreeningQueueWidget() {
 
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 30000); // Refresh every 30s
+    const interval = setInterval(fetchStats, 120000); // Refresh every 2 min
     return () => clearInterval(interval);
   }, []);
 
@@ -68,7 +68,7 @@ export default function ScreeningQueueWidget() {
             <span className="flex h-2 w-2 rounded-full bg-[#FE6E3E] animate-pulse" />
           )}
         </div>
-        <span className="text-xs text-gray-400">Updates every 30s</span>
+        <span className="text-xs text-gray-400">Updates every 2 min</span>
       </div>
 
       <div className="grid grid-cols-5 gap-2">

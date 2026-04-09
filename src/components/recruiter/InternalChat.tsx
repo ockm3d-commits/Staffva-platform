@@ -83,7 +83,7 @@ export default function InternalChat({ isMobileFullScreen }: InternalChatProps) 
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Load session + threads on mount
+  // Load session + threads on mount; clean up realtime channel on unmount
   useEffect(() => {
     (async () => {
       const supabase = createClient();
@@ -94,6 +94,13 @@ export default function InternalChat({ isMobileFullScreen }: InternalChatProps) 
       setUserProfileId(session.user.id);
       await fetchThreads(session.access_token);
     })();
+
+    return () => {
+      if (realtimeRef.current) {
+        createClient().removeChannel(realtimeRef.current);
+        realtimeRef.current = null;
+      }
+    };
   }, []);
 
   const fetchThreads = useCallback(async (t: string) => {

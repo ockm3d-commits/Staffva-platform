@@ -61,9 +61,21 @@ export default function RecruiterChatPage() {
     }
     init();
 
-    // Poll for new messages every 5 seconds
-    const interval = setInterval(loadMessages, 5000);
-    return () => clearInterval(interval);
+    // Poll every 30s; pause when the tab is hidden to avoid background DB load
+    let interval: ReturnType<typeof setInterval> | null = setInterval(loadMessages, 30000);
+    function onVisibility() {
+      if (document.visibilityState === "visible") {
+        loadMessages();
+        if (!interval) interval = setInterval(loadMessages, 30000);
+      } else {
+        if (interval) { clearInterval(interval); interval = null; }
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   useEffect(() => {

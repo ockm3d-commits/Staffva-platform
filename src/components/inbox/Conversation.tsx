@@ -37,10 +37,23 @@ export default function Conversation({
   useEffect(() => {
     loadMessages();
 
-    // Poll for new messages every 5 seconds
-    pollRef.current = setInterval(loadMessages, 5000);
+    // Poll every 30s; pause when the tab is hidden to avoid background DB load
+    function startPolling() {
+      pollRef.current = setInterval(loadMessages, 30000);
+    }
+    function stopPolling() {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    }
+    function onVisibility() {
+      if (document.visibilityState === "visible") { loadMessages(); startPolling(); }
+      else stopPolling();
+    }
+
+    startPolling();
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      stopPolling();
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [threadId]);
 

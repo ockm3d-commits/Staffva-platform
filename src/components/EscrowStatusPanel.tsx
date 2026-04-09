@@ -145,8 +145,8 @@ export default function EscrowStatusPanel({ role }: { role: "client" | "candidat
     }
 
     fetchEscrow();
-    // Refresh every 60 seconds for near-real-time
-    const interval = setInterval(fetchEscrow, 60000);
+    // Refresh every 2 minutes
+    const interval = setInterval(fetchEscrow, 120000);
     return () => clearInterval(interval);
   }, []);
 
