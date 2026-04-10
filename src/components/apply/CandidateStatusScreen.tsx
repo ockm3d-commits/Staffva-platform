@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 
 interface Props {
@@ -67,6 +68,23 @@ const STATUS_CONFIG: Record<string, {
 
 export default function CandidateStatusScreen({ adminStatus, candidateId }: Props) {
   const config = STATUS_CONFIG[adminStatus] || STATUS_CONFIG.approved;
+  const [interviewLoading, setInterviewLoading] = useState(false);
+  const [interviewError, setInterviewError] = useState<string | null>(null);
+
+  async function handleInterviewClick() {
+    setInterviewLoading(true);
+    setInterviewError(null);
+    try {
+      const res = await fetch("/api/interview/token");
+      if (!res.ok) throw new Error("Token request failed");
+      const { token } = await res.json();
+      window.open(`https://interview.staffva.com?token=${token}`, "_blank", "noopener,noreferrer");
+    } catch {
+      setInterviewError("Unable to start the interview. Please try again.");
+    } finally {
+      setInterviewLoading(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-xl px-6 py-16 text-center">
@@ -147,14 +165,18 @@ export default function CandidateStatusScreen({ adminStatus, candidateId }: Prop
 
           <div className="mt-6 space-y-3">
             {candidateId && (
-              <a
-                href={`https://interview.staffva.com?candidate=${candidateId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full rounded-lg bg-primary px-6 py-2.5 text-center text-sm font-semibold text-white hover:bg-primary/90 transition-colors"
-              >
-                Start AI Interview
-              </a>
+              <div>
+                <button
+                  onClick={handleInterviewClick}
+                  disabled={interviewLoading}
+                  className="block w-full rounded-lg bg-primary px-6 py-2.5 text-center text-sm font-semibold text-white hover:bg-primary/90 transition-colors disabled:opacity-60"
+                >
+                  {interviewLoading ? "Loading…" : "Start AI Interview"}
+                </button>
+                {interviewError && (
+                  <p className="mt-2 text-sm text-red-600">{interviewError}</p>
+                )}
+              </div>
             )}
             <Link
               href="/candidate/dashboard"

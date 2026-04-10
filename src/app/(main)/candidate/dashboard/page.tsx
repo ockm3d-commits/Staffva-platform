@@ -40,6 +40,9 @@ interface CandidateData {
   work_experience: unknown[] | null;
   resume_url: string | null;
   payout_method: string | null;
+  payout_status: string | null;
+  stripe_account_id: string | null;
+  stripe_onboarding_complete: boolean | null;
   english_mc_score: number | null;
   voice_recording_1_url: string | null;
   voice_recording_2_url: string | null;
@@ -59,6 +62,7 @@ interface CandidateData {
   english_comprehension_score: number | null;
   interview_consent_at: string | null;
   second_interview_status: string | null;
+  test_lockout_until: string | null;
 }
 
 interface InterviewData {
@@ -447,6 +451,111 @@ function ReputationSection() {
   );
 }
 
+function PayoutSetupCard({ payoutStatus }: { payoutStatus: string | null }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const status = payoutStatus || "not_setup";
+
+  async function handleSetup() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/stripe/connect/create-account", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Something went wrong. Please try again."); return; }
+      window.location.href = data.url;
+    } catch {
+      setError("Unable to connect to Stripe. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResolve() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/stripe/connect/login-link", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Something went wrong. Please try again."); return; }
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch {
+      setError("Unable to open Stripe dashboard. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (status === "active") {
+    return (
+      <div className="mb-6 flex items-center gap-3 rounded-xl border border-green-200 bg-green-50 px-5 py-4">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-500">
+          <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-green-800">Payouts active</p>
+          <p className="text-xs text-green-700">Your payments will be sent automatically when escrow releases.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "suspended") {
+    return (
+      <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-5">
+        <p className="text-sm font-semibold text-red-800">Your payout account needs attention</p>
+        <p className="mt-1 text-xs text-red-700">Stripe has flagged your payout account. Please resolve the issue to continue receiving payments.</p>
+        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        <button
+          onClick={handleResolve}
+          disabled={loading}
+          className="mt-3 inline-block rounded-full bg-red-600 px-5 py-2 text-xs font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+        >
+          {loading ? "Opening…" : "Resolve Issue"}
+        </button>
+      </div>
+    );
+  }
+
+  if (status === "onboarding") {
+    return (
+      <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
+        <p className="text-sm font-semibold text-amber-800">Your payout account setup is incomplete</p>
+        <p className="mt-1 text-xs text-amber-700">Finish setting up your Stripe Express account to receive payments when escrow releases.</p>
+        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        <button
+          onClick={handleSetup}
+          disabled={loading}
+          className="mt-3 inline-block rounded-full bg-amber-500 px-5 py-2 text-xs font-semibold text-white hover:bg-amber-600 transition-colors disabled:opacity-50"
+        >
+          {loading ? "Loading…" : "Continue Setup"}
+        </button>
+        <p className="mt-2 text-[11px] text-amber-600">Transfer fees are deducted from your payout by Stripe. Your agreed rate is what clients pay — fees come from your side.</p>
+      </div>
+    );
+  }
+
+  // not_setup (default)
+  return (
+    <div className="mb-6 rounded-xl border border-orange-200 bg-orange-50 p-5">
+      <p className="text-sm font-semibold text-orange-800">Set up your payout account to receive payments</p>
+      <p className="mt-1 text-xs text-orange-700">Connect your bank account through Stripe Express to automatically receive funds when your escrow releases.</p>
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      <button
+        onClick={handleSetup}
+        disabled={loading}
+        className="mt-3 inline-block rounded-full bg-[#FE6E3E] px-5 py-2 text-xs font-semibold text-white hover:bg-[#E55A2B] transition-colors disabled:opacity-50"
+      >
+        {loading ? "Loading…" : "Set Up Payouts"}
+      </button>
+      <p className="mt-2 text-[11px] text-orange-600">Transfer fees are deducted from your payout by Stripe. Your agreed rate is what clients pay — fees come from your side.</p>
+    </div>
+  );
+}
+
 export default function CandidateDashboardPage() {
   const [candidate, setCandidate] = useState<CandidateData | null>(null);
   const [viewStats, setViewStats] = useState<ViewStats | null>(null);
@@ -459,6 +568,23 @@ export default function CandidateDashboardPage() {
   const [recruiterUnread, setRecruiterUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [interviewLoading, setInterviewLoading] = useState(false);
+  const [interviewError, setInterviewError] = useState<string | null>(null);
+
+  async function handleInterviewClick() {
+    setInterviewLoading(true);
+    setInterviewError(null);
+    try {
+      const res = await fetch("/api/interview/token");
+      if (!res.ok) throw new Error("Token request failed");
+      const { token } = await res.json();
+      window.open(`https://interview.staffva.com?token=${token}`, "_blank", "noopener,noreferrer");
+    } catch {
+      setInterviewError("Unable to start the interview. Please try again.");
+    } finally {
+      setInterviewLoading(false);
+    }
+  }
   const router = useRouter();
   const aiDoneRef = useRef(false);
 
@@ -577,9 +703,23 @@ export default function CandidateDashboardPage() {
     }
     load();
 
-    // Re-fetch when window regains focus (candidate returns from external interview site)
+    // Re-fetch when window regains focus (candidate returns from Stripe onboarding or interview)
     function handleFocus() { load(); }
     window.addEventListener("focus", handleFocus);
+
+    // Trigger immediate reload if returning from Stripe Connect onboarding
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const payoutParam = params.get("payout");
+      if (payoutParam === "complete" || payoutParam === "refresh") {
+        // Clean the URL param then reload data
+        const url = new URL(window.location.href);
+        url.searchParams.delete("payout");
+        window.history.replaceState({}, "", url.toString());
+        load();
+      }
+    }
+
     return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
@@ -654,6 +794,45 @@ export default function CandidateDashboardPage() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#FE6E3E] border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Anti-cheat lockout — replace dashboard entirely
+  if (candidate.test_lockout_until && new Date(candidate.test_lockout_until) > new Date()) {
+    const unlockDate = new Date(candidate.test_lockout_until);
+    const msRemaining = unlockDate.getTime() - Date.now();
+    const daysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+    const formattedDate = unlockDate.toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8">
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="mx-auto max-w-md text-center">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+              <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-[#1C1B1A]">Your assessment is currently paused</h1>
+            <p className="mt-4 text-sm leading-relaxed text-gray-500">
+              You left the test screen during your English assessment, which is not permitted.
+            </p>
+            <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-6 py-5">
+              <p className="text-sm text-gray-700">
+                You may return on <strong className="text-[#1C1B1A]">{formattedDate}</strong>.
+                When you return your assessment will restart from the beginning.
+              </p>
+              <p className="mt-3 text-2xl font-bold text-red-600">
+                {daysRemaining} {daysRemaining === 1 ? "day" : "days"} remaining
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -745,6 +924,7 @@ export default function CandidateDashboardPage() {
         let nextBody = "";
         let nextHref = "";
         let nextLabel = "";
+        let isInterviewButton = false;
 
         if (!testSubmitted) {
           // Stage 1: English test not started
@@ -770,12 +950,12 @@ export default function CandidateDashboardPage() {
           } else if (aiInProgress) {
             nextHeading = "Your AI interview is in progress";
             nextBody = "Complete your interview to move to the next step.";
-            nextHref = `https://interview.staffva.com?candidate=${candidate.id}`;
+            isInterviewButton = true;
             nextLabel = "Continue Interview";
           } else {
             nextHeading = "Your English test results are ready";
             nextBody = "Complete your AI interview to continue.";
-            nextHref = `https://interview.staffva.com?candidate=${candidate.id}`;
+            isInterviewButton = true;
             nextLabel = "Start AI Interview";
           }
         } else if (aiDone && !recruiterScheduled && !recruiterDone) {
@@ -933,7 +1113,21 @@ export default function CandidateDashboardPage() {
                 </div>
               )}
 
-              {nextHref && nextLabel && (
+              {isInterviewButton && nextLabel && (
+                <div className="mt-3">
+                  <button
+                    onClick={handleInterviewClick}
+                    disabled={interviewLoading}
+                    className="inline-block rounded-full bg-[#FE6E3E] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors disabled:opacity-60"
+                  >
+                    {interviewLoading ? "Loading…" : nextLabel}
+                  </button>
+                  {interviewError && (
+                    <p className="mt-2 text-sm text-red-600">{interviewError}</p>
+                  )}
+                </div>
+              )}
+              {!isInterviewButton && nextHref && nextLabel && (
                 <a href={nextHref} target={nextHref.startsWith("http") ? "_blank" : undefined} rel={nextHref.startsWith("http") ? "noopener noreferrer" : undefined} className="mt-3 inline-block rounded-full bg-[#FE6E3E] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors">
                   {nextLabel}
                 </a>
@@ -1126,6 +1320,9 @@ export default function CandidateDashboardPage() {
       <div className="mb-6">
         <EscrowStatusPanel role="candidate" />
       </div>
+
+      {/* Payout Setup */}
+      <PayoutSetupCard payoutStatus={candidate.payout_status} />
 
       {/* Contracts */}
       <ContractsSection />

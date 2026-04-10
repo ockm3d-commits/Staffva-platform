@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { stripe } from "@/lib/stripe";
 
 function getAdminClient() {
   return createClient(
@@ -14,7 +15,7 @@ function getAdminClient() {
  *
  * Releases escrowed funds:
  * - StaffVA keeps 10% (already in Stripe account)
- * - Candidate's share sent via payout API (Trolley/Payoneer/Wise)
+ * - Candidate's share sent via Stripe Connect transfer to their Express account
  * - Updates payment_period or milestone status to 'released'
  * - Triggers verified earnings update via DB trigger
  *
@@ -83,11 +84,13 @@ export async function POST(request: Request) {
         .update({ status: "released", released_at: now })
         .eq("id", periodId);
 
-      // Initiate payout to candidate
+      // Initiate Stripe Connect payout — non-blocking (client sees release succeed even if payout fails)
       await initiatePayout(
         admin,
         period.engagements.candidate_id,
-        Number(period.engagements.candidate_rate_usd)
+        Number(period.amount_usd),
+        "period",
+        periodId
       );
 
       return NextResponse.json({
@@ -149,11 +152,13 @@ export async function POST(request: Request) {
         })
         .eq("id", milestoneId);
 
-      // Initiate payout
+      // Initiate Stripe Connect payout — non-blocking
       await initiatePayout(
         admin,
         milestone.engagements.candidate_id,
-        Number(milestone.amount_usd)
+        Number(milestone.amount_usd),
+        "milestone",
+        milestoneId
       );
 
       return NextResponse.json({
@@ -175,27 +180,108 @@ export async function POST(request: Request) {
 }
 
 /**
- * Initiate payout to candidate via their selected payout method.
- * In Phase 1 this logs the payout intent — full Trolley API integration
- * will be wired in the payout infrastructure step.
+ * Initiate payout to candidate via Stripe Connect transfer.
+ *
+ * - If the candidate has no Stripe account or has not completed onboarding,
+ *   marks the record as payout_failed and sends a Resend email to the candidate.
+ *   Does not block the escrow release response.
+ * - If onboarding is complete, creates a Stripe Transfer to the candidate's
+ *   Express account. Stripe deducts transfer fees from the connected account —
+ *   we pass the full payout amount without adjustment.
+ * - On success: writes stripe_transfer_id and payout_fired_at back to the record.
+ * - On failure: writes payout_failed = true and payout_failure_reason for manual review.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function initiatePayout(
-  supabase: any,
+  admin: any,
   candidateId: string,
-  amountUsd: number
+  amountUsd: number,
+  recordType: "period" | "milestone",
+  recordId: string
 ) {
-  const { data: candidate } = await supabase
+  const table = recordType === "period" ? "payment_periods" : "milestones";
+
+  const { data: candidate } = await admin
     .from("candidates")
-    .select("payout_method, payout_account_id, full_name, email")
+    .select("stripe_account_id, stripe_onboarding_complete, full_name, email")
     .eq("id", candidateId)
     .single();
 
   if (!candidate) return;
 
-  // TODO: Replace with actual Trolley/Payoneer/Wise API call
-  // For now, log the payout intent for manual processing
-  console.log(
-    `[StaffVA Payout] ${candidate.full_name} (${candidate.email}) — $${amountUsd} via ${candidate.payout_method || "not set"} — account: ${candidate.payout_account_id || "not set"}`
-  );
+  // Guard: Stripe account not set up or onboarding incomplete
+  if (!candidate.stripe_account_id || !candidate.stripe_onboarding_complete) {
+    await admin
+      .from(table)
+      .update({
+        payout_failed: true,
+        payout_failure_reason: "Stripe account not set up or onboarding incomplete",
+      })
+      .eq("id", recordId);
+
+    // Notify candidate to set up their payout account
+    if (process.env.RESEND_API_KEY && candidate.email) {
+      try {
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "StaffVA <notifications@staffva.com>",
+            to: candidate.email,
+            subject: "Action required — set up your payout account to receive your payment",
+            html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+              <h2 style="color:#1C1B1A;">Set Up Your Payout Account</h2>
+              <p style="color:#444;font-size:14px;">Hi ${candidate.full_name},</p>
+              <p style="color:#444;font-size:14px;line-height:1.6;">A payment of <strong>$${amountUsd.toFixed(2)}</strong> has been released for you, but we were unable to process it because your Stripe payout account is not yet set up.</p>
+              <p style="color:#444;font-size:14px;line-height:1.6;">Please complete your payout account setup from your dashboard. Once active, our team will manually process this payment.</p>
+              <a href="https://staffva.com/candidate/dashboard" style="display:inline-block;background:#FE6E3E;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">Set Up Payouts Now</a>
+              <p style="color:#999;margin-top:24px;font-size:12px;">— The StaffVA Team</p>
+            </div>`,
+          }),
+        });
+      } catch { /* silent */ }
+    }
+
+    // Flag for admin visibility
+    console.error(
+      `[StaffVA Payout Alert] Payout failed — candidate ${candidateId} has no Stripe account. Record: ${table}/${recordId} — $${amountUsd}`
+    );
+    return;
+  }
+
+  // Attempt Stripe Connect transfer
+  try {
+    const transfer = await stripe.transfers.create({
+      amount: Math.round(amountUsd * 100), // convert to cents
+      currency: "usd",
+      destination: candidate.stripe_account_id,
+      transfer_group: recordId,
+    });
+
+    await admin
+      .from(table)
+      .update({
+        stripe_transfer_id: transfer.id,
+        payout_fired_at: new Date().toISOString(),
+      })
+      .eq("id", recordId);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown Stripe error";
+
+    await admin
+      .from(table)
+      .update({
+        payout_failed: true,
+        payout_failure_reason: message,
+      })
+      .eq("id", recordId);
+
+    // Flag for manual review — do not retry automatically
+    console.error(
+      `[StaffVA Payout Alert] Stripe transfer failed — candidate ${candidateId}, record ${table}/${recordId}: ${message}`
+    );
+  }
 }

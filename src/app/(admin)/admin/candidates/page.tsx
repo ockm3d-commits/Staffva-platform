@@ -40,6 +40,13 @@ const STATUS_BADGE: Record<string, { label: string; color: string }> = {
   deactivated: { label: "Deactivated", color: "bg-gray-200 text-gray-600" },
 };
 
+const PAYOUT_STATUS_BADGE: Record<string, { label: string; color: string }> = {
+  not_setup: { label: "Not Set Up", color: "bg-gray-100 text-gray-500" },
+  onboarding: { label: "Onboarding", color: "bg-amber-100 text-amber-700" },
+  active: { label: "Active", color: "bg-green-100 text-green-700" },
+  suspended: { label: "Suspended", color: "bg-red-100 text-red-700" },
+};
+
 const SCREENING_BADGE: Record<string, { label: string; color: string }> = {
   Priority: { label: "Priority", color: "bg-green-100 text-green-700" },
   Review: { label: "Review", color: "bg-amber-100 text-amber-700" },
@@ -105,6 +112,8 @@ interface Candidate {
   spoken_english_score: number | null;
   spoken_english_result: string | null;
   recruiter_ai_score_results: { dimension: string; score: number; justification: string }[] | null;
+  payout_status: string | null;
+  payout_failure_reason?: string | null;
 }
 
 // ─── Recruiter Post-Interview Scoring Panel ───
@@ -740,6 +749,7 @@ export default function CandidateReviewPage() {
                 <th className="pb-3 pr-4">Role</th>
                 <th className="pb-3 pr-4">Rate</th>
                 <th className="pb-3 pr-4">Status</th>
+                <th className="pb-3 pr-4">Payout</th>
                 <th className="pb-3 pr-4">Lock</th>
                 <th className="pb-3 pr-4">Earnings</th>
                 <th className="pb-3 pr-4">Recruiter</th>
@@ -800,6 +810,20 @@ export default function CandidateReviewPage() {
                       <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${badge.color}`}>
                         {badge.label}
                       </span>
+                    </td>
+                    <td className="py-3 pr-4">
+                      {(() => {
+                        const ps = c.payout_status || "not_setup";
+                        const pb = PAYOUT_STATUS_BADGE[ps] || PAYOUT_STATUS_BADGE.not_setup;
+                        return (
+                          <span
+                            className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold cursor-default ${pb.color}`}
+                            title={ps === "suspended" && c.payout_failure_reason ? c.payout_failure_reason : undefined}
+                          >
+                            {pb.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="py-3 pr-4">
                       <span className={`text-xs ${c.lock_status === "locked" ? "text-blue-600 font-medium" : "text-text/40"}`}>

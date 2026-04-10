@@ -43,6 +43,7 @@ interface Metrics {
     manualReview: number;
     screeningFails: number;
     stalledRevisions: number;
+    payoutNotSetup: number;
   };
   clientHealth: ClientHealth[];
   talentPool: {
@@ -110,7 +111,8 @@ export default function AdminDashboard() {
     metrics.alerts.webhookFailures > 0 ||
     metrics.alerts.manualReview > 0 ||
     metrics.alerts.screeningFails > 0 ||
-    metrics.alerts.stalledRevisions > 0;
+    metrics.alerts.stalledRevisions > 0 ||
+    metrics.alerts.payoutNotSetup > 0;
 
   return (
     <div>
@@ -250,6 +252,13 @@ export default function AdminDashboard() {
                 <span className="text-sm font-medium text-amber-800">Stalled revision requests (&gt;72h)</span>
                 <span className="ml-auto text-xs text-amber-600">Managed by Manar</span>
               </div>
+            )}
+            {metrics.alerts.payoutNotSetup > 0 && (
+              <Link href="/admin/candidates?status=approved" className="flex items-center gap-3 rounded-xl border-l-4 border-amber-500 bg-amber-50 px-5 py-3 hover:bg-amber-100 transition-colors">
+                <span className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white">{metrics.alerts.payoutNotSetup}</span>
+                <span className="text-sm font-medium text-amber-800">Approved candidates have not set up their payout account (&gt;48h)</span>
+                <span className="ml-auto text-xs text-amber-600">View &rarr;</span>
+              </Link>
             )}
           </div>
         </div>

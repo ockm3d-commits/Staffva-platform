@@ -46,6 +46,9 @@ export default function EnglishTest({ candidateId, onComplete }: Props) {
   const questionStartTime = useRef(Date.now());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const progressRef = useRef<TestProgress | null>(null);
+  const leaveEventIdRef = useRef<string | null>(null);
+  const leaveTimeRef = useRef<number | null>(null);
+  const lastTimeTrackRef = useRef<number>(0);
 
   // Detect mobile on mount
   useEffect(() => {
@@ -112,21 +115,27 @@ export default function EnglishTest({ candidateId, onComplete }: Props) {
 
     const mobile = isMobileBrowser();
 
-    function logEvent(eventType: string) {
+    // Logs a leave event and returns the inserted row ID (for return tracking).
+    // For paste events (no return concept) the ID is not used.
+    async function logLeaveEvent(eventType: string): Promise<string | null> {
       const supabase = createClient();
 
-      // On mobile, log as mobile_device event instead of strict enforcement
+      // On mobile, log fullscreen_exit as mobile_device instead
       const finalType = mobile && eventType === "fullscreen_exit" ? "mobile_device" : eventType;
 
-      supabase.from("test_events").insert({
-        candidate_id: candidateId,
-        event_type: finalType,
-        question_number: currentIndex + 1,
-      });
+      const { data } = await supabase
+        .from("test_events")
+        .insert({
+          candidate_id: candidateId,
+          event_type: finalType,
+          question_number: currentIndex + 1,
+        })
+        .select("id")
+        .single();
 
-      // Mobile gets fewer flags for non-critical events
+      // Mobile: don't increment flag count for mouse_leave / fullscreen_exit
       if (mobile && (eventType === "mouse_leave" || eventType === "fullscreen_exit")) {
-        return; // Don't increment flag count for these on mobile
+        return null;
       }
 
       setFlagCount((prev) => {
@@ -139,41 +148,104 @@ export default function EnglishTest({ candidateId, onComplete }: Props) {
         .from("candidates")
         .update({ cheat_flag_count: flagCount + 1 })
         .eq("id", candidateId);
+
+      return data?.id ?? null;
+    }
+
+    // Called when the candidate returns to the screen after a tracked leave event.
+    function handleReturn(eventId: string | null, leaveTime: number | null) {
+      if (!eventId || !leaveTime) return;
+      const absenceDurationSeconds = Math.round((Date.now() - leaveTime) / 1000);
+      const returnedAt = new Date().toISOString();
+
+      fetch("/api/test/anticheat-return", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_id: eventId,
+          returned_at: returnedAt,
+          absence_duration_seconds: absenceDurationSeconds,
+        }),
+      }).then(() => {
+        // Re-evaluate rules after each return
+        fetch("/api/test/anticheat-check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ candidate_id: candidateId }),
+        });
+      });
     }
 
     function handleMouseLeave() {
-      if (!mobile) logEvent("mouse_leave"); // Skip on mobile — touch events trigger this
+      if (mobile) return; // Touch events trigger this spuriously on mobile
+      leaveTimeRef.current = Date.now();
+      logLeaveEvent("mouse_leave").then((id) => {
+        leaveEventIdRef.current = id;
+      });
+    }
+
+    function handleMouseEnter() {
+      if (mobile) return;
+      const id = leaveEventIdRef.current;
+      const t = leaveTimeRef.current;
+      leaveEventIdRef.current = null;
+      leaveTimeRef.current = null;
+      handleReturn(id, t);
     }
 
     function handleVisibilityChange() {
-      if (document.hidden) logEvent("tab_switch");
+      if (document.hidden) {
+        leaveTimeRef.current = Date.now();
+        logLeaveEvent("tab_switch").then((id) => {
+          leaveEventIdRef.current = id;
+        });
+      } else {
+        const id = leaveEventIdRef.current;
+        const t = leaveTimeRef.current;
+        leaveEventIdRef.current = null;
+        leaveTimeRef.current = null;
+        handleReturn(id, t);
+      }
     }
 
     function handlePaste(e: Event) {
       e.preventDefault();
-      logEvent("paste_attempt");
+      logLeaveEvent("paste_attempt");
     }
 
     function handleContextMenu(e: Event) {
       e.preventDefault();
-      logEvent("paste_attempt");
+      logLeaveEvent("paste_attempt");
     }
 
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "v")) {
         e.preventDefault();
-        logEvent("paste_attempt");
+        logLeaveEvent("paste_attempt");
       }
     }
 
     function handleFullscreenChange() {
       // Only enforce on desktop browsers that support fullscreen
-      if (!mobile && supportsFullscreen() && !document.fullscreenElement) {
-        logEvent("fullscreen_exit");
+      if (!mobile && supportsFullscreen()) {
+        if (!document.fullscreenElement) {
+          leaveTimeRef.current = Date.now();
+          logLeaveEvent("fullscreen_exit").then((id) => {
+            leaveEventIdRef.current = id;
+          });
+        } else {
+          // Fullscreen restored
+          const id = leaveEventIdRef.current;
+          const t = leaveTimeRef.current;
+          leaveEventIdRef.current = null;
+          leaveTimeRef.current = null;
+          handleReturn(id, t);
+        }
       }
     }
 
     document.addEventListener("mouseleave", handleMouseLeave);
+    document.addEventListener("mouseenter", handleMouseEnter);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     document.addEventListener("paste", handlePaste);
     document.addEventListener("contextmenu", handleContextMenu);
@@ -192,6 +264,7 @@ export default function EnglishTest({ candidateId, onComplete }: Props) {
 
     return () => {
       document.removeEventListener("mouseleave", handleMouseLeave);
+      document.removeEventListener("mouseenter", handleMouseEnter);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       document.removeEventListener("paste", handlePaste);
       document.removeEventListener("contextmenu", handleContextMenu);
@@ -239,8 +312,8 @@ export default function EnglishTest({ candidateId, onComplete }: Props) {
 
     if (timerRef.current) clearInterval(timerRef.current);
 
-    // Track time on last question
-    await trackQuestionTime();
+    // Track time on last question (force bypasses debounce)
+    await trackQuestionTime(true);
 
     const res = await fetch("/api/test/submit", {
       method: "POST",
@@ -264,9 +337,12 @@ export default function EnglishTest({ candidateId, onComplete }: Props) {
     onComplete(result.passed, result.candidate);
   }, [submitting, candidateId, answers, timeLeft, onComplete]);
 
-  async function trackQuestionTime() {
+  async function trackQuestionTime(force = false) {
     if (!questions[currentIndex]) return;
-    const elapsed = Math.round((Date.now() - questionStartTime.current) / 1000);
+    const now = Date.now();
+    if (!force && now - lastTimeTrackRef.current < 10_000) return;
+    lastTimeTrackRef.current = now;
+    const elapsed = Math.round((now - questionStartTime.current) / 1000);
     const supabase = createClient();
     await supabase.from("question_time_tracking").insert({
       candidate_id: candidateId,

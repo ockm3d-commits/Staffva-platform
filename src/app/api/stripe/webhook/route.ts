@@ -19,18 +19,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No signature" }, { status: 400 });
   }
 
-  let event: Stripe.Event;
+  // Try platform secret first, then Connect secret.
+  // Two Stripe webhook endpoints point here — each has its own signing secret.
+  const secrets = [
+    process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET,
+  ].filter(Boolean) as string[];
 
-  try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Webhook signature verification failed:", message);
-    return NextResponse.json({ error: message }, { status: 400 });
+  let event: Stripe.Event | null = null;
+  for (const secret of secrets) {
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, secret);
+      break;
+    } catch {
+      // Try next secret
+    }
+  }
+
+  if (!event) {
+    console.error("Webhook signature verification failed against all configured secrets");
+    return NextResponse.json({ error: "Webhook signature verification failed" }, { status: 400 });
   }
 
   const supabase = getAdminClient();
@@ -69,15 +77,44 @@ export async function POST(request: Request) {
           .update({ id_verification_status: "passed" })
           .eq("id", candidateId);
 
-        // Send success email
-        if (process.env.RESEND_API_KEY) {
-          const { data: candidate } = await supabase
-            .from("candidates")
-            .select("email, display_name, full_name")
-            .eq("id", candidateId)
-            .single();
+        // Check if the candidate was flagged by the anti-cheat system during the test
+        const { data: candidate } = await supabase
+          .from("candidates")
+          .select("email, display_name, full_name, anticheat_lockout_triggered, anticheat_lockout_reason")
+          .eq("id", candidateId)
+          .single();
 
-          if (candidate) {
+        if (candidate?.anticheat_lockout_triggered) {
+          // Apply the 7-day lockout now that identity is confirmed
+          const lockoutUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+          const returnDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+          const formattedReturnDate = returnDate.toLocaleDateString("en-US", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          });
+
+          await supabase
+            .from("candidates")
+            .update({
+              test_lockout_until: lockoutUntil,
+              test_lockout_notified: false,
+              english_mc_score: null,
+              english_comprehension_score: null,
+              voice_recording_1_url: null,
+              voice_recording_2_url: null,
+              admin_status: "active",
+              identity_session_id: session.id,
+            })
+            .eq("id", candidateId);
+
+          // Send lockout email
+          if (process.env.RESEND_API_KEY && candidate) {
+            const isFourStrikes = candidate.anticheat_lockout_reason === "four_strikes";
+            const emailBody = isFourStrikes
+              ? `During your English assessment, our system detected that you left the test screen 4 or more times. To protect the integrity of our vetting process, your application has been paused for 7 days. You may return on ${formattedReturnDate} to retake the assessment from the beginning. We take the quality of our candidate pool seriously — every professional on StaffVA earned their place.`
+              : `During your English assessment, our system detected that you were away from the test screen for more than 10 seconds. To protect the integrity of our vetting process, your application has been paused for 7 days. You may return on ${formattedReturnDate} to retake the assessment from the beginning. We take the quality of our candidate pool seriously — every professional on StaffVA earned their place.`;
+
             try {
               await fetch("https://api.resend.com/emails", {
                 method: "POST",
@@ -88,18 +125,63 @@ export async function POST(request: Request) {
                 body: JSON.stringify({
                   from: "StaffVA <notifications@staffva.com>",
                   to: candidate.email,
-                  subject: "ID Verification Passed — Continue Your Application",
+                  subject: "Your application has been paused for 7 days",
                   html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
-                    <h2 style="color:#1C1B1A;">ID Verification Complete</h2>
+                    <h2 style="color:#1C1B1A;">Application Paused</h2>
                     <p style="color:#444;font-size:14px;">Hi ${candidate.display_name || candidate.full_name},</p>
-                    <p style="color:#444;font-size:14px;line-height:1.6;">Your identity has been successfully verified. You can now continue building your profile on StaffVA.</p>
-                    <a href="https://staffva.com/apply" style="display:inline-block;background:#FE6E3E;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">Continue Application</a>
+                    <p style="color:#444;font-size:14px;line-height:1.6;">${emailBody}</p>
                     <p style="color:#999;margin-top:24px;font-size:12px;">— The StaffVA Team</p>
                   </div>`,
                 }),
               });
             } catch { /* silent */ }
           }
+
+          // Check for duplicate identity against other locked-out candidates.
+          // Flag in verified_identities if a match exists.
+          const { data: existingIdentity } = await supabase
+            .from("verified_identities")
+            .select("candidate_id")
+            .eq("stripe_verification_session_id", session.id)
+            .neq("candidate_id", candidateId)
+            .maybeSingle();
+
+          if (existingIdentity) {
+            await supabase
+              .from("verified_identities")
+              .update({
+                flagged_for_review: true,
+                review_reason: "anticheat_duplicate",
+              })
+              .eq("stripe_verification_session_id", session.id);
+          }
+
+          break;
+        }
+
+        // No anti-cheat flag — send the normal success email
+        if (process.env.RESEND_API_KEY && candidate) {
+          try {
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: "StaffVA <notifications@staffva.com>",
+                to: candidate.email,
+                subject: "ID Verification Passed — Continue Your Application",
+                html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+                  <h2 style="color:#1C1B1A;">ID Verification Complete</h2>
+                  <p style="color:#444;font-size:14px;">Hi ${candidate.display_name || candidate.full_name},</p>
+                  <p style="color:#444;font-size:14px;line-height:1.6;">Your identity has been successfully verified. You can now continue building your profile on StaffVA.</p>
+                  <a href="https://staffva.com/apply" style="display:inline-block;background:#FE6E3E;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">Continue Application</a>
+                  <p style="color:#999;margin-top:24px;font-size:12px;">— The StaffVA Team</p>
+                </div>`,
+              }),
+            });
+          } catch { /* silent */ }
         }
       }
       break;
@@ -373,6 +455,101 @@ export async function POST(request: Request) {
       );
       break;
     }
+
+    // ---- Stripe Connect — account updated ----
+    // Fires when a connected Express account's details change.
+    // Requires this webhook endpoint to be configured for "Connect events"
+    // in the Stripe Dashboard (same signing secret is used).
+
+    case "account.updated": {
+      const account = event.data.object as Stripe.Account;
+      const connectedAccountId = account.id;
+
+      const { data: candidate } = await supabase
+        .from("candidates")
+        .select("id, email, full_name, display_name")
+        .eq("stripe_account_id", connectedAccountId)
+        .maybeSingle();
+
+      if (!candidate) break;
+
+      const detailsSubmitted = account.details_submitted;
+      const chargesEnabled = account.charges_enabled;
+      const disabledReason = account.requirements?.disabled_reason;
+
+      if (detailsSubmitted && chargesEnabled) {
+        await supabase
+          .from("candidates")
+          .update({
+            stripe_onboarding_complete: true,
+            payout_status: "active",
+          })
+          .eq("id", candidate.id);
+
+        if (process.env.RESEND_API_KEY) {
+          try {
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: "StaffVA <notifications@staffva.com>",
+                to: candidate.email,
+                subject: "Your payout account is active — you're ready to get paid",
+                html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+                  <h2 style="color:#1C1B1A;">Payout Account Active</h2>
+                  <p style="color:#444;font-size:14px;">Hi ${candidate.display_name || candidate.full_name},</p>
+                  <p style="color:#444;font-size:14px;line-height:1.6;">Your Stripe payout account is now fully verified and active. When your escrow releases, payments will be sent directly to your connected bank account.</p>
+                  <p style="color:#444;font-size:14px;line-height:1.6;">Transfer fees are deducted by Stripe from your payout — your agreed rate with clients is what they pay.</p>
+                  <a href="https://staffva.com/candidate/dashboard" style="display:inline-block;background:#FE6E3E;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">Go to Dashboard</a>
+                  <p style="color:#999;margin-top:24px;font-size:12px;">— The StaffVA Team</p>
+                </div>`,
+              }),
+            });
+          } catch { /* silent */ }
+        }
+      } else if (disabledReason) {
+        await supabase
+          .from("candidates")
+          .update({ payout_status: "suspended" })
+          .eq("id", candidate.id);
+
+        if (process.env.RESEND_API_KEY) {
+          try {
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: "StaffVA <notifications@staffva.com>",
+                to: candidate.email,
+                subject: "Action required — your payout account needs attention",
+                html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+                  <h2 style="color:#1C1B1A;">Payout Account Needs Attention</h2>
+                  <p style="color:#444;font-size:14px;">Hi ${candidate.display_name || candidate.full_name},</p>
+                  <p style="color:#444;font-size:14px;line-height:1.6;">Your Stripe payout account has been flagged and payouts are currently paused. This may be due to missing information or a document that needs to be re-submitted.</p>
+                  <p style="color:#444;font-size:14px;line-height:1.6;">Please visit your dashboard and click <strong>Resolve Issue</strong> to access your Stripe Express dashboard and fix the problem.</p>
+                  <a href="https://staffva.com/candidate/dashboard" style="display:inline-block;background:#FE6E3E;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px;">Go to Dashboard</a>
+                  <p style="color:#999;margin-top:24px;font-size:12px;">— The StaffVA Team</p>
+                </div>`,
+              }),
+            });
+          } catch { /* silent */ }
+        }
+      }
+      break;
+    }
+
+    // Note: payout_completed_at on payment_periods/milestones is populated when
+    // the connected account's payout reaches their bank. That event fires as
+    // "payout.paid" on the connected account — wire it via a separate Connect
+    // webhook listener if same-day confirmation is needed. The payout_fired_at
+    // field (written by stripe.transfers.create in the escrow release handler)
+    // already confirms funds were dispatched from the platform.
   }
 
   // Mark as successfully processed

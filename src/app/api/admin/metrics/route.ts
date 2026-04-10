@@ -53,6 +53,7 @@ export async function GET() {
     manualReviewRes,
     screeningFailsRes,
     stalledRevisionsRes,
+    payoutNotSetupRes,
     clientsRes,
     profileViewsRes,
     // Sparkline: approved counts at end of each of past 4 weeks
@@ -76,6 +77,8 @@ export async function GET() {
     admin.from("candidates").select("id", { count: "exact", head: true }).eq("id_verification_status", "manual_review"),
     admin.from("screening_log").select("id", { count: "exact", head: true }).is("tag", null).lt("created_at", new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString()),
     admin.from("profile_revisions").select("id", { count: "exact", head: true }).eq("status", "pending").lt("created_at", new Date(now.getTime() - 72 * 60 * 60 * 1000).toISOString()),
+    // Approved candidates with no payout setup for >48h
+    admin.from("candidates").select("id", { count: "exact", head: true }).eq("admin_status", "approved").eq("payout_status", "not_setup").lt("profile_went_live_at", new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString()),
     // Client health
     admin.from("clients").select("id, user_id, full_name, company_name, created_at").order("created_at", { ascending: false }),
     // Profile views (last 14 days for "browsed not hired")
@@ -180,6 +183,7 @@ export async function GET() {
     manualReview: manualReviewRes.count || 0,
     screeningFails: screeningFailsRes.count || 0,
     stalledRevisions: stalledRevisionsRes.count || 0,
+    payoutNotSetup: payoutNotSetupRes.count || 0,
   };
 
   // Talent pool summary for link card

@@ -31,7 +31,8 @@ export type ApplicationStep =
   | "voice_recording_1"
   | "voice_recording_2"
   | "profile_builder"
-  | "complete";
+  | "complete"
+  | "anticheat_lockout";
 
 export interface CandidateData {
   id: string;
@@ -74,6 +75,8 @@ export interface CandidateData {
   id_verification_consent: boolean;
   skills: string[];
   tools: string[];
+  test_lockout_until: string | null;
+  anticheat_lockout_reason: "four_strikes" | "ten_second_absence" | null;
 }
 
 export default function ApplyPage() {
@@ -131,6 +134,12 @@ export default function ApplyPage() {
     // If permanently blocked from retakes, show result
     if (candidate.permanently_blocked) {
       setStep("test_result");
+      return;
+    }
+
+    // If under an anti-cheat lockout, show the lockout screen
+    if (candidate.test_lockout_until && new Date(candidate.test_lockout_until) > new Date()) {
+      setStep("anticheat_lockout" as ApplicationStep);
       return;
     }
 
@@ -338,7 +347,7 @@ export default function ApplyPage() {
   return (
     <main className="min-h-[calc(100vh-73px)] bg-background">
       {/* Progress bar */}
-      {step !== "complete" && step !== "test_result" && (
+      {step !== "complete" && step !== "test_result" && step !== "anticheat_lockout" && (
         <div className="mx-auto max-w-3xl px-6 pt-6">
           <div className="flex items-center gap-1">
             {["application_form", "english_test", "id_verification", "voice_recording_1", "profile_builder"].map((s, i) => {
@@ -437,6 +446,49 @@ export default function ApplyPage() {
       {step === "complete" && candidateData && (
         <CandidateStatusScreen adminStatus={candidateData.admin_status} candidateId={candidateData.id} />
       )}
+      {step === "anticheat_lockout" && candidateData?.test_lockout_until && (
+        <AnticheatlockoutScreen
+          lockoutUntil={candidateData.test_lockout_until}
+        />
+      )}
     </main>
+  );
+}
+
+function AnticheatlockoutScreen({ lockoutUntil }: { lockoutUntil: string }) {
+  const unlockDate = new Date(lockoutUntil);
+  const now = new Date();
+  const msRemaining = unlockDate.getTime() - now.getTime();
+  const daysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+
+  const formattedDate = unlockDate.toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  return (
+    <div className="flex min-h-[calc(100vh-73px)] items-center justify-center bg-background px-6">
+      <div className="mx-auto max-w-md text-center">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+          <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold text-text">Your assessment is currently paused</h1>
+        <p className="mt-4 text-sm leading-relaxed text-text/60">
+          You left the test screen during your English assessment, which is not permitted.
+        </p>
+        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-6 py-5">
+          <p className="text-sm text-text/70">
+            You may return on <strong className="text-text">{formattedDate}</strong>.
+            When you return your assessment will restart from the beginning.
+          </p>
+          <p className="mt-3 text-2xl font-bold text-red-600">
+            {daysRemaining} {daysRemaining === 1 ? "day" : "days"} remaining
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
