@@ -2,7 +2,6 @@ import { createClient } from "@supabase/supabase-js";
 import { getUser } from "@/lib/auth";
 import Link from "next/link";
 import MessageButton from "@/components/browse/MessageButton";
-import InterviewRequestSection from "@/components/InterviewRequestSection";
 import NotifyButton from "@/components/browse/NotifyButton";
 import ProfileViewTracker from "@/components/ProfileViewTracker";
 import ApproveButton from "@/components/recruiting-manager/ApproveButton";
@@ -238,10 +237,10 @@ export default async function CandidateProfilePage({
 
   const interviewCount = completedInterviews?.length || 0;
 
-  // Fetch completed AI interview (latest)
+  // Fetch completed AI interview (latest) — includes scorecard fields for Interview 1 & 2
   const { data: aiInterview } = await supabase
     .from("ai_interviews")
-    .select("overall_score, technical_knowledge_score, problem_solving_score, communication_score, experience_depth_score, professionalism_score, status, passed, badge_level")
+    .select("overall_score, technical_knowledge_score, problem_solving_score, communication_score, experience_depth_score, professionalism_score, status, passed, badge_level, technical_knowledge_feedback, problem_solving_feedback, communication_feedback, experience_depth_feedback, professionalism_feedback, strengths, weaknesses, ai_notes, second_interview_status, second_interview_overall, second_interview_technical, second_interview_problem, second_interview_communication, second_interview_experience, second_interview_professionalism, second_interview_feedback, second_interview_ai_notes, combined_recommendation, combined_recommendation_reason, second_interview_recruiter_name")
     .eq("candidate_id", id)
     .eq("status", "completed")
     .order("created_at", { ascending: false })
@@ -611,10 +610,7 @@ export default async function CandidateProfilePage({
             <div className="rounded-xl border border-gray-200 bg-white p-6 group/assessment relative">
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-sm font-semibold text-text/40 uppercase tracking-wider">AI Assessment Results</h2>
-                  <p className="mt-1 text-xs text-text-tertiary">
-                    {hasAiInterview ? "Full AI interview assessment — 5 dimensions" : "English language assessment"}
-                  </p>
+                  <h2 className="text-sm font-semibold text-text/40 uppercase tracking-wider">Assessment Results</h2>
                 </div>
                 {overallScore && (
                   <div className={`flex h-14 w-14 items-center justify-center rounded-full border-[3px] ${overallBorder}`}>
@@ -651,17 +647,207 @@ export default async function CandidateProfilePage({
         );
       })()}
 
-      {/* ═══════════ INTERVIEW REQUEST ═══════════ */}
-      {!isOwnProfile && !isCandidate && candidate.admin_status === "approved" && (
-        <div className="mx-auto max-w-5xl px-6 mt-6">
-          <InterviewRequestSection
-            candidateId={candidate.id}
-            candidateName={candidate.display_name || candidate.full_name}
-            isLoggedIn={isLoggedIn}
-            isClient={isClient}
-          />
-        </div>
-      )}
+
+      {/* ═══════════ INTERVIEW 1 — SCORECARD & NOTES ═══════════ */}
+      {aiInterviewCompleted && (() => {
+        const iv = aiInterview!;
+        const score = iv.overall_score;
+        const scoreBorder = score >= 80 ? "border-primary" : score >= 60 ? "border-amber-500" : "border-gray-300";
+        const scoreText = score >= 80 ? "text-primary" : score >= 60 ? "text-amber-600" : "text-gray-400";
+        const badgeMap: Record<string, { label: string; bg: string }> = {
+          exceptional: { label: "Exceptional", bg: "bg-emerald-600" },
+          proficient: { label: "Proficient", bg: "bg-blue-600" },
+          developing: { label: "Developing", bg: "bg-amber-600" },
+          not_ready: { label: "Not Ready", bg: "bg-gray-500" },
+        };
+        const badge = iv.badge_level ? badgeMap[iv.badge_level] : null;
+
+        const dims = [
+          { label: "Technical Knowledge", score: iv.technical_knowledge_score, feedback: iv.technical_knowledge_feedback },
+          { label: "Problem Solving", score: iv.problem_solving_score, feedback: iv.problem_solving_feedback },
+          { label: "Communication", score: iv.communication_score, feedback: iv.communication_feedback },
+          { label: "Experience Depth", score: iv.experience_depth_score, feedback: iv.experience_depth_feedback },
+          { label: "Professionalism", score: iv.professionalism_score, feedback: iv.professionalism_feedback },
+        ];
+
+        const textBlocks = [
+          { label: "Strengths", value: iv.strengths },
+          { label: "Areas for Improvement", value: iv.weaknesses },
+          { label: "Recruiter Notes", value: iv.ai_notes },
+        ];
+
+        return (
+          <div className="mx-auto max-w-5xl px-6 mt-6">
+            {canViewGated ? (
+              <div className="rounded-xl border border-gray-200 bg-white p-6">
+                <h2 className="text-sm font-semibold text-text/40 uppercase tracking-wider">Interview 1 — Scorecard &amp; Notes</h2>
+
+                {/* Score circle + badge */}
+                <div className="mt-5 flex items-center gap-4">
+                  {score != null && (
+                    <div className={`flex h-16 w-16 items-center justify-center rounded-full border-[3px] ${scoreBorder}`}>
+                      <span className={`text-xl font-bold ${scoreText}`}>{score}</span>
+                    </div>
+                  )}
+                  {badge && (
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold text-white ${badge.bg}`}>
+                      {badge.label}
+                    </span>
+                  )}
+                </div>
+
+                {/* Five dimension bars */}
+                <div className="mt-5 space-y-4">
+                  {dims.map((d) => {
+                    if (d.score == null) return null;
+                    const pct = Math.min(Math.round((d.score / 20) * 100), 100);
+                    return (
+                      <div key={d.label}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-text-secondary">{d.label}</span>
+                          <span className="text-xs font-semibold text-text tabular-nums">{d.score}/20</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-gray-100">
+                          <div
+                            className="h-2 rounded-full bg-primary transition-all duration-500"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        {d.feedback && (
+                          <p className="mt-1 text-xs text-text/50">{d.feedback}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Text blocks */}
+                <div className="mt-5 space-y-4">
+                  {textBlocks.map((b) =>
+                    b.value ? (
+                      <div key={b.label}>
+                        <p className="text-xs font-semibold text-text/40 uppercase tracking-wider">{b.label}</p>
+                        <p className="mt-1 text-sm text-text/70">{b.value}</p>
+                      </div>
+                    ) : null
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center">
+                <svg className="mx-auto w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <p className="mt-2 text-xs text-text/50">Create a free account to view interview scorecard.</p>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ═══════════ INTERVIEW 2 — SCORECARD & NOTES ═══════════ */}
+      {aiInterview?.second_interview_status === "completed" && (() => {
+        const iv = aiInterview!;
+        const score2 = iv.second_interview_overall;
+        const score2Border = score2 && score2 >= 80 ? "border-primary" : score2 && score2 >= 60 ? "border-amber-500" : "border-gray-300";
+        const score2Text = score2 && score2 >= 80 ? "text-primary" : score2 && score2 >= 60 ? "text-amber-600" : "text-gray-400";
+
+        const dims2 = [
+          { label: "Technical Knowledge", score: iv.second_interview_technical },
+          { label: "Problem Solving", score: iv.second_interview_problem },
+          { label: "Communication", score: iv.second_interview_communication },
+          { label: "Experience Depth", score: iv.second_interview_experience },
+          { label: "Professionalism", score: iv.second_interview_professionalism },
+        ];
+
+        const recMap: Record<string, { label: string; cls: string }> = {
+          pass: { label: "Recommended", cls: "bg-green-100 text-green-700 border-green-200" },
+          hold: { label: "Under Review", cls: "bg-amber-100 text-amber-700 border-amber-200" },
+          reject: { label: "Not Recommended", cls: "bg-red-100 text-red-700 border-red-200" },
+        };
+        const rec = iv.combined_recommendation ? recMap[iv.combined_recommendation] : null;
+
+        return (
+          <div className="mx-auto max-w-5xl px-6 mt-6">
+            {canViewGated ? (
+              <div className="rounded-xl border border-gray-200 bg-white p-6">
+                <h2 className="text-sm font-semibold text-text/40 uppercase tracking-wider">Interview 2 — Scorecard &amp; Notes</h2>
+
+                {/* Score circle */}
+                {score2 != null && (
+                  <div className="mt-5">
+                    <div className={`flex h-16 w-16 items-center justify-center rounded-full border-[3px] ${score2Border}`}>
+                      <span className={`text-xl font-bold ${score2Text}`}>{score2}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Five dimension bars */}
+                <div className="mt-5 space-y-4">
+                  {dims2.map((d) => {
+                    if (d.score == null) return null;
+                    const pct = Math.min(Math.round((d.score / 20) * 100), 100);
+                    return (
+                      <div key={d.label}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-text-secondary">{d.label}</span>
+                          <span className="text-xs font-semibold text-text tabular-nums">{d.score}/20</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-gray-100">
+                          <div
+                            className="h-2 rounded-full bg-primary transition-all duration-500"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Text blocks */}
+                <div className="mt-5 space-y-4">
+                  {iv.second_interview_feedback && (
+                    <div>
+                      <p className="text-xs font-semibold text-text/40 uppercase tracking-wider">Recruiter Feedback</p>
+                      <p className="mt-1 text-sm text-text/70">{iv.second_interview_feedback}</p>
+                    </div>
+                  )}
+                  {iv.second_interview_ai_notes && (
+                    <div>
+                      <p className="text-xs font-semibold text-text/40 uppercase tracking-wider">Recruiter Notes</p>
+                      <p className="mt-1 text-sm text-text/70">{iv.second_interview_ai_notes}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Combined recommendation badge */}
+                {rec && (
+                  <div className="mt-5">
+                    <span className={`inline-flex rounded-full border px-4 py-1.5 text-sm font-semibold ${rec.cls}`}>
+                      {rec.label}
+                    </span>
+                    {iv.combined_recommendation_reason && (
+                      <p className="mt-2 text-xs text-text/50">{iv.combined_recommendation_reason}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Interviewer name */}
+                {iv.second_interview_recruiter_name && (
+                  <p className="mt-4 text-xs text-text/40">Assessed by {iv.second_interview_recruiter_name}</p>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center">
+                <svg className="mx-auto w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <p className="mt-2 text-xs text-text/50">Create a free account to view interview scorecard.</p>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ═══════════ MAIN CONTENT — 2/3 + 1/3 ═══════════ */}
       <div className="mx-auto max-w-5xl px-6 py-8">
