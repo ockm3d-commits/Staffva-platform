@@ -18,8 +18,9 @@ export default async function ServicePurchasePage({
 
   if (!pkg) notFound();
 
+  const candidatesRaw = pkg.candidates as unknown;
   const candidateName =
-    (pkg.candidates as { display_name: string } | null)?.display_name ?? "Professional";
+    (Array.isArray(candidatesRaw) ? candidatesRaw[0] : candidatesRaw)?.display_name ?? "Professional";
 
   return (
     <ServicePurchaseSection
