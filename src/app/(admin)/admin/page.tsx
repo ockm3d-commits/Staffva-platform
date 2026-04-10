@@ -126,7 +126,7 @@ export default function AdminDashboard() {
             {metrics.pendingReviews}
           </span>
           <span className="text-sm font-medium text-amber-800">
-            candidates pending speaking review
+            candidates pending review
           </span>
           <span className="ml-auto text-xs text-amber-600">Review now &rarr;</span>
         </Link>

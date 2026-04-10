@@ -33,7 +33,7 @@ async function runTest() {
   const { error: mergeErr } = await supabase.from("candidates").update({ admin_status: "duplicate_blocked", permanently_blocked: true }).eq("id", c2.id);
   console.log(`   Merge status update: ${!mergeErr ? "✓" : "✗ " + mergeErr?.message}`);
   // Revert
-  await supabase.from("candidates").update({ admin_status: "pending_speaking_review", permanently_blocked: false }).eq("id", c2.id);
+  await supabase.from("candidates").update({ admin_status: "pending_2nd_interview", permanently_blocked: false }).eq("id", c2.id);
 
   // TEST 3: Flagged review decision
   console.log("\n═══ TEST 3: Flagged Review ═══");

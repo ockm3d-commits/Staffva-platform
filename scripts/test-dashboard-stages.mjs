@@ -31,16 +31,16 @@ function getStage(c, ai) {
 }
 
 const tests = [
-  { desc: "Stage 1", c: { english_mc_score: null, id_verification_consent: false, id_verification_status: "pending", admin_status: "pending_speaking_review", spoken_english_score: null }, ai: null, expect: "Stage 1" },
-  { desc: "Stage 2", c: { english_mc_score: 85, id_verification_consent: false, id_verification_status: "pending", admin_status: "pending_speaking_review", spoken_english_score: null }, ai: null, expect: "Stage 2" },
-  { desc: "Stage 3", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "manual_review", admin_status: "pending_speaking_review", spoken_english_score: null }, ai: null, expect: "Stage 3" },
-  { desc: "Stage 4", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "passed", admin_status: "pending_speaking_review", spoken_english_score: null }, ai: null, expect: "Stage 4" },
-  { desc: "Stage 5", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "passed", admin_status: "pending_speaking_review", spoken_english_score: null }, ai: { status: "completed", passed: true, second_interview_status: null }, expect: "Stage 5" },
-  { desc: "Stage 6", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "passed", admin_status: "pending_speaking_review", spoken_english_score: null }, ai: { status: "completed", passed: true, second_interview_status: "scheduled" }, expect: "Stage 6" },
-  { desc: "Stage 7", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "passed", admin_status: "pending_speaking_review", spoken_english_score: 80 }, ai: { status: "completed", passed: true, second_interview_status: "completed" }, expect: "Stage 7" },
+  { desc: "Stage 1", c: { english_mc_score: null, id_verification_consent: false, id_verification_status: "pending", admin_status: "active", spoken_english_score: null }, ai: null, expect: "Stage 1" },
+  { desc: "Stage 2", c: { english_mc_score: 85, id_verification_consent: false, id_verification_status: "pending", admin_status: "active", spoken_english_score: null }, ai: null, expect: "Stage 2" },
+  { desc: "Stage 3", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "manual_review", admin_status: "active", spoken_english_score: null }, ai: null, expect: "Stage 3" },
+  { desc: "Stage 4", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "passed", admin_status: "active", spoken_english_score: null }, ai: null, expect: "Stage 4" },
+  { desc: "Stage 5", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "passed", admin_status: "active", spoken_english_score: null }, ai: { status: "completed", passed: true, second_interview_status: null }, expect: "Stage 5" },
+  { desc: "Stage 6", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "passed", admin_status: "active", spoken_english_score: null }, ai: { status: "completed", passed: true, second_interview_status: "scheduled" }, expect: "Stage 6" },
+  { desc: "Stage 7", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "passed", admin_status: "pending_review", spoken_english_score: 80 }, ai: { status: "completed", passed: true, second_interview_status: "completed" }, expect: "Stage 7" },
   { desc: "Stage 8", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "passed", admin_status: "changes_requested", spoken_english_score: 80 }, ai: { status: "completed", passed: true, second_interview_status: "completed" }, expect: "Stage 8" },
   { desc: "Stage 9", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "passed", admin_status: "approved", spoken_english_score: 80 }, ai: { status: "completed", passed: true, second_interview_status: "completed" }, expect: "Stage 9" },
-  { desc: "Under review must NOT fire before spoken scored", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "passed", admin_status: "pending_speaking_review", spoken_english_score: null }, ai: { status: "completed", passed: true, second_interview_status: "completed" }, expect: "Stage 7 (pre)" },
+  { desc: "Under review must NOT fire before spoken scored", c: { english_mc_score: 85, id_verification_consent: true, id_verification_status: "passed", admin_status: "pending_review", spoken_english_score: null }, ai: { status: "completed", passed: true, second_interview_status: "completed" }, expect: "Stage 7 (pre)" },
 ];
 
 console.log("\n📋 Dashboard Stage Messages Test\n");

@@ -12,7 +12,7 @@ export type USExperience =
   | "international_only"
   | "none";
 
-export type AdminStatus = "active" | "profile_review" | "approved" | "rejected" | "pending_speaking_review";
+export type AdminStatus = "active" | "pending_2nd_interview" | "pending_review" | "profile_review" | "approved" | "rejected";
 
 export type EnglishWrittenTier = "exceptional" | "proficient" | "competent";
 

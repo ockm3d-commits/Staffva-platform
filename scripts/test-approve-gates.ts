@@ -128,7 +128,7 @@ async function main() {
         years_experience: "3-5",
         hourly_rate: 5,
         time_zone: "Asia/Manila",
-        admin_status: "pending_speaking_review",
+        admin_status: "pending_review",
         english_mc_score: 85,
         english_comprehension_score: 80,
         voice_recording_1_url: "https://example.com/voice1.mp3",
@@ -167,7 +167,7 @@ async function main() {
     assert(!failures1.includes("English grammar score below passing threshold"), "English MC passes (score is 85)");
 
     // Confirm admin_status unchanged
-    assert(c1!.admin_status === "pending_speaking_review", "admin_status still pending_speaking_review");
+    assert(c1!.admin_status === "pending_review", "admin_status still pending_review");
 
     // ── Test 2: Fix resume → all gates should pass ──
     console.log("\n== Test 2: All conditions met → approval succeeds ==");
@@ -206,7 +206,7 @@ async function main() {
     await admin
       .from("candidates")
       .update({
-        admin_status: "pending_speaking_review",
+        admin_status: "pending_review",
         resume_url: null,
         tagline: null,
         bio: "",
