@@ -136,6 +136,13 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
             </div>
           )}
 
+          {/* Services — hidden from candidates */}
+          {role !== "candidate" && (
+            <Link href="/services" className={`px-3.5 py-1.5 text-[14px] font-medium transition-colors ${textColor}`}>
+              Services
+            </Link>
+          )}
+
           {/* For Professionals — visible to logged-out visitors only */}
           {!isLoggedIn && (
             <div className="relative" onMouseEnter={() => handleMouseEnter("for-professionals")} onMouseLeave={handleMouseLeave}>
@@ -188,6 +195,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
                 <>
                   <Link href="/team" className={`text-[14px] font-medium transition-colors ${textColor}`}>My Team</Link>
                   <Link href="/inbox" className={`text-[14px] font-medium transition-colors ${textColor}`}>Inbox</Link>
+                  <Link href="/services" className={`text-[14px] font-medium transition-colors ${textColor}`}>Services</Link>
                 </>
               )}
               {(role === "recruiter" || role === "recruiting_manager") && (
@@ -279,6 +287,7 @@ export default function DropdownNavbar({ user, variant = "light" }: DropdownNavb
                   <>
                     <Link href="/team" onClick={() => setMobileOpen(false)} className={`block py-2 text-sm font-medium ${isDark ? "text-white" : "text-text"}`}>My Team</Link>
                     <Link href="/inbox" onClick={() => setMobileOpen(false)} className={`block py-2 text-sm font-medium ${isDark ? "text-white" : "text-text"}`}>Inbox</Link>
+                    <Link href="/services" onClick={() => setMobileOpen(false)} className={`block py-2 text-sm font-medium ${isDark ? "text-white" : "text-text"}`}>Services</Link>
                   </>
                 )}
                 {role === "admin" && (

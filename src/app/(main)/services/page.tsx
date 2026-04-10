@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
+import ServicesBrowse from "@/components/ServicesBrowse";
 
 export default function ServicesPage() {
-  notFound();
+  return <ServicesBrowse />;
 }
