@@ -176,10 +176,14 @@ export default function RecruiterDashboardPage() {
     const supabase = createClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-    await supabase
-      .from("profiles")
-      .update({ calendar_link: link || null })
-      .eq("id", session.user.id);
+    await fetch("/api/recruiter/calendar-link", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ calendar_link: link || null }),
+    });
     loadDashboard();
   }
 

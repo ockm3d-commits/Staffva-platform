@@ -72,6 +72,8 @@ export async function GET(req: NextRequest) {
     allRevisionsRes,
     // Candidates for pipeline velocity
     approvedThisWeekRes,
+    // Calendar link alerts (unacknowledged)
+    calendarAlertsRes,
   ] = await Promise.all([
     // My interviews today
     supabase
@@ -160,6 +162,12 @@ export async function GET(req: NextRequest) {
       .select("id", { count: "exact", head: true })
       .eq("admin_status", "approved")
       .gte("updated_at", weekStartISO),
+    // Calendar link alerts (unacknowledged)
+    supabase
+      .from("calendar_link_alerts")
+      .select("id, recruiter_id, recruiter_name, alerted_at")
+      .eq("acknowledged", false)
+      .order("alerted_at", { ascending: false }),
   ]);
 
   // Process team status
@@ -318,5 +326,6 @@ export async function GET(req: NextRequest) {
     complianceGrid,
     gridDays,
     recruiterNameMap: Object.fromEntries(recruiterNameMap),
+    calendarAlerts: calendarAlertsRes.data || [],
   });
 }

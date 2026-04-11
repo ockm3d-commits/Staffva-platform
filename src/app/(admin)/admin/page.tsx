@@ -18,6 +18,22 @@ interface ClientHealth {
   churningRisk: boolean;
 }
 
+interface TalentSpecialist {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  avatar_url: string | null;
+  calendar_link: string | null;
+}
+
+interface CalendarAlert {
+  id: string;
+  recruiter_id: string;
+  recruiter_name: string;
+  alerted_at: string;
+}
+
 interface Metrics {
   liveCandidates: number;
   activeEngagements: number;
@@ -50,6 +66,8 @@ interface Metrics {
     liveCandidates: number;
     rolesBelow2: number;
   };
+  talentSpecialists: TalentSpecialist[];
+  calendarAlerts: CalendarAlert[];
 }
 
 function Sparkline({ data, color }: { data: number[]; color: string }) {
@@ -86,6 +104,7 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch("/api/admin/metrics").then((res) => {
@@ -105,6 +124,17 @@ export default function AdminDashboard() {
     return <p className="text-text/60">Loading dashboard...</p>;
   }
 
+  const activeCalendarAlerts = metrics.calendarAlerts.filter((a) => !dismissedAlerts.has(a.id));
+
+  async function acknowledgeCalendarAlert(alertId: string) {
+    setDismissedAlerts((prev) => new Set(prev).add(alertId));
+    await fetch("/api/admin/calendar-alerts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alert_id: alertId }),
+    });
+  }
+
   const hasAlerts =
     metrics.alerts.banPending > 0 ||
     metrics.alerts.disputesPast48h > 0 ||
@@ -112,7 +142,8 @@ export default function AdminDashboard() {
     metrics.alerts.manualReview > 0 ||
     metrics.alerts.screeningFails > 0 ||
     metrics.alerts.stalledRevisions > 0 ||
-    metrics.alerts.payoutNotSetup > 0;
+    metrics.alerts.payoutNotSetup > 0 ||
+    activeCalendarAlerts.length > 0;
 
   return (
     <div>
@@ -260,6 +291,88 @@ export default function AdminDashboard() {
                 <span className="ml-auto text-xs text-amber-600">View &rarr;</span>
               </Link>
             )}
+
+            {/* Calendar link removed alerts */}
+            {activeCalendarAlerts.map((alert) => (
+              <div key={alert.id} className="flex items-center gap-3 rounded-xl border-l-4 border-red-500 bg-red-50 px-5 py-3">
+                <span className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">!</span>
+                <Link href="/admin/recruiters" className="flex-1 text-sm font-medium text-red-800 hover:underline">
+                  {alert.recruiter_name} removed their calendar link &mdash; candidates cannot book their second interview.
+                </Link>
+                <button
+                  onClick={() => acknowledgeCalendarAlert(alert.id)}
+                  className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors"
+                >
+                  Acknowledge
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Talent Specialist Cards */}
+      {metrics.talentSpecialists.length > 0 && (
+        <div className="mt-6">
+          <h2 className="text-lg font-semibold text-text mb-1">Talent Specialist Cards</h2>
+          <p className="text-xs text-text/40 mb-3">Preview how each specialist appears to candidates. Calendar link required for second interview scheduling.</p>
+          <div className="flex gap-4 overflow-x-auto pb-2">
+            {metrics.talentSpecialists.map((ts) => {
+              const firstName = ts.full_name?.split(" ")[0] || "there";
+              const initials = ts.full_name
+                ? ts.full_name.split(" ").map((n) => n.charAt(0)).join("").slice(0, 2).toUpperCase()
+                : "?";
+              const hasCalendar = !!ts.calendar_link;
+
+              return (
+                <Link
+                  key={ts.id}
+                  href="/admin/recruiters"
+                  className="shrink-0 w-[300px] rounded-xl border border-gray-200 bg-white p-5 hover:border-primary/30 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-gray-100">
+                      {ts.avatar_url ? (
+                        <img src={ts.avatar_url} alt={ts.full_name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-lg font-bold text-gray-400">
+                          {initials}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#1C1B1A] truncate">{ts.full_name}</p>
+                      <p className="text-[10px] font-medium text-text/40 uppercase tracking-wider">
+                        {ts.role === "recruiting_manager" ? "Recruiting Manager" : "Talent Specialist"}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs text-gray-500 leading-relaxed">
+                    Hi {firstName}, I reviewed your application and I am excited to connect. Book a time below for your second interview.
+                  </p>
+                  <div className="mt-3">
+                    {hasCalendar ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FE6E3E] px-4 py-1.5 text-xs font-semibold text-white">
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                        </svg>
+                        Schedule My Interview
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-4 py-1.5 text-xs font-semibold text-red-600 cursor-not-allowed">
+                        No Calendar Link Set
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span className={`h-2 w-2 rounded-full ${hasCalendar ? "bg-green-500" : "bg-red-500"}`} />
+                    <span className={`text-[10px] font-medium ${hasCalendar ? "text-green-700" : "text-red-600"}`}>
+                      {hasCalendar ? "Calendar Active" : "Calendar Missing"}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}

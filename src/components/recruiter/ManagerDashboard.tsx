@@ -107,6 +107,12 @@ interface ManagerData {
   }[];
   gridDays: string[];
   recruiterNameMap: Record<string, string>;
+  calendarAlerts: {
+    id: string;
+    recruiter_id: string;
+    recruiter_name: string;
+    alerted_at: string;
+  }[];
 }
 
 type MobileTab = "mine" | "team";
@@ -142,6 +148,7 @@ export default function ManagerDashboard() {
   const [candidatesSearch, setCandidatesSearch] = useState("");
   const [candidatesRecruiterFilter, setCandidatesRecruiterFilter] = useState("");
   const [candidatesLoaded, setCandidatesLoaded] = useState(false);
+  const [dismissedCalendarAlerts, setDismissedCalendarAlerts] = useState<Set<string>>(new Set());
 
   // 10-second timeout fallback — never leave the spinner hanging
   useEffect(() => {
@@ -424,6 +431,38 @@ export default function ManagerDashboard() {
                   </div>
                 );
               })}
+            </div>
+          </section>
+        )}
+
+        {/* Calendar Link Removed Alerts */}
+        {data.calendarAlerts && data.calendarAlerts.filter((a) => !dismissedCalendarAlerts.has(a.id)).length > 0 && (
+          <section>
+            <h2 className="text-sm font-semibold text-red-700 mb-3">Calendar Link Removed</h2>
+            <div className="space-y-2">
+              {data.calendarAlerts
+                .filter((a) => !dismissedCalendarAlerts.has(a.id))
+                .map((alert) => (
+                  <div key={alert.id} className="rounded-lg border-2 border-red-300 bg-red-50 p-3 flex items-center gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-600 text-white text-xs font-bold">!</div>
+                    <Link href="/admin/recruiters" className="flex-1 min-w-0 text-sm font-medium text-red-800 hover:underline">
+                      {alert.recruiter_name} removed their calendar link &mdash; candidates cannot book their second interview.
+                    </Link>
+                    <button
+                      onClick={async () => {
+                        setDismissedCalendarAlerts((prev) => new Set(prev).add(alert.id));
+                        await fetch("/api/admin/calendar-alerts", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ alert_id: alert.id }),
+                        });
+                      }}
+                      className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors"
+                    >
+                      Acknowledge
+                    </button>
+                  </div>
+                ))}
             </div>
           </section>
         )}
