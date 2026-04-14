@@ -973,15 +973,15 @@ export default function CandidateDashboardPage() {
           // Stage 4: ID verified, AI interview not started / failed / retake ready
           const aiInProgress = !!aiInterview && aiInterview.status === "in_progress";
           const score = aiInterview?.overall_score ?? 0;
-          const retakeDateStr = retakeAt
-            ? retakeAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+          const retakeDateFormatted = retakeAt
+            ? retakeAt.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
             : "";
 
           if (aiFailed && !retakeAvailable) {
             // State A — failed, retake not yet available
             nextHeading = "Your AI interview did not pass";
-            nextBody = `Your AI interview score was ${score} out of 100. You need 60 or above to continue. Your retake will be available on ${retakeDateStr}.`;
-            retakeDisabledLabel = retakeDateStr ? `Retake Available ${retakeDateStr}` : "Retake Available Soon";
+            nextBody = `Your AI interview score was ${score} out of 100. You need 60 or above to continue. Your retake will be available on ${retakeDateFormatted}.`;
+            retakeDisabledLabel = retakeDateFormatted ? `Retake Available ${retakeDateFormatted}` : "Retake Available Soon";
           } else if (aiFailed && retakeAvailable) {
             // State B — failed, retake now available
             nextHeading = "Your retake is ready";
