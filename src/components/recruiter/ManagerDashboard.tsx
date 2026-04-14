@@ -140,7 +140,8 @@ interface ManagerData {
 function stageBadge(status: string, tag: string | null) {
   if (tag === "assignment_pending_review") return { label: "Needs routing", cls: "bg-red-100 text-red-700" };
   switch (status) {
-    case "pending_speaking_review": return { label: "Pending review", cls: "bg-amber-100 text-amber-700" };
+    case "pending_speaking_review": return { label: "Pending recruiter interview", cls: "bg-amber-100 text-amber-700" };
+    case "pending_2nd_interview": return { label: "Pending recruiter interview", cls: "bg-amber-100 text-amber-700" };
     case "approved": return { label: "Approved", cls: "bg-green-100 text-green-700" };
     case "revision_required": return { label: "Revision", cls: "bg-orange-100 text-orange-700" };
     case "profile_review": return { label: "Profile review", cls: "bg-blue-100 text-blue-700" };

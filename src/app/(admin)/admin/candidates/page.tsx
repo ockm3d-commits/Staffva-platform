@@ -32,7 +32,7 @@ const US_EXP_LABELS: Record<string, string> = {
 const STATUS_BADGE: Record<string, { label: string; color: string }> = {
   active: { label: "Active", color: "bg-blue-100 text-blue-700" },
   profile_review: { label: "Profile Review", color: "bg-amber-100 text-amber-700" },
-  pending_2nd_interview: { label: "Pending 2nd Interview", color: "bg-amber-100 text-amber-700" },
+  pending_2nd_interview: { label: "Pending recruiter interview", color: "bg-amber-100 text-amber-700" },
   pending_review: { label: "Pending Review", color: "bg-amber-100 text-amber-700" },
   approved: { label: "Approved", color: "bg-green-100 text-green-700" },
   rejected: { label: "Rejected", color: "bg-red-100 text-red-700" },
