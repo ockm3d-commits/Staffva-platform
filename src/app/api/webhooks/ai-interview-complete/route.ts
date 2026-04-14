@@ -28,32 +28,93 @@ export async function POST(req: NextRequest) {
     // Check this candidate's latest completed AI interview (pass or fail)
     const { data: aiInterview } = await supabase
       .from("ai_interviews")
-      .select("passed, status")
+      .select("id, passed, status, overall_score")
       .eq("candidate_id", candidateId)
       .eq("status", "completed")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    const passed = aiInterview?.passed === true;
+    // Pass threshold: overall_score >= 60. This is the single source of truth
+    // for pass/fail — we do not trust the upstream `passed` flag.
+    const overallScore = aiInterview?.overall_score ?? 0;
+    const passed = overallScore >= 60;
 
-    // Writeback to candidates row — ai_interview_completed_at marks completion regardless of pass/fail;
-    // admin_status advances only on pass.
+    // Writeback to candidates row — ai_interview_completed_at marks completion
+    // regardless of pass/fail; admin_status advances on pass, or flips to
+    // 'ai_interview_failed' on fail so the dashboard can render the retake gate.
     const candidateUpdate: Record<string, unknown> = {
       ai_interview_completed_at: new Date().toISOString(),
+      admin_status: passed ? "pending_2nd_interview" : "ai_interview_failed",
     };
-    if (passed) {
-      candidateUpdate.admin_status = "pending_2nd_interview";
+    // Reset retake-ready notification flag on every fail so the cron will
+    // re-notify the candidate when the new 3-day window unlocks.
+    if (!passed) {
+      candidateUpdate.ai_interview_retake_notified_at = null;
     }
     await supabase.from("candidates").update(candidateUpdate).eq("id", candidateId);
 
-    // Auto-assign recruiter based on role_category
     const { data: candidate } = await supabase
       .from("candidates")
       .select("role_category, email, display_name, full_name")
       .eq("id", candidateId)
       .single();
 
+    // On fail: insert interview_attempts row with a 3-day retake lockout and
+    // send the fail email. No recruiter assignment, no "Other" role routing.
+    if (!passed) {
+      const { count: priorAttempts } = await supabase
+        .from("interview_attempts")
+        .select("*", { count: "exact", head: true })
+        .eq("candidate_id", candidateId);
+
+      const nextRetakeAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
+      await supabase.from("interview_attempts").insert({
+        candidate_id: candidateId,
+        attempt_number: (priorAttempts ?? 0) + 1,
+        ai_interview_id: aiInterview?.id ?? null,
+        next_retake_available_at: nextRetakeAt,
+      });
+
+      if (process.env.RESEND_API_KEY && candidate?.email) {
+        const firstName =
+          (candidate.display_name || candidate.full_name || "").split(" ")[0] || "there";
+        try {
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: "StaffVA <notifications@staffva.com>",
+              to: candidate.email,
+              subject: "Your AI interview results — retake available in 3 days",
+              html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+                <h2 style="color:#1C1B1A;">Your AI interview results</h2>
+                <p style="color:#444;font-size:14px;">Hi ${firstName},</p>
+                <p style="color:#444;font-size:14px;">Your AI interview score was <strong>${overallScore}</strong> out of 100. A score of <strong>60 or above</strong> is required to proceed to the next step.</p>
+                <p style="color:#444;font-size:14px;">Your retake will unlock in 3 days. We will send you another email the moment it becomes available — no action needed on your side until then.</p>
+                <p style="color:#999;margin-top:24px;font-size:12px;">— The StaffVA Team</p>
+              </div>`,
+            }),
+          });
+        } catch (err) {
+          console.error("[AI Interview Webhook] Fail email send error:", err);
+        }
+      }
+
+      // Fire and forget insights generation so the candidate can still see dimension scores.
+      generateInsights(candidateId).catch((err) =>
+        console.error("[AI Insights Webhook] Error:", err)
+      );
+
+      return NextResponse.json({ success: true, message: "Fail recorded, retake scheduled" });
+    }
+
+    // ─── Pass branch ───────────────────────────────────────────────────────
+    // Auto-assign recruiter based on role_category
     if (candidate?.role_category) {
       const { data: assignment } = await supabase
         .from("recruiter_assignments")

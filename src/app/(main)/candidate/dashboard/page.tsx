@@ -272,9 +272,11 @@ const TIER_COLORS: Record<string, { bg: string; text: string }> = {
   Established: { bg: "bg-gray-500", text: "text-white" },
 };
 
+type StageState = "failed" | "retake-ready" | undefined;
+
 function MobileProgressTracker({ currentIndex, currentStageName, progressPercent, stages }: {
   currentIndex: number; currentStageName: string; progressPercent: number;
-  stages: { label: string; done: boolean }[];
+  stages: { label: string; done: boolean; state?: StageState }[];
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -301,7 +303,15 @@ function MobileProgressTracker({ currentIndex, currentStageName, progressPercent
         <div className="mt-4 space-y-2">
           {stages.map((stage, i) => (
             <div key={stage.label} className="flex items-center gap-3">
-              {stage.done ? (
+              {stage.state === "failed" ? (
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-500">
+                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </div>
+              ) : stage.state === "retake-ready" ? (
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-400">
+                  <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
+                </div>
+              ) : stage.done ? (
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-500">
                   <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                 </div>
@@ -314,7 +324,7 @@ function MobileProgressTracker({ currentIndex, currentStageName, progressPercent
                   <div className="h-1.5 w-1.5 rounded-full bg-gray-300" />
                 </div>
               )}
-              <span className={`text-sm ${stage.done ? "text-green-600 font-medium" : i === currentIndex ? "text-[#1C1B1A] font-medium" : "text-gray-400"}`}>{stage.label}</span>
+              <span className={`text-sm ${stage.state === "failed" ? "text-red-600 font-medium" : stage.state === "retake-ready" ? "text-amber-600 font-medium" : stage.done ? "text-green-600 font-medium" : i === currentIndex ? "text-[#1C1B1A] font-medium" : "text-gray-400"}`}>{stage.label}</span>
             </div>
           ))}
         </div>
@@ -885,7 +895,18 @@ export default function CandidateDashboardPage() {
         const step2Done = (candidate.english_mc_score ?? 0) >= 70 && (candidate.english_comprehension_score ?? 0) >= 70 && !!candidate.voice_recording_1_url && !!candidate.voice_recording_2_url;
         const step3Done = candidate.id_verification_status === "passed";
         const step4Done = !!candidate.profile_photo_url && !!candidate.resume_url && !!candidate.tagline && !!candidate.bio && !!candidate.payout_method && !!candidate.interview_consent_at;
-        const step5Done = !!candidate.ai_interview_completed_at;
+
+        // AI interview fail-gate derived state — interview_attempts.next_retake_available_at
+        // is the single source of truth for retake timing.
+        const aiFailed = candidate.admin_status === "ai_interview_failed";
+        const retakeAt = retakeData?.next_retake_available_at
+          ? new Date(retakeData.next_retake_available_at)
+          : null;
+        const retakeAvailable = retakeAt ? retakeAt <= new Date() : false;
+
+        // Step 5 is only "done" if the interview completed AND did not fail — a failed
+        // interview blocks progress past Step 4 until the candidate retakes and passes.
+        const step5Done = !!candidate.ai_interview_completed_at && !aiFailed;
         const step6Done = candidate.second_interview_status === "completed";
         const step7Done = candidate.admin_status === "approved";
 
@@ -902,12 +923,19 @@ export default function CandidateDashboardPage() {
         const changesRequested = candidate.admin_status === "changes_requested";
         const profileLive = step7Done;
 
-        const stages = [
+        const aiStageLabel = aiFailed
+          ? (retakeAvailable ? "Retake Ready" : "Interview Failed")
+          : "AI Interview";
+        const aiStageState: StageState = aiFailed
+          ? (retakeAvailable ? "retake-ready" : "failed")
+          : undefined;
+
+        const stages: { label: string; done: boolean; state?: StageState }[] = [
           { label: "Application", done: step1Done },
           { label: "English Test", done: step2Done },
           { label: "ID Verified", done: step3Done },
           { label: "Profile", done: step4Done },
-          { label: "AI Interview", done: step5Done },
+          { label: aiStageLabel, done: step5Done, state: aiStageState },
           { label: "Recruiter", done: step6Done },
           { label: "Live", done: step7Done },
         ];
@@ -925,6 +953,7 @@ export default function CandidateDashboardPage() {
         let nextHref = "";
         let nextLabel = "";
         let isInterviewButton = false;
+        let retakeDisabledLabel = "";
 
         if (!testSubmitted) {
           // Stage 1: English test not started
@@ -941,12 +970,24 @@ export default function CandidateDashboardPage() {
           nextHeading = "Your identity is being reviewed by our team";
           nextBody = "You will receive your results by email within 48 hours.";
         } else if (idVerified && !aiDone) {
-          // Stage 4: ID verified, AI interview not started
-          const aiFailed = !!aiInterview && aiInterview.status === "completed" && !aiInterview.passed;
+          // Stage 4: ID verified, AI interview not started / failed / retake ready
           const aiInProgress = !!aiInterview && aiInterview.status === "in_progress";
-          if (aiFailed) {
+          const score = aiInterview?.overall_score ?? 0;
+          const retakeDateStr = retakeAt
+            ? retakeAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+            : "";
+
+          if (aiFailed && !retakeAvailable) {
+            // State A — failed, retake not yet available
             nextHeading = "Your AI interview did not pass";
-            nextBody = "Review your results below. You may be eligible to retake the interview.";
+            nextBody = `Your AI interview score was ${score} out of 100. You need 60 or above to continue. Your retake will be available on ${retakeDateStr}.`;
+            retakeDisabledLabel = retakeDateStr ? `Retake Available ${retakeDateStr}` : "Retake Available Soon";
+          } else if (aiFailed && retakeAvailable) {
+            // State B — failed, retake now available
+            nextHeading = "Your retake is ready";
+            nextBody = `You scored ${score} on your first attempt. You need 60 or above to proceed.`;
+            isInterviewButton = true;
+            nextLabel = "Start AI Interview";
           } else if (aiInProgress) {
             nextHeading = "Your AI interview is in progress";
             nextBody = "Complete your interview to move to the next step.";
@@ -1004,7 +1045,15 @@ export default function CandidateDashboardPage() {
                 {stages.map((stage, i) => (
                   <div key={stage.label} className="flex items-center">
                     <div className="flex flex-col items-center">
-                      {stage.done ? (
+                      {stage.state === "failed" ? (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500">
+                          <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </div>
+                      ) : stage.state === "retake-ready" ? (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-400 ring-2 ring-amber-500">
+                          <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-white" />
+                        </div>
+                      ) : stage.done ? (
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500">
                           <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                         </div>
@@ -1017,7 +1066,7 @@ export default function CandidateDashboardPage() {
                           <div className="h-2 w-2 rounded-full bg-gray-300" />
                         </div>
                       )}
-                      <span className={`mt-1.5 text-[9px] font-medium text-center leading-tight ${stage.done ? "text-green-600" : i === currentIndex ? "text-[#1C1B1A]" : "text-gray-400"}`}>{stage.label}</span>
+                      <span className={`mt-1.5 text-[9px] font-medium text-center leading-tight ${stage.state === "failed" ? "text-red-600" : stage.state === "retake-ready" ? "text-amber-600" : stage.done ? "text-green-600" : i === currentIndex ? "text-[#1C1B1A]" : "text-gray-400"}`}>{stage.label}</span>
                     </div>
                     {i < stages.length - 1 && (
                       <div className={`mx-1 h-0.5 w-6 lg:w-12 ${stage.done ? "bg-green-400" : "bg-gray-200"}`} />
@@ -1125,6 +1174,16 @@ export default function CandidateDashboardPage() {
                   {interviewError && (
                     <p className="mt-2 text-sm text-red-600">{interviewError}</p>
                   )}
+                </div>
+              )}
+              {retakeDisabledLabel && (
+                <div className="mt-3">
+                  <button
+                    disabled
+                    className="inline-block rounded-full bg-gray-200 px-6 py-2.5 text-sm font-semibold text-gray-400 cursor-not-allowed"
+                  >
+                    {retakeDisabledLabel}
+                  </button>
                 </div>
               )}
               {!isInterviewButton && nextHref && nextLabel && (
