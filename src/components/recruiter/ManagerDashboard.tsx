@@ -110,6 +110,7 @@ interface ManagerData {
     id: string;
     display_name: string;
     role_category: string;
+    role_category_custom: string | null;
     admin_status: string;
     screening_tag: string;
     country: string;
@@ -120,6 +121,7 @@ interface ManagerData {
     id: string;
     display_name: string;
     role_category: string;
+    role_category_custom: string | null;
     admin_status: string;
     screening_tag: string;
     country: string;
@@ -485,7 +487,7 @@ export default function ManagerDashboard() {
                       return (
                         <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50">
                           <td className="px-4 py-2.5 font-medium text-[#1C1B1A]">{c.display_name || "—"}</td>
-                          <td className="px-4 py-2.5 text-gray-500">{c.role_category || "—"}</td>
+                          <td className="px-4 py-2.5 text-gray-500">{c.role_category === "Other" && c.role_category_custom ? <>{c.role_category} <span className="text-gray-400 text-[10px]">— {c.role_category_custom}</span></> : (c.role_category || "—")}</td>
                           <td className="px-4 py-2.5">
                             <span className={`${badge.cls} text-[10px] font-medium px-2 py-0.5 rounded-full`}>{badge.label}</span>
                           </td>
@@ -728,7 +730,7 @@ export default function ManagerDashboard() {
                           <div className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-sm font-bold text-white ${isRouting ? "bg-red-400" : "bg-amber-400"}`}>{initials}</div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-[#1C1B1A]">{c.display_name}</p>
-                            <p className="text-[11px] text-gray-500">{c.role_category} &middot; {statusText} &middot; {daysAgo(c.updated_at)}d waiting</p>
+                            <p className="text-[11px] text-gray-500">{c.role_category === "Other" && c.role_category_custom ? `${c.role_category} — ${c.role_category_custom}` : c.role_category} &middot; {statusText} &middot; {daysAgo(c.updated_at)}d waiting</p>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <Link href={`/candidate/${c.id}`} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-[#1C1B1A] hover:border-[#FE6E3E] hover:text-[#FE6E3E] transition-colors">View profile</Link>
@@ -790,7 +792,7 @@ export default function ManagerDashboard() {
                       <div className="h-9 w-9 shrink-0 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500">{initials}</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-[#1C1B1A]">{c.display_name}</p>
-                        <p className="text-[11px] text-gray-500">{c.role_category} &middot; <span className={`${badge.cls} text-[10px] font-medium px-2 py-0.5 rounded-full`}>{badge.label}</span> &middot; {daysAgo(c.updated_at)}d ago</p>
+                        <p className="text-[11px] text-gray-500">{c.role_category === "Other" && c.role_category_custom ? `${c.role_category} — ${c.role_category_custom}` : c.role_category} &middot; <span className={`${badge.cls} text-[10px] font-medium px-2 py-0.5 rounded-full`}>{badge.label}</span> &middot; {daysAgo(c.updated_at)}d ago</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <Link href={`/candidate/${c.id}`} className="rounded-lg border border-gray-200 px-3 py-1.5 text-[11px] font-medium text-[#1C1B1A] hover:border-[#FE6E3E] hover:text-[#FE6E3E] transition-colors">View profile</Link>
