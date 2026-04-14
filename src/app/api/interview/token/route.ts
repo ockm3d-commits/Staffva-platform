@@ -12,6 +12,16 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const token = await generateInterviewToken(user.id);
+  const { data: candidate, error } = await supabase
+    .from("candidates")
+    .select("id")
+    .eq("user_id", user.id)
+    .single();
+
+  if (error || !candidate) {
+    return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
+  }
+
+  const token = await generateInterviewToken(candidate.id);
   return NextResponse.json({ token });
 }
