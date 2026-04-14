@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import ApplicationForm from "@/components/apply/ApplicationForm";
 import DeviceCheck from "@/components/apply/DeviceCheck";
@@ -80,6 +81,7 @@ export interface CandidateData {
 }
 
 export default function ApplyPage() {
+  const router = useRouter();
   const [step, setStep] = useState<ApplicationStep>("loading");
   const [candidateData, setCandidateData] = useState<CandidateData | null>(null);
   const [testPassed, setTestPassed] = useState(false);
@@ -159,6 +161,12 @@ export default function ApplyPage() {
       !!candidate.profile_completed_at;
 
     if (isFullyComplete) {
+      // Failed candidates must go to the dashboard to see their retake date,
+      // not the "complete" screen which is meant for approved/pending-review states.
+      if (candidate.admin_status === "ai_interview_failed") {
+        router.push("/candidate/dashboard");
+        return;
+      }
       setStep("complete");
       return;
     }
