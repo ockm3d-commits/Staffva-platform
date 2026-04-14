@@ -25,15 +25,27 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Check if this candidate passed the AI interview
+    // Check this candidate's latest completed AI interview (pass or fail)
     const { data: aiInterview } = await supabase
       .from("ai_interviews")
-      .select("passed")
+      .select("passed, status")
       .eq("candidate_id", candidateId)
       .eq("status", "completed")
-      .eq("passed", true)
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    const passed = aiInterview?.passed === true;
+
+    // Writeback to candidates row — ai_interview_completed_at marks completion regardless of pass/fail;
+    // admin_status advances only on pass.
+    const candidateUpdate: Record<string, unknown> = {
+      ai_interview_completed_at: new Date().toISOString(),
+    };
+    if (passed) {
+      candidateUpdate.admin_status = "pending_2nd_interview";
+    }
+    await supabase.from("candidates").update(candidateUpdate).eq("id", candidateId);
 
     // Auto-assign recruiter based on role_category
     const { data: candidate } = await supabase
@@ -81,7 +93,7 @@ export async function POST(req: NextRequest) {
       // Insert unrouted alert
       await supabase.from("unrouted_alerts").insert({
         candidate_id: candidateId,
-        ai_interview_result: !!aiInterview,
+        ai_interview_result: passed,
       });
 
       // Send candidate email
