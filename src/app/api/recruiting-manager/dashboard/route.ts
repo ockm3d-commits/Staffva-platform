@@ -237,15 +237,30 @@ export async function GET(req: NextRequest) {
     .select("id, display_name, role_category, admin_status, screening_tag, country, updated_at, created_at, assigned_recruiter")
     .not("admin_status", "in", '("rejected")')
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(500);
 
-  // Enrich allCandidates with recruiter names
-  const allCandidates = (allCandidatesRaw || []).map((c) => ({
-    ...c,
-    assigned_recruiter_name: c.assigned_recruiter
-      ? recruiterNameMap.get(c.assigned_recruiter) || "Unknown"
-      : "Unassigned",
-  }));
+  // Reverse lookup: name → UUID (handles legacy rows where assigned_recruiter is a name, not UUID)
+  const recruiterNameToId = new Map<string, string>();
+  for (const r of recruiters) recruiterNameToId.set(r.full_name, r.id);
+
+  // Enrich allCandidates: normalize assigned_recruiter to UUID, add display name
+  const allCandidates = (allCandidatesRaw || []).map((c) => {
+    let recruiterId = c.assigned_recruiter;
+    let recruiterName = "Unassigned";
+    if (recruiterId) {
+      if (recruiterNameMap.has(recruiterId)) {
+        // It's already a UUID
+        recruiterName = recruiterNameMap.get(recruiterId) || "Unknown";
+      } else if (recruiterNameToId.has(recruiterId)) {
+        // It's a name — resolve to UUID
+        recruiterName = recruiterId;
+        recruiterId = recruiterNameToId.get(recruiterId)!;
+      } else {
+        recruiterName = recruiterId; // Unknown name, show as-is
+      }
+    }
+    return { ...c, assigned_recruiter: recruiterId, assigned_recruiter_name: recruiterName };
+  });
 
   // Enrich unrouted alerts with candidate info
   const unroutedAlerts = unroutedAlertsRes.data || [];

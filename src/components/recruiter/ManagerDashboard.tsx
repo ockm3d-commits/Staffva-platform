@@ -269,10 +269,10 @@ export default function ManagerDashboard() {
   // Pipeline counts
   const pipelineRows = [
     { label: "Total applications", count: totalCandidates, color: "bg-gray-400" },
-    { label: "Profile review", count: allCandidates.filter((c) => c.admin_status === "profile_review").length, color: "bg-blue-500" },
+    { label: "Pending 2nd interview", count: allCandidates.filter((c) => c.admin_status === "pending_2nd_interview").length, color: "bg-purple-500" },
     { label: "Pending speaking review", count: pendingSpeakingReview, color: "bg-amber-500" },
+    { label: "Active", count: allCandidates.filter((c) => c.admin_status === "active").length, color: "bg-blue-500" },
     { label: "Approved & live", count: allCandidates.filter((c) => c.admin_status === "approved").length, color: "bg-green-500" },
-    { label: "Needs routing", count: needsRouting, color: "bg-[#FE6E3E]" },
   ];
 
   // TS view counts
