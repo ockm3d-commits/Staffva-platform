@@ -93,7 +93,40 @@ interface DashboardData {
     last_message_at: string;
     unread_count: number;
   }[];
+  pipeline: {
+    id: string;
+    display_name: string | null;
+    role_category: string | null;
+    profile_photo_url: string | null;
+    admin_status: string | null;
+    second_interview_status: string | null;
+    assigned_at: string | null;
+    ai_interview_completed_at: string | null;
+  }[];
   profile: { role: string; calendarLink: string | null };
+}
+
+function getPipelineStatus(row: {
+  admin_status: string | null;
+  second_interview_status: string | null;
+  ai_interview_completed_at: string | null;
+}): { label: string; className: string } {
+  if (row.admin_status === "approved") {
+    return { label: "Live", className: "bg-green-100 text-green-800" };
+  }
+  if (row.admin_status === "revision_required") {
+    return { label: "Needs Revision", className: "bg-orange-100 text-orange-800" };
+  }
+  if (row.admin_status === "pending_speaking_review" && row.second_interview_status === "completed") {
+    return { label: "Ready to Submit", className: "bg-blue-100 text-blue-800" };
+  }
+  if (row.second_interview_status === "scheduled") {
+    return { label: "Interview Scheduled", className: "bg-indigo-100 text-indigo-800" };
+  }
+  if (row.second_interview_status === "none" && row.ai_interview_completed_at) {
+    return { label: "Ready to Schedule", className: "bg-amber-100 text-amber-800" };
+  }
+  return { label: "In Progress", className: "bg-gray-100 text-gray-700" };
 }
 
 type MobileTab = "resumes" | "profiles" | "revisions" | "messages" | "team";
@@ -464,6 +497,66 @@ export default function RecruiterDashboardPage() {
           ))}
         </div>
       </div>
+
+      {/* My Pipeline — every candidate assigned to this recruiter */}
+      {data.pipeline && data.pipeline.length > 0 && (
+        <div className="mx-auto max-w-[1600px] px-4 pb-24 md:pb-8 pt-2">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3">
+              <h2 className="text-sm font-semibold text-[#1C1B1A]">My Pipeline</h2>
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-gray-200 px-1.5 text-[10px] font-bold text-gray-600">{data.pipeline.length}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                  <tr>
+                    <th className="px-4 py-2 text-left w-12"></th>
+                    <th className="px-4 py-2 text-left">Name</th>
+                    <th className="px-4 py-2 text-left">Role</th>
+                    <th className="px-4 py-2 text-left">Status</th>
+                    <th className="px-4 py-2 text-left">Assigned</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {data.pipeline.map((row) => {
+                    const status = getPipelineStatus(row);
+                    const assigned = row.assigned_at
+                      ? new Date(row.assigned_at).toLocaleDateString()
+                      : "—";
+                    return (
+                      <tr key={row.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-2">
+                          <Link href={`/candidate/${row.id}`} className="block">
+                            <div className="h-8 w-8 overflow-hidden rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-400">
+                              {row.profile_photo_url ? (
+                                <img src={row.profile_photo_url} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                (row.display_name || "?").charAt(0)
+                              )}
+                            </div>
+                          </Link>
+                        </td>
+                        <td className="px-4 py-2">
+                          <Link href={`/candidate/${row.id}`} className="font-medium text-[#1C1B1A] hover:text-[#FE6E3E]">
+                            {row.display_name || "—"}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-2 text-gray-600">{row.role_category || "—"}</td>
+                        <td className="px-4 py-2">
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.className}`}>
+                            {status.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-gray-500 text-xs">{assigned}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Revision modal */}
       {revisionModal && (

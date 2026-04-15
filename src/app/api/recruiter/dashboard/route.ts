@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
     lane2Res,
     lane3Res,
     threadsRes,
+    pipelineRes,
   ] = await Promise.all([
     // KPI: completed interviews today for this recruiter
     supabase
@@ -81,6 +82,8 @@ export async function GET(req: NextRequest) {
       .eq("assigned_recruiter", recruiterId)
       .not("ai_interview_completed_at", "is", null)
       .eq("second_interview_status", "none")
+      .not("admin_status", "eq", "approved")
+      .not("admin_status", "eq", "deactivated")
       .order("ai_interview_completed_at", { ascending: true }),
 
     // Lane 1: Resumes to review — interviews scheduled today or upcoming
@@ -89,7 +92,6 @@ export async function GET(req: NextRequest) {
       .select("id, display_name, full_name, role_category, profile_photo_url, second_interview_scheduled_at, screening_score, resume_url, recruiter_ai_score_results")
       .eq("assigned_recruiter", recruiterId)
       .eq("second_interview_status", "scheduled")
-      .gte("second_interview_scheduled_at", todayStart)
       .order("second_interview_scheduled_at", { ascending: true }),
 
     // Lane 2: Profiles to submit — interview completed, not yet submitted, no pending revision
@@ -98,7 +100,7 @@ export async function GET(req: NextRequest) {
       .select("id, display_name, full_name, role_category, profile_photo_url, screening_score, second_interview_completed_at, admin_status, profile_photo_url, tagline, bio, resume_url, payout_method, id_verification_status, voice_recording_1_url, voice_recording_2_url, english_mc_score, english_comprehension_score, speaking_level, interview_consent_at, recruiter_ai_score_results, video_intro_url, id_verification_consent")
       .eq("assigned_recruiter", recruiterId)
       .eq("second_interview_status", "completed")
-      .eq("admin_status", "profile_review"),
+      .eq("admin_status", "pending_speaking_review"),
 
     // Lane 3: Revision follow-ups — pending revisions for assigned candidates
     // Two-step approach: filter by candidate IDs instead of nested join filter
@@ -117,6 +119,13 @@ export async function GET(req: NextRequest) {
       .eq("recruiter_id", recruiterId)
       .order("created_at", { ascending: false })
       .limit(200),
+
+    // Pipeline: every candidate assigned to this recruiter, ordered by assignment date
+    supabase
+      .from("candidates")
+      .select("id, display_name, role_category, profile_photo_url, admin_status, second_interview_status, assigned_at, ai_interview_completed_at")
+      .eq("assigned_recruiter", recruiterId)
+      .order("assigned_at", { ascending: false }),
   ]);
 
   console.log(`[RECRUITER DASHBOARD] recruiterId: ${recruiterId}, assignedTotal: ${assignedCandidateIds.length}, Queue: ${queueRes.data?.length ?? 0}, Lane1: ${lane1Res.data?.length ?? 0}, Lane2: ${lane2Res.data?.length ?? 0}, Lane3: ${lane3Res.data?.length ?? 0}, errors: ${JSON.stringify({ q: queueRes.error?.message, l1: lane1Res.error?.message, l2: lane2Res.error?.message, l3: lane3Res.error?.message })}`);
@@ -180,6 +189,7 @@ export async function GET(req: NextRequest) {
     lane1: lane1Res.data || [],
     lane2: lane2Filtered,
     lane3: lane3Data,
+    pipeline: pipelineRes.data || [],
     threads,
     profile: {
       role: profile.role,
