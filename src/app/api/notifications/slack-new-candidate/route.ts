@@ -17,31 +17,48 @@ export async function POST(req: NextRequest) {
 
     const supabase = getAdminClient();
 
-    // --- Round-robin recruiter assignment ---
-    let assignedRecruiter = "Shelly";
+    // --- Recruiter auto-assignment ---
+    // Route by role_category via recruiter_assignments.
+    // Fallback (no routing row, or role_category === "Other"): assign to Manar
+    // and flag assignment_pending_review so it surfaces in the admin "Needs Routing" queue.
+    const MANAR_RECRUITING_MANAGER_ID = "73da7f50-b637-4b8d-a38e-7ae36e2acfd5";
+    let assignedRecruiter = "Manar"; // display string for Slack message body
     try {
-      const { data: settings } = await supabase
-        .from("platform_settings")
-        .select("id, recruiter_counter")
-        .limit(1)
-        .single();
+      const { data: candidateRow } = await supabase
+        .from("candidates")
+        .select("role_category")
+        .eq("id", candidate_id)
+        .maybeSingle();
 
-      if (settings) {
-        const counter = settings.recruiter_counter || 0;
-        assignedRecruiter = counter % 2 === 0 ? "Shelly" : "Jerome";
-
-        // Assign to candidate
-        await supabase
-          .from("candidates")
-          .update({ assigned_recruiter: assignedRecruiter })
-          .eq("id", candidate_id);
-
-        // Increment counter
-        await supabase
-          .from("platform_settings")
-          .update({ recruiter_counter: counter + 1 })
-          .eq("id", settings.id);
+      const roleCategory = candidateRow?.role_category as string | undefined;
+      let matchedId: string | null = null;
+      if (roleCategory && roleCategory !== "Other") {
+        const { data: assignment } = await supabase
+          .from("recruiter_assignments")
+          .select("recruiter_id")
+          .eq("role_category", roleCategory)
+          .limit(1)
+          .maybeSingle();
+        matchedId = assignment?.recruiter_id ?? null;
       }
+
+      const assignedRecruiterId = matchedId ?? MANAR_RECRUITING_MANAGER_ID;
+      const pendingReview = !matchedId;
+
+      const { data: recruiterProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", assignedRecruiterId)
+        .maybeSingle();
+      assignedRecruiter = recruiterProfile?.full_name || assignedRecruiter;
+
+      await supabase
+        .from("candidates")
+        .update({
+          assigned_recruiter: assignedRecruiterId,
+          assignment_pending_review: pendingReview,
+        })
+        .eq("id", candidate_id);
     } catch {
       // Silent — don't block on assignment failure
     }
