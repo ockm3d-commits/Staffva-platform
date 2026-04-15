@@ -64,10 +64,26 @@ const STATUS_CONFIG: Record<string, {
     title: "Action Required",
     message: "Our team has reviewed your profile and left feedback. Check your email for details on what to update.",
   },
+  ai_interview_failed: {
+    icon: "x",
+    iconBg: "bg-red-100",
+    iconColor: "text-red-600",
+    title: "Your AI interview did not pass",
+    message: "You need a score of 60 or above to continue. Please return to your dashboard to view your retake date.",
+  },
+};
+
+const FALLBACK_CONFIG = {
+  icon: "clock" as const,
+  iconBg: "bg-blue-100",
+  iconColor: "text-blue-600",
+  title: "Application In Progress",
+  message: "Your application is being reviewed. Please check your dashboard for your current status.",
 };
 
 export default function CandidateStatusScreen({ adminStatus, candidateId }: Props) {
-  const config = STATUS_CONFIG[adminStatus] || STATUS_CONFIG.approved;
+  const config = STATUS_CONFIG[adminStatus] || FALLBACK_CONFIG;
+  const showDashboardLink = !STATUS_CONFIG[adminStatus] || adminStatus === "ai_interview_failed";
   const [interviewLoading, setInterviewLoading] = useState(false);
   const [interviewError, setInterviewError] = useState<string | null>(null);
 
@@ -113,6 +129,18 @@ export default function CandidateStatusScreen({ adminStatus, candidateId }: Prop
 
       <h1 className="text-2xl font-bold text-text">{config.title}</h1>
       <p className="mt-3 text-text/60">{config.message}</p>
+
+      {/* Failed AI interview or unknown status — direct to dashboard */}
+      {showDashboardLink && (
+        <div className="mt-6">
+          <Link
+            href="/candidate/dashboard"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 transition-colors"
+          >
+            Go to Dashboard
+          </Link>
+        </div>
+      )}
 
       {/* Revision required — show edit button */}
       {adminStatus === "revision_required" && (

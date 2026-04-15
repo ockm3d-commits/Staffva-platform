@@ -32,31 +32,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ recruiter_profile: null });
   }
 
-  // assigned_recruiter may be a UUID (from recruiter_assignments webhook) or a first name
-  // string (from legacy round-robin in process-application-queue). Handle both.
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    candidate.assigned_recruiter
-  );
+  // assigned_recruiter is a profile UUID (scope v6.6, post-migration 00075).
+  // Use maybeSingle so a missing/stale UUID degrades to null instead of erroring.
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id, full_name, calendar_link, recruiter_photo_url")
+    .eq("id", candidate.assigned_recruiter)
+    .maybeSingle();
 
-  let profile = null;
-  if (isUUID) {
-    const { data } = await admin
-      .from("profiles")
-      .select("id, full_name, calendar_link, recruiter_photo_url")
-      .eq("id", candidate.assigned_recruiter)
-      .single();
-    profile = data;
-  } else {
-    // Legacy: assigned_recruiter is a first name like "Shelly" or "Jerome"
-    const { data } = await admin
-      .from("profiles")
-      .select("id, full_name, calendar_link, recruiter_photo_url")
-      .eq("role", "recruiter")
-      .ilike("full_name", `${candidate.assigned_recruiter}%`)
-      .limit(1)
-      .maybeSingle();
-    profile = data;
-  }
-
-  return NextResponse.json({ recruiter_profile: profile });
+  return NextResponse.json({ recruiter_profile: profile ?? null });
 }

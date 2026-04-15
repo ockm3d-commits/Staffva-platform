@@ -494,6 +494,7 @@ export default function CandidateReviewPage() {
     candidateName: string;
     currentRecruiterId: string | null;
   } | null>(null);
+  const [recruiterNameById, setRecruiterNameById] = useState<Record<string, string>>({});
 
   // Load cheat flag threshold from settings
   useEffect(() => {
@@ -520,6 +521,29 @@ export default function CandidateReviewPage() {
       }
     });
   }, []);
+
+  // Load recruiter display names (UUID -> full_name) for the Assigned Recruiter column.
+  // Reuses the same endpoint the ReassignModal already consumes — no duplicate query.
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/reassign/recruiters", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        for (const r of (data.recruiters || []) as Array<{ id: string; full_name: string | null }>) {
+          if (r.id && r.full_name) map[r.id] = r.full_name;
+        }
+        setRecruiterNameById(map);
+      } catch { /* silent */ }
+    })();
+    return () => { cancelled = true; };
+  }, [token]);
 
   const loadCandidates = useCallback(async () => {
     setLoading(true);
@@ -837,8 +861,8 @@ export default function CandidateReviewPage() {
                     </td>
                     <td className="py-3 pr-4">
                       {c.assigned_recruiter ? (
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${c.assigned_recruiter === "Shelly" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>
-                          {c.assigned_recruiter}
+                        <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700">
+                          {recruiterNameById[c.assigned_recruiter] || c.assigned_recruiter}
                         </span>
                       ) : (
                         <span className="text-xs text-text/30">—</span>
