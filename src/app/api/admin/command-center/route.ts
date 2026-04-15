@@ -337,7 +337,7 @@ export async function GET() {
       processing: 0,
       complete: totalCandidates,
       failed: 0,
-      screenedToday: screeningToday?.count || 0,
+      screenedToday: screeningToday?.length || 0,
     },
 
     // Identity
