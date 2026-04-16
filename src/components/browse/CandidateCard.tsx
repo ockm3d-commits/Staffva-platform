@@ -8,7 +8,6 @@ export interface CandidateCardData {
   role_category: string;
   hourly_rate: number;
   english_written_tier: string | null;
-  speaking_level: string | null;
   availability_status: string;
   us_client_experience: string;
   bio: string | null;
