@@ -86,7 +86,6 @@ export async function GET(req: NextRequest) {
       .not("ai_interview_completed_at", "is", null)
       .eq("second_interview_status", "none")
       .not("admin_status", "eq", "approved")
-      .not("admin_status", "eq", "deactivated")
       .order("ai_interview_completed_at", { ascending: true }),
 
     // Lane 1: Resumes to review — interviews scheduled today or upcoming
