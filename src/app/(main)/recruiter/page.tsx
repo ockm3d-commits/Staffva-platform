@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import KpiStrip from "@/components/recruiter/KpiStrip";
 import MessageSidebar from "@/components/recruiter/MessageSidebar";
@@ -25,6 +24,7 @@ interface PipelineRow extends CandidateBase {
   created_at: string | null;
   ai_interview_completed_at: string | null;
   ai_interview_score?: number | null;
+  recruiter_notes?: string | null;
 }
 
 interface DashboardData {
@@ -152,7 +152,7 @@ interface ActionCardCandidate {
   profile_photo_url: string | null;
 }
 
-function ActionLaneCard({ title, candidates }: { title: string; candidates: ActionCardCandidate[] }) {
+function ActionLaneCard({ title, candidates, onCandidateClick }: { title: string; candidates: ActionCardCandidate[]; onCandidateClick: (id: string) => void }) {
   const count = candidates.length;
   const shown = candidates.slice(0, 4);
   const overflow = count - shown.length;
@@ -169,12 +169,10 @@ function ActionLaneCard({ title, candidates }: { title: string; candidates: Acti
       ) : (
         <div className="flex flex-col gap-2">
           {shown.map((c) => (
-            <a
+            <button
               key={c.id}
-              href={`/admin/candidates/${c.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-center gap-2 rounded-lg border border-gray-100 bg-[#FAFAFA] px-2 py-1.5 hover:border-[#FE6E3E] hover:bg-orange-50 transition-colors"
+              onClick={() => onCandidateClick(c.id)}
+              className="group flex items-center gap-2 rounded-lg border border-gray-100 bg-[#FAFAFA] px-2 py-1.5 hover:border-[#FE6E3E] hover:bg-orange-50 transition-colors text-left"
             >
               <Avatar src={c.profile_photo_url} name={c.display_name} size={24} />
               <span className="flex-1 text-xs font-medium text-[#1C1B1A] truncate">
@@ -182,12 +180,8 @@ function ActionLaneCard({ title, candidates }: { title: string; candidates: Acti
               </span>
               <span className="flex items-center gap-0.5 text-[10px] font-semibold text-gray-400 group-hover:text-[#FE6E3E]">
                 View
-                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7 17L17 7" />
-                  <path d="M8 7h9v9" />
-                </svg>
               </span>
-            </a>
+            </button>
           ))}
           {overflow > 0 && (
             <p className="text-[11px] font-medium text-gray-500 px-1">+{overflow} more</p>
@@ -212,6 +206,11 @@ export default function RecruiterDashboardPage() {
   const [localUnmatched, setLocalUnmatched] = useState<DashboardData["unmatched_bookings"]>([]);
   const [linkSelections, setLinkSelections] = useState<Record<string, string>>({});
   const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<PipelineRow | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelNotes, setPanelNotes] = useState("");
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
 
   useEffect(() => {
     if (!loading) return;
@@ -305,6 +304,44 @@ export default function RecruiterDashboardPage() {
       }
     } catch { /* silent */ }
     setLinkingId(null);
+  }
+
+  function openCandidatePanel(candidateId: string) {
+    const row = (data?.pipeline || []).find((c) => c.id === candidateId);
+    if (!row) return;
+    setSelectedCandidate(row);
+    setPanelNotes(row.recruiter_notes || "");
+    setNotesSaved(false);
+    setPanelOpen(true);
+  }
+
+  function closePanel() {
+    setPanelOpen(false);
+    setTimeout(() => setSelectedCandidate(null), 300);
+  }
+
+  async function handleSaveNotes() {
+    if (!selectedCandidate || !token) return;
+    setNotesSaving(true);
+    setNotesSaved(false);
+    try {
+      const res = await fetch(`/api/recruiter/candidates/${selectedCandidate.id}/notes`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ notes: panelNotes }),
+      });
+      if (res.ok) {
+        setNotesSaved(true);
+        if (data) {
+          const updated = data.pipeline.map((c) =>
+            c.id === selectedCandidate.id ? { ...c, recruiter_notes: panelNotes } : c
+          );
+          setData({ ...data, pipeline: updated });
+        }
+        setTimeout(() => setNotesSaved(false), 2000);
+      }
+    } catch { /* silent */ }
+    setNotesSaving(false);
   }
 
   if (loading) {
@@ -472,7 +509,7 @@ export default function RecruiterDashboardPage() {
                         return (
                           <tr
                             key={row.id}
-                            onClick={() => window.open(`/admin/candidates/${row.id}`, "_blank", "noopener,noreferrer")}
+                            onClick={() => openCandidatePanel(row.id)}
                             className="hover:bg-gray-50 cursor-pointer"
                           >
                             <td className="px-5 py-3">
@@ -527,6 +564,7 @@ export default function RecruiterDashboardPage() {
             <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               <ActionLaneCard
                 title="Ready to Schedule"
+                onCandidateClick={openCandidatePanel}
                 candidates={data.queue.map((c) => ({
                   id: c.id,
                   display_name: c.display_name || c.full_name || null,
@@ -535,6 +573,7 @@ export default function RecruiterDashboardPage() {
               />
               <ActionLaneCard
                 title="Interview Scheduled"
+                onCandidateClick={openCandidatePanel}
                 candidates={data.lane1.map((c) => ({
                   id: c.id,
                   display_name: c.display_name || c.full_name || null,
@@ -543,13 +582,14 @@ export default function RecruiterDashboardPage() {
               />
               <ActionLaneCard
                 title="Ready to Submit"
+                onCandidateClick={openCandidatePanel}
                 candidates={data.lane2.map((c) => ({
                   id: c.id,
                   display_name: c.display_name || c.full_name || null,
                   profile_photo_url: c.profile_photo_url,
                 }))}
               />
-              <ActionLaneCard title="Needs Revision" candidates={lane3Chips} />
+              <ActionLaneCard title="Needs Revision" onCandidateClick={openCandidatePanel} candidates={lane3Chips} />
             </section>
           </div>
 
@@ -595,6 +635,121 @@ export default function RecruiterDashboardPage() {
           </aside>
         </div>
       </div>
+
+      {/* Candidate Slide-Out Panel */}
+      {selectedCandidate && (
+        <>
+          <div
+            className={`fixed inset-0 z-40 bg-black transition-opacity duration-300 ${panelOpen ? "opacity-50" : "opacity-0 pointer-events-none"}`}
+            onClick={closePanel}
+          />
+          <div
+            className={`fixed top-0 right-0 z-50 h-full w-full max-w-[400px] bg-white shadow-2xl transition-transform duration-300 ease-in-out overflow-y-auto ${panelOpen ? "translate-x-0" : "translate-x-full"}`}
+          >
+            <div className="p-6">
+              {/* Close button */}
+              <button onClick={closePanel} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* Candidate header */}
+              <div className="flex items-center gap-4 mb-4 pr-6">
+                <Avatar src={selectedCandidate.profile_photo_url} name={selectedCandidate.display_name} size={64} />
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-[#1C1B1A] truncate">{selectedCandidate.display_name || "Unnamed"}</h3>
+                  <p className="text-sm text-gray-500">{selectedCandidate.role_category || "—"}</p>
+                  {(() => {
+                    const status = getPipelineStatus(selectedCandidate);
+                    return (
+                      <span className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status.className}`}>
+                        {status.label}
+                      </span>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Info row */}
+              <div className="flex gap-6 mb-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">AI Score</p>
+                  <p className="text-sm font-semibold text-[#1C1B1A]">
+                    {typeof selectedCandidate.ai_interview_score === "number" ? `${selectedCandidate.ai_interview_score}/100` : "Not taken"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Assigned</p>
+                  <p className="text-sm font-semibold text-[#1C1B1A]">{formatShortDate(selectedCandidate.created_at)}</p>
+                </div>
+              </div>
+
+              <hr className="border-gray-200 mb-4" />
+
+              {/* Action buttons */}
+              <div className="flex flex-col gap-2 mb-4">
+                <button
+                  onClick={() => {
+                    closePanel();
+                    setSidebarTab("messages");
+                    setPendingMessageCandidateId(selectedCandidate.id);
+                    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                      setTimeout(() => {
+                        document.getElementById("recruiter-sidebar")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 350);
+                    }
+                  }}
+                  className="w-full rounded-lg bg-[#FE6E3E] py-2.5 text-sm font-semibold text-white hover:bg-[#E55A2B] transition-colors"
+                >
+                  Message {(selectedCandidate.display_name || "").split(" ")[0] || "Candidate"}
+                </button>
+
+                <a
+                  href={`/recruiter/candidates/${selectedCandidate.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full rounded-lg border border-gray-300 py-2.5 text-center text-sm font-semibold text-[#1C1B1A] hover:bg-gray-50 transition-colors"
+                >
+                  View Full Profile
+                </a>
+
+                {selectedCandidate.second_interview_status === "scheduled" && selectedCandidate.second_interview_scheduled_at && (
+                  <div className="w-full rounded-lg border border-green-300 bg-green-50 py-2.5 text-center text-sm font-semibold text-green-800">
+                    Interview: {formatInterviewDateTime(selectedCandidate.second_interview_scheduled_at)}
+                  </div>
+                )}
+              </div>
+
+              <hr className="border-gray-200 mb-4" />
+
+              {/* Recruiter notes */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Private Notes</label>
+                <textarea
+                  value={panelNotes}
+                  onChange={(e) => { setPanelNotes(e.target.value); setNotesSaved(false); }}
+                  placeholder="Add notes about this candidate — only visible to you"
+                  rows={4}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#FE6E3E] focus:outline-none focus:ring-1 focus:ring-[#FE6E3E] resize-none"
+                />
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    onClick={handleSaveNotes}
+                    disabled={notesSaving}
+                    className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-[#1C1B1A] hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                  >
+                    {notesSaving ? "Saving…" : "Save Notes"}
+                  </button>
+                  {notesSaved && (
+                    <span className="text-xs font-semibold text-green-600">Saved</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Unmatched Bookings Modal */}
       {unmatchedModal && (
