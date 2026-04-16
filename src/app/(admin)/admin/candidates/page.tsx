@@ -32,9 +32,11 @@ const US_EXP_LABELS: Record<string, string> = {
 const STATUS_BADGE: Record<string, { label: string; color: string }> = {
   active: { label: "Active", color: "bg-blue-100 text-blue-700" },
   profile_review: { label: "Profile Review", color: "bg-amber-100 text-amber-700" },
-  pending_2nd_interview: { label: "Pending recruiter interview", color: "bg-amber-100 text-amber-700" },
-  pending_review: { label: "Pending Review", color: "bg-amber-100 text-amber-700" },
-  approved: { label: "Approved", color: "bg-green-100 text-green-700" },
+  pending_speaking_review: { label: "Pending Recruiter Review", color: "bg-amber-100 text-amber-700" },
+  pending_2nd_interview: { label: "Pending Recruiter Interview", color: "bg-amber-100 text-amber-700" },
+  pending_review: { label: "Pending Recruiter Review", color: "bg-amber-100 text-amber-700" },
+  ai_interview_failed: { label: "AI Interview Failed", color: "bg-red-100 text-red-700" },
+  approved: { label: "Live", color: "bg-green-100 text-green-700" },
   rejected: { label: "Rejected", color: "bg-red-100 text-red-700" },
   revision_required: { label: "Revision Required", color: "bg-orange-100 text-orange-700" },
   deactivated: { label: "Deactivated", color: "bg-gray-200 text-gray-600" },
@@ -114,6 +116,10 @@ interface Candidate {
   recruiter_ai_score_results: { dimension: string; score: number; justification: string }[] | null;
   payout_status: string | null;
   payout_failure_reason?: string | null;
+  ai_interview_score: number | null;
+  second_interview_communication_score: number | null;
+  second_interview_demeanor_score: number | null;
+  second_interview_role_knowledge_score: number | null;
 }
 
 // ─── Recruiter Post-Interview Scoring Panel ───
@@ -772,6 +778,8 @@ export default function CandidateReviewPage() {
                 <th className="pb-3 pr-4">Candidate</th>
                 <th className="pb-3 pr-4">Role</th>
                 <th className="pb-3 pr-4">Rate</th>
+                <th className="pb-3 pr-4">AI Score</th>
+                <th className="pb-3 pr-4">2nd Interview</th>
                 <th className="pb-3 pr-4">Status</th>
                 <th className="pb-3 pr-4">Payout</th>
                 <th className="pb-3 pr-4">Lock</th>
@@ -829,6 +837,16 @@ export default function CandidateReviewPage() {
                     </td>
                     <td className="py-3 pr-4">
                       <span className="font-semibold text-text">${c.hourly_rate?.toLocaleString()}</span>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span className="text-xs text-text/70">{c.ai_interview_score != null ? `${c.ai_interview_score}/100` : "—"}</span>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span className="text-xs text-text/70">
+                        {c.second_interview_communication_score != null && c.second_interview_demeanor_score != null && c.second_interview_role_knowledge_score != null
+                          ? `${((c.second_interview_communication_score + c.second_interview_demeanor_score + c.second_interview_role_knowledge_score) / 3).toFixed(1)}/5`
+                          : "—"}
+                      </span>
                     </td>
                     <td className="py-3 pr-4">
                       <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${badge.color}`}>
