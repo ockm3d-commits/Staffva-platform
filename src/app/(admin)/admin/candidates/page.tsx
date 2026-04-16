@@ -481,7 +481,6 @@ export default function CandidateReviewPage() {
   const [screeningFilter, setScreeningFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [speakingLevels, setSpeakingLevels] = useState<Record<string, string>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Record<string, string>>({});
   const [revisionNotes, setRevisionNotes] = useState<Record<string, string>>({});
@@ -583,11 +582,6 @@ export default function CandidateReviewPage() {
     candidateId: string,
     action: "approve" | "reject" | "flag" | "revision_required" | "deactivate"
   ) {
-    if (action === "approve" && !speakingLevels[candidateId]) {
-      alert("Please select a speaking level before approving.");
-      return;
-    }
-
     if (action === "revision_required" && (!revisionNotes[candidateId] || revisionNotes[candidateId].trim().length === 0)) {
       alert("Please write a revision note before sending.");
       return;
@@ -611,7 +605,6 @@ export default function CandidateReviewPage() {
         body: JSON.stringify({
           candidateId,
           action,
-          speakingLevel: speakingLevels[candidateId] || null,
           revisionNote: revisionNotes[candidateId] || null,
         }),
       });
@@ -1164,23 +1157,9 @@ export default function CandidateReviewPage() {
                           </div>
                           <div className="space-y-4">
                             <div className="rounded-lg border border-primary/20 bg-primary/5 p-5">
-                              <p className="text-sm font-semibold text-text mb-3">Assign Speaking Level & Review</p>
+                              <p className="text-sm font-semibold text-text mb-3">Review</p>
                               <div className="flex items-end gap-3 flex-wrap">
-                                <div className="flex-1 min-w-[180px]">
-                                  <label className="block text-xs font-medium text-text/60 mb-1">Speaking Level</label>
-                                  <select
-                                    value={speakingLevels[c.id] || ""}
-                                    onChange={(e) => setSpeakingLevels((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-text focus:border-primary focus:outline-none"
-                                  >
-                                    <option value="">Select level...</option>
-                                    <option value="fluent">Fluent</option>
-                                    <option value="proficient">Proficient</option>
-                                    <option value="conversational">Conversational</option>
-                                    <option value="developing">Developing</option>
-                                  </select>
-                                </div>
-                                <button onClick={() => handleAction(c.id, "approve")} disabled={actionLoading === c.id || !speakingLevels[c.id]} className="rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50">
+                                <button onClick={() => handleAction(c.id, "approve")} disabled={actionLoading === c.id} className="rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50">
                                   {actionLoading === c.id ? "..." : "Approve"}
                                 </button>
                                 <button onClick={() => setShowRevisionForm((prev) => ({ ...prev, [c.id]: !prev[c.id] }))} className="rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors">
@@ -1356,8 +1335,6 @@ export default function CandidateReviewPage() {
             handleAction(candidateId, action);
             setPreviewCandidate(null);
           }}
-          speakingLevel={speakingLevels[previewCandidate.id] || ""}
-          onSpeakingLevelChange={(level) => setSpeakingLevels((prev) => ({ ...prev, [previewCandidate.id]: level }))}
           revisionNote={revisionNotes[previewCandidate.id] || ""}
           onRevisionNoteChange={(note) => setRevisionNotes((prev) => ({ ...prev, [previewCandidate.id]: note }))}
           actionLoading={actionLoading === previewCandidate.id}

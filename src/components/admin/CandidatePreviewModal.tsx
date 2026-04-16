@@ -58,8 +58,6 @@ interface Props {
   candidate: Candidate;
   onClose: () => void;
   onAction: (candidateId: string, action: "approve" | "reject" | "revision_required") => void;
-  speakingLevel: string;
-  onSpeakingLevelChange: (level: string) => void;
   revisionNote: string;
   onRevisionNoteChange: (note: string) => void;
   actionLoading: boolean;
@@ -71,8 +69,6 @@ export default function CandidatePreviewModal({
   candidate: c,
   onClose,
   onAction,
-  speakingLevel,
-  onSpeakingLevelChange,
   revisionNote,
   onRevisionNoteChange,
   actionLoading,
@@ -313,23 +309,9 @@ export default function CandidatePreviewModal({
           <div className="sticky bottom-0 rounded-b-2xl border-t border-gray-200 bg-white px-8 py-4">
             <div className="space-y-3">
               <div className="flex items-end gap-3 flex-wrap">
-                <div className="flex-1 min-w-[180px]">
-                  <label className="block text-xs font-medium text-text/60 mb-1">Speaking Level</label>
-                  <select
-                    value={speakingLevel}
-                    onChange={(e) => onSpeakingLevelChange(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-text focus:border-primary focus:outline-none"
-                  >
-                    <option value="">Select level...</option>
-                    <option value="fluent">Fluent</option>
-                    <option value="proficient">Proficient</option>
-                    <option value="conversational">Conversational</option>
-                    <option value="developing">Developing</option>
-                  </select>
-                </div>
                 <button
                   onClick={() => onAction(c.id, "approve")}
-                  disabled={actionLoading || !speakingLevel}
+                  disabled={actionLoading}
                   className="rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50"
                 >
                   {actionLoading ? "..." : "Approve"}
