@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
     // Query candidates
     const { data: candidates } = await admin
       .from("candidates")
-      .select("id, display_name, country, role_category, hourly_rate, english_written_tier, speaking_level, availability_status, us_client_experience, bio, total_earnings_usd, committed_hours, profile_photo_url, voice_recording_1_preview_url, years_experience, tools, reputation_tier, video_intro_status")
+      .select("id, display_name, country, role_category, hourly_rate, english_written_tier, availability_status, us_client_experience, bio, total_earnings_usd, committed_hours, profile_photo_url, voice_recording_1_preview_url, years_experience, tools, reputation_tier, video_intro_status")
       .eq("admin_status", "approved");
 
     if (!candidates || candidates.length === 0) {

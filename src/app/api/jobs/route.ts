@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
     const { data: candidates } = await supabase
       .from("candidates")
       .select(
-        "id, full_name, display_name, country, role_category, years_experience, hourly_rate, english_written_tier, speaking_level, us_client_experience, availability_status, committed_hours, total_earnings_usd, bio, profile_photo_url"
+        "id, full_name, display_name, country, role_category, years_experience, hourly_rate, english_written_tier, us_client_experience, availability_status, committed_hours, total_earnings_usd, bio, profile_photo_url"
       )
       .eq("admin_status", "approved")
       .in("availability_status", availabilityFilter);
@@ -126,6 +126,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Scoring: 6 dimensions, max 90 pts total (role_match 40 + budget 15 + english_tier 15 + us_experience 10 + availability 5 + earnings_bonus 5)
     const scored = candidates.map((c) => {
       let score = 0;
 
@@ -164,12 +165,6 @@ export async function POST(req: NextRequest) {
       if (c.english_written_tier === "exceptional") score += 15;
       else if (c.english_written_tier === "proficient") score += 10;
       else if (c.english_written_tier === "competent") score += 5;
-
-      // Speaking level (10 points)
-      if (c.speaking_level === "fluent") score += 10;
-      else if (c.speaking_level === "proficient") score += 7;
-      else if (c.speaking_level === "conversational") score += 4;
-      else if (c.speaking_level === "basic") score += 1;
 
       // US client experience (10 points)
       if (c.us_client_experience === "full_time") score += 10;
