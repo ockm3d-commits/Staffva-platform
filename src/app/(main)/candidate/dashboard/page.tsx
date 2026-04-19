@@ -50,8 +50,6 @@ interface CandidateData {
   application_step: string | null;
   video_intro_status: string | null;
   video_intro_url: string | null;
-  spoken_english_score: number | null;
-  spoken_english_result: string | null;
   id_verification_consent: boolean | null;
   results_display_unlocked: boolean | null;
   profile_went_live_at: string | null;
@@ -918,8 +916,7 @@ export default function CandidateDashboardPage() {
         const aiDone = step5Done;
         const recruiterScheduled = candidate.second_interview_status === "scheduled";
         const recruiterDone = step6Done;
-        const spokenScored = (candidate.spoken_english_score ?? 0) > 0;
-        const profileUnderReview = recruiterDone && spokenScored && !step7Done && candidate.admin_status !== "changes_requested";
+        const profileUnderReview = recruiterDone && !step7Done && candidate.admin_status !== "changes_requested";
         const changesRequested = candidate.admin_status === "changes_requested";
         const profileLive = step7Done;
 
@@ -1026,10 +1023,6 @@ export default function CandidateDashboardPage() {
           nextHeading = "Your profile is live";
           nextBody = "Clients can find you right now.";
           nextHref = `/candidate/${candidate.id}`; nextLabel = "View My Profile";
-        } else if (recruiterDone && !spokenScored) {
-          // Recruiter done but spoken not scored yet — waiting
-          nextHeading = "Your Talent Specialist interview is complete";
-          nextBody = "Our team is processing your results. We will be in touch soon.";
         } else {
           // Fallback
           nextHeading = "Continue your application";

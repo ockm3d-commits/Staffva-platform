@@ -103,8 +103,6 @@ interface Candidate {
   has_webcam: boolean | null;
   speed_test_url: string | null;
   second_interview_status: string | null;
-  spoken_english_score: number | null;
-  spoken_english_result: string | null;
   recruiter_ai_score_results: { dimension: string; score: number; justification: string }[] | null;
   payout_status: string | null;
   payout_failure_reason?: string | null;
@@ -123,13 +121,7 @@ function RecruiterScoringPanel({ candidate, onUpdate }: { candidate: Candidate; 
     candidate.recruiter_ai_score_results || null
   );
 
-  // Step 2 state
-  const [spokenScore, setSpokenScore] = useState(candidate.spoken_english_score || 0);
-  const [spokenResult, setSpokenResult] = useState(candidate.spoken_english_result || "");
-  const [savingSpoken, setSavingSpoken] = useState(false);
-
   const step1Done = !!results && results.length > 0;
-  const step2Done = (candidate.spoken_english_score ?? 0) > 0;
 
   async function handleAIScoring() {
     if (!notes.trim()) { setError("Please enter interview notes"); return; }
@@ -150,36 +142,6 @@ function RecruiterScoringPanel({ candidate, onUpdate }: { candidate: Candidate; 
       setError("AI scoring failed. Please try again.");
     }
     setScoring(false);
-  }
-
-  async function handleSaveSpoken() {
-    if (!step1Done) { setError("Please complete the AI scoring step first."); return; }
-    if (spokenScore < 1 || spokenScore > 100) { setError("Score must be between 1 and 100"); return; }
-    if (!spokenResult) { setError("Please select Pass or Fail"); return; }
-    setSavingSpoken(true);
-
-    try {
-      const res = await fetch("/api/admin/candidates/review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          candidateId: candidate.id,
-          action: "update_spoken_score",
-          spokenScore,
-          spokenResult,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Failed to save"); setSavingSpoken(false); return; }
-      // Show result feedback before reload
-      if (spokenResult === "fail") {
-        alert("Spoken English result: Fail. Candidate status set to rejected. Rejection email sent.");
-      }
-      onUpdate();
-    } catch {
-      setError("Failed to save");
-    }
-    setSavingSpoken(false);
   }
 
   return (
@@ -235,65 +197,15 @@ function RecruiterScoringPanel({ candidate, onUpdate }: { candidate: Candidate; 
         )}
       </div>
 
-      {/* Step 2: Spoken English Scoring — locked until Step 1 done */}
-      <div className={`rounded-xl border p-5 ${!step1Done ? "opacity-50 pointer-events-none border-gray-200 bg-gray-50" : step2Done ? "border-green-200 bg-green-50/30" : "border-gray-200 bg-white"}`}>
-        <div className="flex items-center gap-2 mb-3">
-          {step2Done ? (
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500">
-              <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-            </div>
-          ) : (
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-300 text-white text-xs font-bold">2</div>
-          )}
-          <p className="text-sm font-semibold text-[#1C1B1A]">Spoken English Scoring</p>
-          {!step1Done && <span className="text-[10px] text-gray-400 ml-auto">Complete Step 1 first</span>}
-        </div>
-
-        {step1Done && !step2Done && (
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Spoken English Score (1-100)</label>
-              <input type="number" min={1} max={100} value={spokenScore || ""} onChange={(e) => setSpokenScore(parseInt(e.target.value) || 0)} className="w-32 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#FE6E3E] focus:outline-none focus:ring-1 focus:ring-[#FE6E3E]" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Spoken English Result</label>
-              <select value={spokenResult} onChange={(e) => setSpokenResult(e.target.value)} className="w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#FE6E3E] focus:outline-none focus:ring-1 focus:ring-[#FE6E3E]">
-                <option value="">Select</option>
-                <option value="pass">Pass</option>
-                <option value="fail">Fail</option>
-              </select>
-            </div>
-            <button onClick={handleSaveSpoken} disabled={savingSpoken} className="rounded-lg bg-[#FE6E3E] px-5 py-2 text-sm font-semibold text-white hover:bg-[#E55A2B] disabled:opacity-50">
-              {savingSpoken ? "Saving..." : "Save Spoken Score"}
-            </button>
-          </div>
-        )}
-
-        {step2Done && (
-          <div className="flex gap-4">
-            <div className="rounded-lg bg-white border border-gray-200 px-4 py-2 text-center">
-              <p className="text-xs text-gray-400">Score</p>
-              <p className="text-lg font-bold text-[#1C1B1A]">{candidate.spoken_english_score}/100</p>
-            </div>
-            <div className="rounded-lg bg-white border border-gray-200 px-4 py-2 text-center">
-              <p className="text-xs text-gray-400">Result</p>
-              <p className={`text-lg font-bold ${candidate.spoken_english_result === "pass" ? "text-green-600" : "text-red-600"}`}>
-                {candidate.spoken_english_result === "pass" ? "Pass" : "Fail"}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Step 3: Profile Review — unlocked only on pass */}
-      <ProfileReviewStep candidate={candidate} step2Done={step2Done} />
+      {/* Step 2: Profile Review — unlocked after AI scoring complete */}
+      <ProfileReviewStep candidate={candidate} aiScoringDone={step1Done} />
     </div>
   );
 }
 
-// ─── Step 3: Profile Review ───
-function ProfileReviewStep({ candidate, step2Done }: { candidate: Candidate; step2Done: boolean }) {
-  const step3Unlocked = step2Done && candidate.spoken_english_result === "pass";
+// ─── Step 2: Profile Review ───
+function ProfileReviewStep({ candidate, aiScoringDone }: { candidate: Candidate; aiScoringDone: boolean }) {
+  const unlocked = aiScoringDone;
   const alreadyApproved = candidate.admin_status === "approved";
   const [showChangeModal, setShowChangeModal] = useState(false);
   const [changeAreas, setChangeAreas] = useState<Record<string, boolean>>({});
@@ -333,21 +245,21 @@ function ProfileReviewStep({ candidate, step2Done }: { candidate: Candidate; ste
   const workExp = candidate.work_experience || [];
 
   return (
-    <div className={`rounded-xl border p-5 ${!step3Unlocked ? "opacity-40 pointer-events-none border-gray-200 bg-gray-50" : alreadyApproved ? "border-green-200 bg-green-50/30" : "border-gray-200 bg-white"}`}>
+    <div className={`rounded-xl border p-5 ${!unlocked ? "opacity-40 pointer-events-none border-gray-200 bg-gray-50" : alreadyApproved ? "border-green-200 bg-green-50/30" : "border-gray-200 bg-white"}`}>
       <div className="flex items-center gap-2 mb-3">
         {alreadyApproved ? (
           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500">
             <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
           </div>
         ) : (
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-300 text-white text-xs font-bold">3</div>
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-300 text-white text-xs font-bold">2</div>
         )}
         <p className="text-sm font-semibold text-[#1C1B1A]">Profile Review</p>
-        {!step3Unlocked && <span className="text-[10px] text-gray-400 ml-auto">Complete Step 2 with Pass first</span>}
+        {!unlocked && <span className="text-[10px] text-gray-400 ml-auto">Complete Step 1 first</span>}
         {alreadyApproved && <span className="text-[10px] text-green-600 ml-auto">Profile is live</span>}
       </div>
 
-      {step3Unlocked && !alreadyApproved && (
+      {unlocked && !alreadyApproved && (
         <>
           {/* Profile Preview */}
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-4 space-y-3">
