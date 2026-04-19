@@ -140,11 +140,14 @@ interface ManagerData {
 function stageBadge(status: string, tag: string | null) {
   if (tag === "assignment_pending_review") return { label: "Needs routing", cls: "bg-red-100 text-red-700" };
   switch (status) {
-    case "pending_speaking_review": return { label: "Pending recruiter interview", cls: "bg-amber-100 text-amber-700" };
-    case "pending_2nd_interview": return { label: "Pending recruiter interview", cls: "bg-amber-100 text-amber-700" };
+    case "pending_speaking_review":
+    case "pending_2nd_interview":
+      return { label: "Pending 2nd Interview", cls: "bg-amber-100 text-amber-700" };
+    case "pending_review":
+    case "profile_review":
+      return { label: "Profile Under Review", cls: "bg-yellow-100 text-yellow-700" };
     case "approved": return { label: "Approved", cls: "bg-green-100 text-green-700" };
     case "revision_required": return { label: "Revision", cls: "bg-orange-100 text-orange-700" };
-    case "profile_review": return { label: "Profile review", cls: "bg-blue-100 text-blue-700" };
     default: return { label: status?.replace(/_/g, " ") || "Unknown", cls: "bg-gray-100 text-gray-600" };
   }
 }
@@ -285,7 +288,7 @@ export default function ManagerDashboard() {
   ];
 
   // TS view counts
-  const myActionNeeded = myQueue.filter((c) => c.admin_status === "pending_speaking_review" || c.screening_tag === "assignment_pending_review");
+  const myActionNeeded = myQueue.filter((c) => ["pending_speaking_review", "pending_review", "profile_review", "pending_2nd_interview"].includes(c.admin_status) || c.screening_tag === "assignment_pending_review");
   const myApprovedThisWeek = myQueue.filter((c) => c.admin_status === "approved" && isThisWeek(c.updated_at)).length;
   const myNeedsRouting = myQueue.filter((c) => c.screening_tag === "assignment_pending_review").length;
 
@@ -723,11 +726,15 @@ export default function ManagerDashboard() {
                   })
                   .map((c) => {
                     const isRouting = c.screening_tag === "assignment_pending_review";
-                    const isPendingReview = c.admin_status === "pending_speaking_review";
+                    const isPending2nd = ["pending_speaking_review", "pending_2nd_interview"].includes(c.admin_status);
+                    const isPendingProfileReview = ["pending_review", "profile_review"].includes(c.admin_status);
+                    const isPendingReview = isPending2nd || isPendingProfileReview;
                     const statusText = isRouting
                       ? "Needs routing — review and reassign"
-                      : isPendingReview
-                      ? "Speaking review ready"
+                      : isPendingProfileReview
+                      ? "Ready to push live"
+                      : isPending2nd
+                      ? "Ready for 2nd interview"
                       : "Action required";
                     const initials = (c.display_name || "??").slice(0, 2).toUpperCase();
                     return (
@@ -765,7 +772,7 @@ export default function ManagerDashboard() {
                               )
                             )}
                             {isPendingReview && (
-                              <Link href={`/admin/candidates?status=pending_speaking_review`} className="rounded-lg bg-[#FE6E3E] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#E55A2B]">Review</Link>
+                              <Link href={isPendingProfileReview ? `/admin/candidates?status=pending_review` : `/admin/candidates?status=pending_2nd_interview`} className="rounded-lg bg-[#FE6E3E] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#E55A2B]">Review</Link>
                             )}
                           </div>
                         </div>

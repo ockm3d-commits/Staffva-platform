@@ -12,7 +12,6 @@ interface MatchedCandidate {
   role_category: string;
   hourly_rate: number;
   english_written_tier: string;
-  speaking_level: string;
   us_client_experience: string;
   availability_status: string;
   total_earnings_usd: number;
@@ -38,16 +37,6 @@ function tierColor(tier: string) {
     case "exceptional": return "bg-green-100 text-green-700";
     case "proficient": return "bg-blue-100 text-blue-700";
     case "competent": return "bg-gray-100 text-gray-600";
-    default: return "bg-gray-100 text-gray-600";
-  }
-}
-
-function speakingColor(level: string) {
-  switch (level) {
-    case "fluent": return "bg-green-100 text-green-700";
-    case "proficient": return "bg-blue-100 text-blue-700";
-    case "conversational": return "bg-yellow-100 text-yellow-700";
-    case "basic": return "bg-gray-100 text-gray-600";
     default: return "bg-gray-100 text-gray-600";
   }
 }
@@ -140,7 +129,6 @@ function ShortlistContent() {
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {candidate.english_written_tier && <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${tierColor(candidate.english_written_tier)}`}>{candidate.english_written_tier}</span>}
-                    {candidate.speaking_level && <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${speakingColor(candidate.speaking_level)}`}>{candidate.speaking_level}</span>}
                     {(candidate.us_client_experience === "full_time" || candidate.us_client_experience === "part_time_contract") && <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">US Experience</span>}
                     {candidate.total_earnings_usd > 0 && <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600">${candidate.total_earnings_usd.toLocaleString()} earned</span>}
                   </div>

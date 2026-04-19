@@ -12,11 +12,9 @@ export type USExperience =
   | "international_only"
   | "none";
 
-export type AdminStatus = "active" | "pending_2nd_interview" | "pending_review" | "profile_review" | "approved" | "rejected";
+export type AdminStatus = "pending_2nd_interview" | "pending_speaking_review" | "pending_review" | "ai_interview_failed" | "approved";
 
 export type EnglishWrittenTier = "exceptional" | "proficient" | "competent";
-
-export type SpeakingLevel = "basic" | "conversational" | "proficient" | "fluent";
 
 export type AvailabilityStatus =
   | "available_now"
@@ -111,7 +109,6 @@ export interface Candidate {
   english_comprehension_score: number | null;
   english_percentile: number | null;
   english_written_tier: EnglishWrittenTier | null;
-  speaking_level: SpeakingLevel | null;
 
   // Recordings
   voice_recording_1_url: string | null;

@@ -9,13 +9,6 @@ const TIER_CONFIG: Record<string, { label: string; bg: string }> = {
   professional: { label: "Professional", bg: "bg-gray-500" },
 };
 
-const SPEAKING_CONFIG: Record<string, { label: string; bg: string }> = {
-  fluent: { label: "Fluent", bg: "bg-emerald-600" },
-  proficient: { label: "Proficient", bg: "bg-blue-600" },
-  conversational: { label: "Conversational", bg: "bg-amber-600" },
-  developing: { label: "Developing", bg: "bg-gray-500" },
-};
-
 const US_EXP_LABELS: Record<string, string> = {
   full_time: "Full-time US client experience",
   part_time_contract: "Part-time / contract US experience",
@@ -38,7 +31,6 @@ interface Candidate {
   tools: string[];
   work_experience: { company_name?: string; role_title: string; industry: string; duration: string; description: string }[];
   english_written_tier: string;
-  speaking_level: string;
   us_client_experience: string;
   us_client_description: string;
   voice_recording_1_url: string;
@@ -65,8 +57,6 @@ interface Props {
   candidate: Candidate;
   onClose: () => void;
   onAction: (candidateId: string, action: "approve" | "reject" | "revision_required") => void;
-  speakingLevel: string;
-  onSpeakingLevelChange: (level: string) => void;
   revisionNote: string;
   onRevisionNoteChange: (note: string) => void;
   actionLoading: boolean;
@@ -78,8 +68,6 @@ export default function CandidatePreviewModal({
   candidate: c,
   onClose,
   onAction,
-  speakingLevel,
-  onSpeakingLevelChange,
   revisionNote,
   onRevisionNoteChange,
   actionLoading,
@@ -100,7 +88,6 @@ export default function CandidatePreviewModal({
   }, [token, c?.id]);
 
   const tier = c.english_written_tier ? TIER_CONFIG[c.english_written_tier] : null;
-  const speaking = c.speaking_level ? SPEAKING_CONFIG[c.speaking_level] : null;
   const hasUSExperience = c.us_client_experience === "full_time" || c.us_client_experience === "part_time_contract";
   const tools: string[] = c.tools || [];
   const workExp = c.work_experience || [];
@@ -153,11 +140,6 @@ export default function CandidatePreviewModal({
                     {tier && (
                       <span className={`rounded-full px-3 py-1 text-xs font-semibold text-white ${tier.bg}`}>
                         English: {tier.label}
-                      </span>
-                    )}
-                    {speaking && (
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold text-white ${speaking.bg}`}>
-                        Speaking: {speaking.label}
                       </span>
                     )}
                     {hasUSExperience && (
@@ -314,12 +296,6 @@ export default function CandidatePreviewModal({
                   <svg className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
-                  <p className="text-xs text-text/60">Speaking level verified by human reviewer</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <svg className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
                   <p className="text-xs text-text/60">Payments protected by escrow</p>
                 </div>
               </div>
@@ -332,23 +308,9 @@ export default function CandidatePreviewModal({
           <div className="sticky bottom-0 rounded-b-2xl border-t border-gray-200 bg-white px-8 py-4">
             <div className="space-y-3">
               <div className="flex items-end gap-3 flex-wrap">
-                <div className="flex-1 min-w-[180px]">
-                  <label className="block text-xs font-medium text-text/60 mb-1">Speaking Level</label>
-                  <select
-                    value={speakingLevel}
-                    onChange={(e) => onSpeakingLevelChange(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-text focus:border-primary focus:outline-none"
-                  >
-                    <option value="">Select level...</option>
-                    <option value="fluent">Fluent</option>
-                    <option value="proficient">Proficient</option>
-                    <option value="conversational">Conversational</option>
-                    <option value="developing">Developing</option>
-                  </select>
-                </div>
                 <button
                   onClick={() => onAction(c.id, "approve")}
-                  disabled={actionLoading || !speakingLevel}
+                  disabled={actionLoading}
                   className="rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50"
                 >
                   {actionLoading ? "..." : "Approve"}

@@ -11,7 +11,6 @@ interface Interview {
   requested_at: string;
   scheduled_at: string | null;
   conducted_at: string | null;
-  speaking_level_updated_to: string | null;
   communication_score: number | null;
   demeanor_score: number | null;
   role_knowledge_score: number | null;
@@ -23,15 +22,12 @@ interface Props {
   candidateName: string;
 }
 
-const SPEAKING_LEVELS = ["basic", "conversational", "proficient", "fluent"];
-
 export default function InterviewPanel({ candidateId, candidateName }: Props) {
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
   const [requestLoading, setRequestLoading] = useState(false);
   const [completionForm, setCompletionForm] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    speakingLevel: "",
     communicationScore: 3,
     demeanorScore: 3,
     roleKnowledgeScore: 3,
@@ -90,11 +86,6 @@ export default function InterviewPanel({ candidateId, candidateName }: Props) {
   }
 
   async function completeInterview(interviewId: string) {
-    if (!formData.speakingLevel) {
-      setMessage("Please select a speaking level");
-      return;
-    }
-
     setSaving(true);
     setMessage("");
 
@@ -123,7 +114,6 @@ export default function InterviewPanel({ candidateId, candidateName }: Props) {
         action: "complete",
         interviewId,
         candidateId,
-        speakingLevel: formData.speakingLevel,
         communicationScore: formData.communicationScore,
         demeanorScore: formData.demeanorScore,
         roleKnowledgeScore: formData.roleKnowledgeScore,
@@ -135,7 +125,7 @@ export default function InterviewPanel({ candidateId, candidateName }: Props) {
     if (data.error) {
       setMessage(data.error);
     } else {
-      setMessage("Interview completed and speaking level updated");
+      setMessage("Interview completed");
       setCompletionForm(null);
       setPdfFile(null);
       await loadInterviews();
@@ -227,9 +217,6 @@ export default function InterviewPanel({ candidateId, candidateName }: Props) {
                       <p className="text-lg font-bold text-text">{interview.role_knowledge_score}/5</p>
                     </div>
                   </div>
-                  <p className="text-xs text-text/50">
-                    Speaking level updated to: <span className="font-medium capitalize text-text">{interview.speaking_level_updated_to}</span>
-                  </p>
                   {interview.conducted_at && (
                     <p className="text-xs text-text/40">
                       Conducted: {new Date(interview.conducted_at).toLocaleDateString()}
@@ -258,7 +245,7 @@ export default function InterviewPanel({ candidateId, candidateName }: Props) {
                     <button
                       onClick={() => {
                         setCompletionForm(interview.id);
-                        setFormData({ speakingLevel: "", communicationScore: 3, demeanorScore: 3, roleKnowledgeScore: 3 });
+                        setFormData({ communicationScore: 3, demeanorScore: 3, roleKnowledgeScore: 3 });
                         setPdfFile(null);
                       }}
                       className="w-full rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
@@ -273,20 +260,6 @@ export default function InterviewPanel({ candidateId, candidateName }: Props) {
               {completionForm === interview.id && (
                 <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 space-y-3">
                   <p className="text-xs font-semibold text-green-800">Complete Interview {interview.interview_number}</p>
-
-                  <div>
-                    <label className="block text-xs font-medium text-text/60 mb-1">Speaking Level</label>
-                    <select
-                      value={formData.speakingLevel}
-                      onChange={(e) => setFormData((prev) => ({ ...prev, speakingLevel: e.target.value }))}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                    >
-                      <option value="">Select...</option>
-                      {SPEAKING_LEVELS.map((l) => (
-                        <option key={l} value={l} className="capitalize">{l.charAt(0).toUpperCase() + l.slice(1)}</option>
-                      ))}
-                    </select>
-                  </div>
 
                   {[
                     { key: "communicationScore", label: "Communication Clarity" },
@@ -334,7 +307,7 @@ export default function InterviewPanel({ candidateId, candidateName }: Props) {
                     </button>
                     <button
                       onClick={() => completeInterview(interview.id)}
-                      disabled={saving || !formData.speakingLevel}
+                      disabled={saving}
                       className="flex-1 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50"
                     >
                       {saving ? "Saving..." : "Save & Publish"}

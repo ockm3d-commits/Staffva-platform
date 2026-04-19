@@ -32,7 +32,6 @@ interface CandidateData {
   total_earnings_usd: number;
   profile_photo_url: string | null;
   english_written_tier: string | null;
-  speaking_level: string | null;
   tagline: string | null;
   bio: string | null;
   skills: string[] | null;
@@ -51,8 +50,6 @@ interface CandidateData {
   application_step: string | null;
   video_intro_status: string | null;
   video_intro_url: string | null;
-  spoken_english_score: number | null;
-  spoken_english_result: string | null;
   id_verification_consent: boolean | null;
   results_display_unlocked: boolean | null;
   profile_went_live_at: string | null;
@@ -849,9 +846,10 @@ export default function CandidateDashboardPage() {
 
   const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
     active: { label: "In Pipeline", color: "text-blue-700", bgColor: "bg-blue-50 border-blue-200" },
-    profile_review: { label: "Under Review", color: "text-yellow-700", bgColor: "bg-yellow-50 border-yellow-200" },
+    profile_review: { label: "Profile Under Review", color: "text-yellow-700", bgColor: "bg-yellow-50 border-yellow-200" },
     pending_2nd_interview: { label: "Pending 2nd Interview", color: "text-blue-700", bgColor: "bg-blue-50 border-blue-200" },
-    pending_review: { label: "Pending Review", color: "text-yellow-700", bgColor: "bg-yellow-50 border-yellow-200" },
+    pending_review: { label: "Profile Under Review", color: "text-yellow-700", bgColor: "bg-yellow-50 border-yellow-200" },
+    pending_speaking_review: { label: "Pending 2nd Interview", color: "text-blue-700", bgColor: "bg-blue-50 border-blue-200" },
     approved: { label: "Live", color: "text-green-700", bgColor: "bg-green-50 border-green-200" },
     rejected: { label: "Not Approved", color: "text-red-700", bgColor: "bg-red-50 border-red-200" },
     revision_required: { label: "Revision Needed", color: "text-orange-700", bgColor: "bg-orange-50 border-orange-200" },
@@ -918,8 +916,7 @@ export default function CandidateDashboardPage() {
         const aiDone = step5Done;
         const recruiterScheduled = candidate.second_interview_status === "scheduled";
         const recruiterDone = step6Done;
-        const spokenScored = (candidate.spoken_english_score ?? 0) > 0;
-        const profileUnderReview = recruiterDone && spokenScored && !step7Done && candidate.admin_status !== "changes_requested";
+        const profileUnderReview = recruiterDone && !step7Done && candidate.admin_status !== "changes_requested";
         const changesRequested = candidate.admin_status === "changes_requested";
         const profileLive = step7Done;
 
@@ -1026,10 +1023,6 @@ export default function CandidateDashboardPage() {
           nextHeading = "Your profile is live";
           nextBody = "Clients can find you right now.";
           nextHref = `/candidate/${candidate.id}`; nextLabel = "View My Profile";
-        } else if (recruiterDone && !spokenScored) {
-          // Recruiter done but spoken not scored yet — waiting
-          nextHeading = "Your Talent Specialist interview is complete";
-          nextBody = "Our team is processing your results. We will be in touch soon.";
         } else {
           // Fallback
           nextHeading = "Continue your application";
@@ -1486,10 +1479,6 @@ export default function CandidateDashboardPage() {
           <div>
             <p className="text-gray-500">English Level</p>
             <p className="font-medium text-[#1C1B1A] capitalize">{candidate.english_written_tier || "Pending"}</p>
-          </div>
-          <div>
-            <p className="text-gray-500">Speaking Level</p>
-            <p className="font-medium text-[#1C1B1A] capitalize">{candidate.speaking_level || "Pending review"}</p>
           </div>
           <div>
             <p className="text-gray-500">Verified Earnings</p>
