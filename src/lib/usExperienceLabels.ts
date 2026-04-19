@@ -16,14 +16,14 @@ export const US_EXPERIENCE_LABELS: Record<string, string> = {
   part_time_contract: "Part-time / contract US client experience",
 };
 
+// Values that qualify a candidate for the green "US Experience" badge.
+// Threshold: 1+ year of US client work (or legacy `full_time`). Buckets below
+// 1 year and `part_time_contract` no longer count.
 export const US_EXPERIENCE_VALUES_WITH_US = new Set<string>([
-  "full_time",
-  "part_time_contract",
-  "less_than_6_months",
-  "6_months_to_1_year",
   "1_to_2_years",
   "2_to_5_years",
   "5_plus_years",
+  "full_time",
 ]);
 
 export function describeUsExperience(value: string | null | undefined): string {

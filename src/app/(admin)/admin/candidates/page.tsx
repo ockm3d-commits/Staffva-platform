@@ -1250,6 +1250,7 @@ export default function CandidateReviewPage() {
           actionLoading={actionLoading === previewCandidate.id}
           showActions={previewCandidate.admin_status === "active" || previewCandidate.admin_status === "profile_review" || previewCandidate.admin_status === "pending_2nd_interview" || previewCandidate.admin_status === "pending_review" || previewCandidate.admin_status === "pending_speaking_review" || previewCandidate.admin_status === "revision_required"}
           token={token}
+          onCandidateUpdated={loadCandidates}
         />
       )}
 

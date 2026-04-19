@@ -78,11 +78,17 @@ export async function updateSession(request: NextRequest) {
     if (requiresUsExperience) {
       const { data: candidate } = await supabase
         .from("candidates")
-        .select("us_client_experience")
+        .select("us_client_experience, application_stage")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (candidate && candidate.us_client_experience == null) {
+      // Only gate candidates who have finished the original application (stage >= 3).
+      // Mid-onboarding candidates (stages 1–2) still answer the question via Stage 2 of the regular form.
+      if (
+        candidate &&
+        candidate.us_client_experience == null &&
+        (candidate.application_stage ?? 0) >= 3
+      ) {
         const url = request.nextUrl.clone();
         url.pathname = "/apply/us-experience";
         return NextResponse.redirect(url);

@@ -6,6 +6,7 @@ import NotifyButton from "@/components/browse/NotifyButton";
 import ProfileViewTracker from "@/components/ProfileViewTracker";
 import ApproveButton from "@/components/recruiting-manager/ApproveButton";
 import BanButton from "@/components/recruiting-manager/BanButton";
+import { hasUsExperience } from "@/lib/usExperienceLabels";
 
 async function InterviewNotesPDF({ path }: { path: string }) {
   const supabase = createClient(
@@ -122,15 +123,6 @@ const US_EXPERIENCE_LABELS: Record<string, string> = {
   part_time_contract: "Part-time / contract US experience",
 };
 
-const US_EXPERIENCE_VALUES_WITH_US = new Set([
-  "full_time",
-  "part_time_contract",
-  "less_than_6_months",
-  "6_months_to_1_year",
-  "1_to_2_years",
-  "2_to_5_years",
-  "5_plus_years",
-]);
 
 export default async function CandidateProfilePage({
   params,
@@ -258,7 +250,7 @@ export default async function CandidateProfilePage({
     .maybeSingle();
 
   const tier = candidate.english_written_tier ? TIER_CONFIG[candidate.english_written_tier] : null;
-  const hasUSExperience = candidate.us_client_experience ? US_EXPERIENCE_VALUES_WITH_US.has(candidate.us_client_experience) : false;
+  const hasUSExperience = hasUsExperience(candidate.us_client_experience);
   const displayedName = candidate.display_name || candidate.full_name;
   const canViewGated = isLoggedIn && (isClient || isOwnProfile || isAdmin || isRecruitingManager);
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import AudioPlayer from "@/components/AudioPlayer";
+import { hasUsExperience } from "@/lib/usExperienceLabels";
 
 const TIER_CONFIG: Record<string, { label: string; bg: string }> = {
   exceptional: { label: "Exceptional", bg: "bg-emerald-600" },
@@ -22,16 +23,6 @@ const US_EXP_LABELS: Record<string, string> = {
   full_time: "Full-time US client experience",
   part_time_contract: "Part-time / contract US experience",
 };
-
-const US_EXP_VALUES_WITH_US = new Set([
-  "full_time",
-  "part_time_contract",
-  "less_than_6_months",
-  "6_months_to_1_year",
-  "1_to_2_years",
-  "2_to_5_years",
-  "5_plus_years",
-]);
 
 const US_EXP_EDIT_OPTIONS: { value: string; label: string }[] = [
   { value: "less_than_6_months", label: "Less than 6 months" },
@@ -88,6 +79,7 @@ interface Props {
   actionLoading: boolean;
   showActions: boolean;
   token?: string;
+  onCandidateUpdated?: () => void;
 }
 
 export default function CandidatePreviewModal({
@@ -99,6 +91,7 @@ export default function CandidatePreviewModal({
   actionLoading,
   showActions,
   token,
+  onCandidateUpdated,
 }: Props) {
   const [showRevisionForm, setShowRevisionForm] = useState(false);
   const [reassignLog, setReassignLog] = useState<ReassignLogEntry[]>([]);
@@ -119,6 +112,7 @@ export default function CandidatePreviewModal({
     if (res.ok) {
       setUsExperienceLocal(usExperienceDraft);
       setEditingUsExperience(false);
+      onCandidateUpdated?.();
     }
   }
 
@@ -133,7 +127,7 @@ export default function CandidatePreviewModal({
   }, [token, c?.id]);
 
   const tier = c.english_written_tier ? TIER_CONFIG[c.english_written_tier] : null;
-  const hasUSExperience = c.us_client_experience ? US_EXP_VALUES_WITH_US.has(c.us_client_experience) : false;
+  const hasUSExperience = hasUsExperience(usExperienceLocal);
   const tools: string[] = c.tools || [];
   const workExp = c.work_experience || [];
 
@@ -345,13 +339,13 @@ export default function CandidatePreviewModal({
                     </div>
                   </>
                 )}
-                {hasUSExperience && c.us_client_experience && (
+                {hasUSExperience && usExperienceLocal && (
                   <>
                     <div className="border-t border-gray-100" />
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-text/40">US Experience</span>
                       <span className="text-xs font-medium text-green-600">
-                        {US_EXP_LABELS[c.us_client_experience] || "Yes"}
+                        {US_EXP_LABELS[usExperienceLocal] || "Yes"}
                       </span>
                     </div>
                   </>
