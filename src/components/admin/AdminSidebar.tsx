@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 interface Badges {
   pending2ndInterview: number;
+  pendingProfileReview: number;
   clients: number;
   talentPool: number;
   triage: number;
@@ -14,7 +15,7 @@ interface Badges {
 
 export default function AdminSidebar({ isRecruitingManager }: { isRecruitingManager: boolean }) {
   const pathname = usePathname();
-  const [badges, setBadges] = useState<Badges>({ pending2ndInterview: 0, clients: 0, talentPool: 0, triage: 0, teamInbox: 0 });
+  const [badges, setBadges] = useState<Badges>({ pending2ndInterview: 0, pendingProfileReview: 0, clients: 0, talentPool: 0, triage: 0, teamInbox: 0 });
 
   useEffect(() => {
     fetch("/api/admin/command-center")
@@ -56,6 +57,7 @@ export default function AdminSidebar({ isRecruitingManager }: { isRecruitingMana
           <NavItem href="/admin" active={isActive("/admin")} icon="⬡">Dashboard</NavItem>
         )}
         <NavItem href="/admin/candidates" active={isActive("/admin/candidates")} icon="◷" badge={badges.pending2ndInterview} badgeType="orange">Review Queue</NavItem>
+        <NavItem href="/admin/candidates?status=pending_review" active={isActive("/admin/candidates?status=pending_review")} icon="◉" badge={badges.pendingProfileReview} badgeType="orange">Profile Reviews</NavItem>
         <NavItem href="/admin/disputes" active={isActive("/admin/disputes")} icon="⚑">Disputes</NavItem>
 
         <SectionLabel>People</SectionLabel>

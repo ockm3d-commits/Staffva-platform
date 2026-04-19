@@ -15,6 +15,7 @@ interface Pipeline {
   profileBuilt: number;
   aiInterview: number;
   pending2ndInterview: number;
+  pendingProfileReview: number;
   live: number;
 }
 
@@ -254,6 +255,7 @@ export default function AdminDashboard() {
         ["Profile Built", data.pipeline.profileBuilt],
         ["AI Interview", data.pipeline.aiInterview],
         ["Pending 2nd Interview", data.pipeline.pending2ndInterview],
+        ["Profile Under Review", data.pipeline.pendingProfileReview],
         ["Live", data.pipeline.live],
       ] as [string, number][];
       for (const [label, count] of stages) {
@@ -308,6 +310,7 @@ export default function AdminDashboard() {
     { label: "Profile Built", count: data.pipeline.profileBuilt, color: "#85B7EB" },
     { label: "AI Interview", count: data.pipeline.aiInterview, color: "#FDD4B8" },
     { label: "Pending 2nd Interview", count: data.pipeline.pending2ndInterview, color: "#FE9E6E" },
+    { label: "Profile Under Review", count: data.pipeline.pendingProfileReview, color: "#F59E0B" },
     { label: "Live ✓", count: data.pipeline.live, color: "#FE6E3E" },
   ];
   const totalApplied = data.pipeline.applied || 1;
@@ -513,7 +516,7 @@ export default function AdminDashboard() {
           </div>
           <span onClick={() => setModal("pipeline")} style={{ fontSize: 11, color: "#FE6E3E", cursor: "pointer", fontWeight: 500, padding: "4px 8px", borderRadius: 5 }}>Full Breakdown →</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8, alignItems: "end" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 8, alignItems: "end" }}>
           {pStages.map((s, i) => {
             const pct = totalApplied > 0 ? (s.count / totalApplied) * 100 : 0;
             const barH = Math.max(4, (s.count / totalApplied) * 70);
