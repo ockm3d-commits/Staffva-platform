@@ -53,10 +53,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
   }
 
-  if (!candidate.assignment_pending_review) {
-    return NextResponse.json({ error: "Candidate is not pending routing" }, { status: 400 });
-  }
-
   // Get new recruiter name and calendar link
   const { data: newRecruiter } = await supabase
     .from("profiles")
@@ -68,13 +64,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Recruiter not found" }, { status: 404 });
   }
 
-  // Update candidate: assign to new recruiter, clear pending flag
+  // Update candidate: assign to new recruiter, clear pending flags
   const { error: updateError } = await supabase
     .from("candidates")
     .update({
       assigned_recruiter: newRecruiterId,
       assigned_recruiter_at: new Date().toISOString(),
       assignment_pending_review: false,
+      screening_tag: null,
     })
     .eq("id", candidateId);
 

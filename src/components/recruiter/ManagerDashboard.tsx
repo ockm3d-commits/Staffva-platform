@@ -241,11 +241,12 @@ export default function ManagerDashboard() {
     setTimeout(() => setSavedIds((prev) => { const next = new Set(prev); next.delete(candidateId); return next; }), 2000);
 
     try {
-      await fetch("/api/recruiter/reassign", {
+      const res = await fetch("/api/recruiter/reassign", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ candidateId, newRecruiterId }),
       });
+      if (!res.ok) loadDashboard();
     } catch {
       loadDashboard();
     }
