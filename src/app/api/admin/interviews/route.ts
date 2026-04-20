@@ -138,14 +138,13 @@ export async function POST(req: NextRequest) {
     const {
       interviewId,
       candidateId,
-      speakingLevel,
       communicationScore,
       demeanorScore,
       roleKnowledgeScore,
       notesPdfPath,
     } = body;
 
-    if (!interviewId || !candidateId || !speakingLevel) {
+    if (!interviewId || !candidateId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -156,19 +155,12 @@ export async function POST(req: NextRequest) {
         status: "completed",
         conducted_at: new Date().toISOString(),
         conducted_by: admin.id,
-        speaking_level_updated_to: speakingLevel,
         communication_score: communicationScore,
         demeanor_score: demeanorScore,
         role_knowledge_score: roleKnowledgeScore,
         notes_pdf_url: notesPdfPath || null,
       })
       .eq("id", interviewId);
-
-    // Update candidate's speaking level badge
-    await supabase
-      .from("candidates")
-      .update({ speaking_level: speakingLevel })
-      .eq("id", candidateId);
 
     // Regenerate AI insights after interview scoring (fire-and-forget)
     generateInsights(candidateId).catch((err) =>
@@ -224,7 +216,6 @@ export async function POST(req: NextRequest) {
                       <p style="color: #555; margin: 4px 0;">Communication Clarity: ${communicationScore}/5</p>
                       <p style="color: #555; margin: 4px 0;">Professional Demeanor: ${demeanorScore}/5</p>
                       <p style="color: #555; margin: 4px 0;">Role Knowledge: ${roleKnowledgeScore}/5</p>
-                      <p style="color: #555; margin: 4px 0;">Speaking Level: ${speakingLevel}</p>
                     </div>
                     <p style="color: #555;">You can view the full interview notes and download the PDF on the candidate's profile page.</p>
                     <a href="https://staffva.com/candidate/${candidateId}" style="display: inline-block; background: #fe6e3e; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 16px;">View Profile</a>

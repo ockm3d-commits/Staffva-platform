@@ -15,26 +15,26 @@ const TIER_LABELS: Record<string, string> = {
   professional: "Professional",
 };
 
-const SPEAKING_LABELS: Record<string, string> = {
-  fluent: "Fluent",
-  proficient: "Proficient",
-  conversational: "Conversational",
-  developing: "Developing",
-};
-
 const US_EXP_LABELS: Record<string, string> = {
-  full_time: "Yes, full time",
-  part_time_contract: "Yes, part time or contract",
+  // New (post-Phase-2B) values
+  less_than_6_months: "< 6 months",
+  "6_months_to_1_year": "6 months – 1 year",
+  "1_to_2_years": "1 – 2 years",
+  "2_to_5_years": "2 – 5 years",
+  "5_plus_years": "5+ years",
   international_only: "International only",
   none: "First international role",
+  // Legacy values — kept until migration backfills existing rows
+  full_time: "Yes, full time",
+  part_time_contract: "Yes, part time or contract",
 };
 
 const STATUS_BADGE: Record<string, { label: string; color: string }> = {
   active: { label: "Active", color: "bg-blue-100 text-blue-700" },
-  profile_review: { label: "Profile Review", color: "bg-amber-100 text-amber-700" },
-  pending_speaking_review: { label: "Pending Recruiter Review", color: "bg-amber-100 text-amber-700" },
-  pending_2nd_interview: { label: "Pending Recruiter Interview", color: "bg-amber-100 text-amber-700" },
-  pending_review: { label: "Pending Recruiter Review", color: "bg-amber-100 text-amber-700" },
+  profile_review: { label: "Profile Under Review", color: "bg-yellow-100 text-yellow-700" },
+  pending_speaking_review: { label: "Pending 2nd Interview", color: "bg-amber-100 text-amber-700" },
+  pending_2nd_interview: { label: "Pending 2nd Interview", color: "bg-amber-100 text-amber-700" },
+  pending_review: { label: "Profile Under Review", color: "bg-yellow-100 text-yellow-700" },
   ai_interview_failed: { label: "AI Interview Failed", color: "bg-red-100 text-red-700" },
   approved: { label: "Live", color: "bg-green-100 text-green-700" },
   rejected: { label: "Rejected", color: "bg-red-100 text-red-700" },
@@ -81,13 +81,11 @@ interface Candidate {
   english_comprehension_score: number;
   english_percentile: number;
   english_written_tier: string;
-  speaking_level: string;
   cheat_flag_count: number;
   score_mismatch_flag: boolean;
   id_verification_status: string;
   id_verification_submitted_at: string | null;
-  us_client_experience: string;
-  us_client_description: string;
+  us_client_experience: string | null;
   voice_recording_1_url: string;
   voice_recording_2_url: string;
   resume_url: string;
@@ -111,8 +109,6 @@ interface Candidate {
   has_webcam: boolean | null;
   speed_test_url: string | null;
   second_interview_status: string | null;
-  spoken_english_score: number | null;
-  spoken_english_result: string | null;
   recruiter_ai_score_results: { dimension: string; score: number; justification: string }[] | null;
   payout_status: string | null;
   payout_failure_reason?: string | null;
@@ -131,13 +127,7 @@ function RecruiterScoringPanel({ candidate, onUpdate }: { candidate: Candidate; 
     candidate.recruiter_ai_score_results || null
   );
 
-  // Step 2 state
-  const [spokenScore, setSpokenScore] = useState(candidate.spoken_english_score || 0);
-  const [spokenResult, setSpokenResult] = useState(candidate.spoken_english_result || "");
-  const [savingSpoken, setSavingSpoken] = useState(false);
-
   const step1Done = !!results && results.length > 0;
-  const step2Done = (candidate.spoken_english_score ?? 0) > 0;
 
   async function handleAIScoring() {
     if (!notes.trim()) { setError("Please enter interview notes"); return; }
@@ -158,36 +148,6 @@ function RecruiterScoringPanel({ candidate, onUpdate }: { candidate: Candidate; 
       setError("AI scoring failed. Please try again.");
     }
     setScoring(false);
-  }
-
-  async function handleSaveSpoken() {
-    if (!step1Done) { setError("Please complete the AI scoring step first."); return; }
-    if (spokenScore < 1 || spokenScore > 100) { setError("Score must be between 1 and 100"); return; }
-    if (!spokenResult) { setError("Please select Pass or Fail"); return; }
-    setSavingSpoken(true);
-
-    try {
-      const res = await fetch("/api/admin/candidates/review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          candidateId: candidate.id,
-          action: "update_spoken_score",
-          spokenScore,
-          spokenResult,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Failed to save"); setSavingSpoken(false); return; }
-      // Show result feedback before reload
-      if (spokenResult === "fail") {
-        alert("Spoken English result: Fail. Candidate status set to rejected. Rejection email sent.");
-      }
-      onUpdate();
-    } catch {
-      setError("Failed to save");
-    }
-    setSavingSpoken(false);
   }
 
   return (
@@ -243,65 +203,15 @@ function RecruiterScoringPanel({ candidate, onUpdate }: { candidate: Candidate; 
         )}
       </div>
 
-      {/* Step 2: Spoken English Scoring — locked until Step 1 done */}
-      <div className={`rounded-xl border p-5 ${!step1Done ? "opacity-50 pointer-events-none border-gray-200 bg-gray-50" : step2Done ? "border-green-200 bg-green-50/30" : "border-gray-200 bg-white"}`}>
-        <div className="flex items-center gap-2 mb-3">
-          {step2Done ? (
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500">
-              <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-            </div>
-          ) : (
-            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-300 text-white text-xs font-bold">2</div>
-          )}
-          <p className="text-sm font-semibold text-[#1C1B1A]">Spoken English Scoring</p>
-          {!step1Done && <span className="text-[10px] text-gray-400 ml-auto">Complete Step 1 first</span>}
-        </div>
-
-        {step1Done && !step2Done && (
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Spoken English Score (1-100)</label>
-              <input type="number" min={1} max={100} value={spokenScore || ""} onChange={(e) => setSpokenScore(parseInt(e.target.value) || 0)} className="w-32 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#FE6E3E] focus:outline-none focus:ring-1 focus:ring-[#FE6E3E]" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Spoken English Result</label>
-              <select value={spokenResult} onChange={(e) => setSpokenResult(e.target.value)} className="w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#FE6E3E] focus:outline-none focus:ring-1 focus:ring-[#FE6E3E]">
-                <option value="">Select</option>
-                <option value="pass">Pass</option>
-                <option value="fail">Fail</option>
-              </select>
-            </div>
-            <button onClick={handleSaveSpoken} disabled={savingSpoken} className="rounded-lg bg-[#FE6E3E] px-5 py-2 text-sm font-semibold text-white hover:bg-[#E55A2B] disabled:opacity-50">
-              {savingSpoken ? "Saving..." : "Save Spoken Score"}
-            </button>
-          </div>
-        )}
-
-        {step2Done && (
-          <div className="flex gap-4">
-            <div className="rounded-lg bg-white border border-gray-200 px-4 py-2 text-center">
-              <p className="text-xs text-gray-400">Score</p>
-              <p className="text-lg font-bold text-[#1C1B1A]">{candidate.spoken_english_score}/100</p>
-            </div>
-            <div className="rounded-lg bg-white border border-gray-200 px-4 py-2 text-center">
-              <p className="text-xs text-gray-400">Result</p>
-              <p className={`text-lg font-bold ${candidate.spoken_english_result === "pass" ? "text-green-600" : "text-red-600"}`}>
-                {candidate.spoken_english_result === "pass" ? "Pass" : "Fail"}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Step 3: Profile Review — unlocked only on pass */}
-      <ProfileReviewStep candidate={candidate} step2Done={step2Done} />
+      {/* Step 2: Profile Review — unlocked after AI scoring complete */}
+      <ProfileReviewStep candidate={candidate} aiScoringDone={step1Done} />
     </div>
   );
 }
 
-// ─── Step 3: Profile Review ───
-function ProfileReviewStep({ candidate, step2Done }: { candidate: Candidate; step2Done: boolean }) {
-  const step3Unlocked = step2Done && candidate.spoken_english_result === "pass";
+// ─── Step 2: Profile Review ───
+function ProfileReviewStep({ candidate, aiScoringDone }: { candidate: Candidate; aiScoringDone: boolean }) {
+  const unlocked = aiScoringDone;
   const alreadyApproved = candidate.admin_status === "approved";
   const [showChangeModal, setShowChangeModal] = useState(false);
   const [changeAreas, setChangeAreas] = useState<Record<string, boolean>>({});
@@ -341,21 +251,21 @@ function ProfileReviewStep({ candidate, step2Done }: { candidate: Candidate; ste
   const workExp = candidate.work_experience || [];
 
   return (
-    <div className={`rounded-xl border p-5 ${!step3Unlocked ? "opacity-40 pointer-events-none border-gray-200 bg-gray-50" : alreadyApproved ? "border-green-200 bg-green-50/30" : "border-gray-200 bg-white"}`}>
+    <div className={`rounded-xl border p-5 ${!unlocked ? "opacity-40 pointer-events-none border-gray-200 bg-gray-50" : alreadyApproved ? "border-green-200 bg-green-50/30" : "border-gray-200 bg-white"}`}>
       <div className="flex items-center gap-2 mb-3">
         {alreadyApproved ? (
           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500">
             <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
           </div>
         ) : (
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-300 text-white text-xs font-bold">3</div>
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-300 text-white text-xs font-bold">2</div>
         )}
         <p className="text-sm font-semibold text-[#1C1B1A]">Profile Review</p>
-        {!step3Unlocked && <span className="text-[10px] text-gray-400 ml-auto">Complete Step 2 with Pass first</span>}
+        {!unlocked && <span className="text-[10px] text-gray-400 ml-auto">Complete Step 1 first</span>}
         {alreadyApproved && <span className="text-[10px] text-green-600 ml-auto">Profile is live</span>}
       </div>
 
-      {step3Unlocked && !alreadyApproved && (
+      {unlocked && !alreadyApproved && (
         <>
           {/* Profile Preview */}
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 mb-4 space-y-3">
@@ -379,7 +289,6 @@ function ProfileReviewStep({ candidate, step2Done }: { candidate: Candidate; ste
             {/* Badges */}
             <div className="flex flex-wrap gap-1.5">
               {candidate.english_written_tier && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">{candidate.english_written_tier}</span>}
-              {candidate.speaking_level && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium text-indigo-700">{candidate.speaking_level}</span>}
               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">{candidate.years_experience} yrs</span>
               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">${candidate.hourly_rate}/hr</span>
             </div>
@@ -482,7 +391,6 @@ export default function CandidateReviewPage() {
   const [screeningFilter, setScreeningFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [speakingLevels, setSpeakingLevels] = useState<Record<string, string>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Record<string, string>>({});
   const [revisionNotes, setRevisionNotes] = useState<Record<string, string>>({});
@@ -584,11 +492,6 @@ export default function CandidateReviewPage() {
     candidateId: string,
     action: "approve" | "reject" | "flag" | "revision_required" | "deactivate"
   ) {
-    if (action === "approve" && !speakingLevels[candidateId]) {
-      alert("Please select a speaking level before approving.");
-      return;
-    }
-
     if (action === "revision_required" && (!revisionNotes[candidateId] || revisionNotes[candidateId].trim().length === 0)) {
       alert("Please write a revision note before sending.");
       return;
@@ -612,7 +515,6 @@ export default function CandidateReviewPage() {
         body: JSON.stringify({
           candidateId,
           action,
-          speakingLevel: speakingLevels[candidateId] || null,
           revisionNote: revisionNotes[candidateId] || null,
         }),
       });
@@ -916,7 +818,7 @@ export default function CandidateReviewPage() {
                           >
                             Edit Verified Earnings
                           </button>
-                          {(c.admin_status === "active" || c.admin_status === "profile_review" || c.admin_status === "pending_2nd_interview" || c.admin_status === "pending_review") && (
+                          {(c.admin_status === "active" || c.admin_status === "profile_review" || c.admin_status === "pending_2nd_interview" || c.admin_status === "pending_review" || c.admin_status === "pending_speaking_review") && (
                             <>
                               <div className="border-t border-gray-100 my-1" />
                               <button
@@ -1112,7 +1014,7 @@ export default function CandidateReviewPage() {
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div><p className="text-xs text-text/40">Email</p><p className="text-text">{c.email}</p></div>
                             <div><p className="text-xs text-text/40">Experience</p><p className="text-text">{c.years_experience}</p></div>
-                            <div><p className="text-xs text-text/40">US Client</p><p className="text-text">{US_EXP_LABELS[c.us_client_experience] || "N/A"}</p></div>
+                            <div><p className="text-xs text-text/40">US Client</p><p className="text-text">{(c.us_client_experience && US_EXP_LABELS[c.us_client_experience]) || "N/A"}</p></div>
                             <div><p className="text-xs text-text/40">Availability</p><p className="text-text capitalize">{c.availability_status?.replace(/_/g, " ") || "—"}</p></div>
                             <div className="col-span-2"><p className="text-xs text-text/40">Bio</p><p className="text-text">{c.bio || "—"}</p></div>
                           </div>
@@ -1165,23 +1067,9 @@ export default function CandidateReviewPage() {
                           </div>
                           <div className="space-y-4">
                             <div className="rounded-lg border border-primary/20 bg-primary/5 p-5">
-                              <p className="text-sm font-semibold text-text mb-3">Assign Speaking Level & Review</p>
+                              <p className="text-sm font-semibold text-text mb-3">Review</p>
                               <div className="flex items-end gap-3 flex-wrap">
-                                <div className="flex-1 min-w-[180px]">
-                                  <label className="block text-xs font-medium text-text/60 mb-1">Speaking Level</label>
-                                  <select
-                                    value={speakingLevels[c.id] || ""}
-                                    onChange={(e) => setSpeakingLevels((prev) => ({ ...prev, [c.id]: e.target.value }))}
-                                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-text focus:border-primary focus:outline-none"
-                                  >
-                                    <option value="">Select level...</option>
-                                    <option value="fluent">Fluent</option>
-                                    <option value="proficient">Proficient</option>
-                                    <option value="conversational">Conversational</option>
-                                    <option value="developing">Developing</option>
-                                  </select>
-                                </div>
-                                <button onClick={() => handleAction(c.id, "approve")} disabled={actionLoading === c.id || !speakingLevels[c.id]} className="rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50">
+                                <button onClick={() => handleAction(c.id, "approve")} disabled={actionLoading === c.id} className="rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50">
                                   {actionLoading === c.id ? "..." : "Approve"}
                                 </button>
                                 <button onClick={() => setShowRevisionForm((prev) => ({ ...prev, [c.id]: !prev[c.id] }))} className="rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors">
@@ -1357,13 +1245,12 @@ export default function CandidateReviewPage() {
             handleAction(candidateId, action);
             setPreviewCandidate(null);
           }}
-          speakingLevel={speakingLevels[previewCandidate.id] || ""}
-          onSpeakingLevelChange={(level) => setSpeakingLevels((prev) => ({ ...prev, [previewCandidate.id]: level }))}
           revisionNote={revisionNotes[previewCandidate.id] || ""}
           onRevisionNoteChange={(note) => setRevisionNotes((prev) => ({ ...prev, [previewCandidate.id]: note }))}
           actionLoading={actionLoading === previewCandidate.id}
-          showActions={previewCandidate.admin_status === "active" || previewCandidate.admin_status === "profile_review" || previewCandidate.admin_status === "pending_2nd_interview" || previewCandidate.admin_status === "pending_review" || previewCandidate.admin_status === "revision_required"}
+          showActions={previewCandidate.admin_status === "active" || previewCandidate.admin_status === "profile_review" || previewCandidate.admin_status === "pending_2nd_interview" || previewCandidate.admin_status === "pending_review" || previewCandidate.admin_status === "pending_speaking_review" || previewCandidate.admin_status === "revision_required"}
           token={token}
+          onCandidateUpdated={loadCandidates}
         />
       )}
 

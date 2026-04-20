@@ -14,7 +14,8 @@ interface Pipeline {
   idVerified: number;
   profileBuilt: number;
   aiInterview: number;
-  pendingReview: number;
+  pending2ndInterview: number;
+  pendingProfileReview: number;
   live: number;
 }
 
@@ -77,7 +78,6 @@ interface DashboardData {
   warmLeadsCount: number;
   seminarDate: string;
   pipeline: Pipeline;
-  pendingSpeakingReview: number;
   pendingCandidates: PendingCandidate[];
   warmLeads: WarmLead[];
   recruiterAlerts: {
@@ -134,7 +134,6 @@ export default function AdminDashboard() {
 
   // Modal state
   const [modal, setModal] = useState<string | null>(null);
-  const [speakingLevels, setSpeakingLevels] = useState<Record<string, string>>({});
   const [routeAssignments, setRouteAssignments] = useState<Record<string, string>>({});
   const [approveSearch, setApproveSearch] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -175,14 +174,12 @@ export default function AdminDashboard() {
 
   // ═══ APPROVE CANDIDATE ═══
   async function handleApprove(candidateId: string) {
-    const level = speakingLevels[candidateId];
-    if (!level) { showToast("⚠ Assign speaking level first"); return; }
     setActionLoading(candidateId);
     try {
       const res = await fetch("/api/admin/candidates/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ candidateId, action: "approve", speakingLevel: level }),
+        body: JSON.stringify({ candidateId, action: "approve" }),
       });
       if (res.ok) {
         showToast("✓ Candidate approved and live");
@@ -198,8 +195,6 @@ export default function AdminDashboard() {
   // ═══ APPROVE ALL PENDING ═══
   async function handleApproveAll() {
     if (!data) return;
-    const unset = data.pendingCandidates.filter((c) => !speakingLevels[c.id]);
-    if (unset.length > 0) { showToast("⚠ Assign speaking level to all candidates first"); return; }
     for (const c of data.pendingCandidates) {
       await handleApprove(c.id);
     }
@@ -259,7 +254,8 @@ export default function AdminDashboard() {
         ["ID Verified", data.pipeline.idVerified],
         ["Profile Built", data.pipeline.profileBuilt],
         ["AI Interview", data.pipeline.aiInterview],
-        ["Pending Review", data.pipeline.pendingReview],
+        ["Pending 2nd Interview", data.pipeline.pending2ndInterview],
+        ["Profile Under Review", data.pipeline.pendingProfileReview],
         ["Live", data.pipeline.live],
       ] as [string, number][];
       for (const [label, count] of stages) {
@@ -313,7 +309,8 @@ export default function AdminDashboard() {
     { label: "ID Verified", count: data.pipeline.idVerified, color: "#B5D4F4" },
     { label: "Profile Built", count: data.pipeline.profileBuilt, color: "#85B7EB" },
     { label: "AI Interview", count: data.pipeline.aiInterview, color: "#FDD4B8" },
-    { label: "Pending Review", count: data.pipeline.pendingReview, color: "#FE9E6E" },
+    { label: "Pending 2nd Interview", count: data.pipeline.pending2ndInterview, color: "#FE9E6E" },
+    { label: "Profile Under Review", count: data.pipeline.pendingProfileReview, color: "#F59E0B" },
     { label: "Live ✓", count: data.pipeline.live, color: "#FE6E3E" },
   ];
   const totalApplied = data.pipeline.applied || 1;
@@ -443,8 +440,8 @@ export default function AdminDashboard() {
             <div style={{ fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 7 }}>🔴 Ready to Review</div>
             <span style={{ fontSize: 10, color: "#9C9A94" }}>Admin action needed</span>
           </div>
-          <div style={{ fontFamily: MONO, fontSize: 22, fontWeight: 500, marginBottom: 4 }}>{data.pendingSpeakingReview}</div>
-          <div style={{ fontSize: 11, color: "#9C9A94", lineHeight: 1.5, marginBottom: 12 }}>Candidates completed all steps and are waiting on your speaking assessment and approval.</div>
+          <div style={{ fontFamily: MONO, fontSize: 22, fontWeight: 500, marginBottom: 4 }}>{data.pendingCandidates.length}</div>
+          <div style={{ fontSize: 11, color: "#9C9A94", lineHeight: 1.5, marginBottom: 12 }}>Candidates completed all steps and are waiting on your approval.</div>
           <button onClick={() => setModal("review")} style={{ ...btnStyle, background: "#E24B4A", color: "#fff", padding: "5px 10px", fontSize: 11.5 }}>Review Now →</button>
         </div>
 
@@ -519,7 +516,7 @@ export default function AdminDashboard() {
           </div>
           <span onClick={() => setModal("pipeline")} style={{ fontSize: 11, color: "#FE6E3E", cursor: "pointer", fontWeight: 500, padding: "4px 8px", borderRadius: 5 }}>Full Breakdown →</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8, alignItems: "end" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 8, alignItems: "end" }}>
           {pStages.map((s, i) => {
             const pct = totalApplied > 0 ? (s.count / totalApplied) * 100 : 0;
             const barH = Math.max(4, (s.count / totalApplied) * 70);
@@ -711,21 +708,6 @@ export default function AdminDashboard() {
               {/* Audio */}
               <AudioRow label="Oral Reading Recording" url={c.voice_recording_1_url} playing={playingAudio} onPlay={(url) => playAudio(url, "oral reading")} />
               <AudioRow label="Self Introduction" url={c.voice_recording_2_url} playing={playingAudio} onPlay={(url) => playAudio(url, "self introduction")} />
-              {/* Speaking level */}
-              <div style={{ marginTop: 4 }}>
-                <div style={{ fontSize: 11, color: "#9C9A94", marginBottom: 6, fontWeight: 500, textTransform: "uppercase", letterSpacing: 0.5 }}>Assign Speaking Level</div>
-                <select
-                  value={speakingLevels[c.id] || ""}
-                  onChange={(e) => setSpeakingLevels((p) => ({ ...p, [c.id]: e.target.value }))}
-                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #E2DFD8", borderRadius: 8, fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "#1C1B1A", background: "#fff", cursor: "pointer" }}
-                >
-                  <option value="">— Select speaking level —</option>
-                  <option value="Fluent">Fluent</option>
-                  <option value="Proficient">Proficient</option>
-                  <option value="Conversational">Conversational</option>
-                  <option value="Basic">Basic</option>
-                </select>
-              </div>
             </div>
           ))}
           {data.pendingCandidates.length === 0 && (

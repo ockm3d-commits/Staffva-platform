@@ -6,6 +6,7 @@ import NotifyButton from "@/components/browse/NotifyButton";
 import ProfileViewTracker from "@/components/ProfileViewTracker";
 import ApproveButton from "@/components/recruiting-manager/ApproveButton";
 import BanButton from "@/components/recruiting-manager/BanButton";
+import { hasUsExperience } from "@/lib/usExperienceLabels";
 
 async function InterviewNotesPDF({ path }: { path: string }) {
   const supabase = createClient(
@@ -108,19 +109,20 @@ const TIER_CONFIG: Record<string, { label: string; color: string; bg: string }> 
   professional: { label: "Professional", color: "text-white", bg: "bg-gray-500" },
 };
 
-const SPEAKING_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  fluent: { label: "Fluent", color: "text-white", bg: "bg-emerald-600" },
-  proficient: { label: "Proficient", color: "text-white", bg: "bg-blue-600" },
-  conversational: { label: "Conversational", color: "text-white", bg: "bg-amber-600" },
-  developing: { label: "Developing", color: "text-white", bg: "bg-gray-500" },
-};
-
 const US_EXPERIENCE_LABELS: Record<string, string> = {
+  // New (post-Phase-2B) values
+  less_than_6_months: "Less than 6 months US client experience",
+  "6_months_to_1_year": "6 months to 1 year US client experience",
+  "1_to_2_years": "1 to 2 years US client experience",
+  "2_to_5_years": "2 to 5 years US client experience",
+  "5_plus_years": "5+ years US client experience",
+  international_only: "International clients only",
+  none: "No prior international client experience",
+  // Legacy values — kept until migration backfills existing rows
   full_time: "Full-time US client experience",
   part_time_contract: "Part-time / contract US experience",
-  international_only: "International client experience",
-  none: "No prior US client experience",
 };
+
 
 export default async function CandidateProfilePage({
   params,
@@ -248,8 +250,7 @@ export default async function CandidateProfilePage({
     .maybeSingle();
 
   const tier = candidate.english_written_tier ? TIER_CONFIG[candidate.english_written_tier] : null;
-  const speaking = candidate.speaking_level ? SPEAKING_CONFIG[candidate.speaking_level] : null;
-  const hasUSExperience = candidate.us_client_experience === "full_time" || candidate.us_client_experience === "part_time_contract";
+  const hasUSExperience = hasUsExperience(candidate.us_client_experience);
   const displayedName = candidate.display_name || candidate.full_name;
   const canViewGated = isLoggedIn && (isClient || isOwnProfile || isAdmin || isRecruitingManager);
 
@@ -444,11 +445,6 @@ export default async function CandidateProfilePage({
                   {tier && (
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${tier.bg} ${tier.color}`}>
                       English: {tier.label}
-                    </span>
-                  )}
-                  {speaking && (
-                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${speaking.bg} ${speaking.color}`}>
-                      Speaking: {speaking.label}
                     </span>
                   )}
                   {hasUSExperience && (
@@ -912,7 +908,7 @@ export default async function CandidateProfilePage({
                   StaffVA Interview Notes
                 </h2>
                 <div className="mt-4 space-y-4">
-                  {completedInterviews.map((interview: { interview_number: number; conducted_at: string; communication_score: number; demeanor_score: number; role_knowledge_score: number; speaking_level_updated_to: string; notes_pdf_url: string | null }) => (
+                  {completedInterviews.map((interview: { interview_number: number; conducted_at: string; communication_score: number; demeanor_score: number; role_knowledge_score: number; notes_pdf_url: string | null }) => (
                     <div key={interview.interview_number} className="rounded-lg bg-purple-50 border border-purple-100 p-4">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-semibold text-text">
@@ -936,9 +932,6 @@ export default async function CandidateProfilePage({
                           <p className="text-lg font-bold text-purple-700">{interview.role_knowledge_score}/5</p>
                         </div>
                       </div>
-                      <p className="text-xs text-text/50">
-                        Speaking level assessed: <span className="font-medium capitalize text-text">{interview.speaking_level_updated_to}</span>
-                      </p>
                       {interview.notes_pdf_url && (
                         <InterviewNotesPDF path={interview.notes_pdf_url} />
                       )}
@@ -963,15 +956,9 @@ export default async function CandidateProfilePage({
                 <div>
                   <p className="text-xs text-text/40">US Client Experience</p>
                   <p className="mt-0.5 text-sm font-medium text-text">
-                    {US_EXPERIENCE_LABELS[candidate.us_client_experience] || "Not specified"}
+                    {(candidate.us_client_experience && US_EXPERIENCE_LABELS[candidate.us_client_experience]) || "Not specified"}
                   </p>
                 </div>
-                {candidate.us_client_description && (
-                  <div className="col-span-2">
-                    <p className="text-xs text-text/40">US Work Description</p>
-                    <p className="mt-0.5 text-sm text-text/70">{candidate.us_client_description}</p>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -1096,12 +1083,12 @@ export default async function CandidateProfilePage({
                   </>
                 )}
 
-                {hasUSExperience && (
+                {hasUSExperience && candidate.us_client_experience && (
                   <>
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-text/40">US Experience</span>
                       <span className="text-xs font-medium text-green-600">
-                        {candidate.us_client_experience === "full_time" ? "Full-time" : "Part-time/Contract"}
+                        {US_EXPERIENCE_LABELS[candidate.us_client_experience] || "Yes"}
                       </span>
                     </div>
                     <div className="border-t border-gray-100" />
@@ -1191,12 +1178,6 @@ export default async function CandidateProfilePage({
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                   <p className="text-xs text-text/60">English proficiency verified by StaffVA</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <svg className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  <p className="text-xs text-text/60">Speaking level verified by human reviewer</p>
                 </div>
                 <div className="flex items-start gap-2">
                   <svg className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">

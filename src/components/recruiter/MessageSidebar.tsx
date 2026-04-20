@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import ReviewModal from "@/components/recruiter/edit-requests/ReviewModal";
 
 interface MessageThread {
   candidate_id: string;
@@ -17,6 +18,8 @@ interface ThreadMessage {
   body: string;
   created_at: string;
   read_at: string | null;
+  message_type?: "regular" | "edit_request" | null;
+  edit_request_id?: string | null;
 }
 
 interface MessageSidebarProps {
@@ -34,6 +37,7 @@ export default function MessageSidebar({ threads, candidateMap, token, isMobileF
   const [loading, setLoading] = useState(false);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [reviewingEditId, setReviewingEditId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -118,6 +122,32 @@ export default function MessageSidebar({ threads, candidateMap, token, isMobileF
             ) : (
               messages.map((msg) => {
                 const isMe = msg.sender_role === "recruiter";
+                if (msg.message_type === "edit_request" && msg.edit_request_id) {
+                  const fieldMatch = msg.body.match(/^Profile edit requested:\s*(.+?)(?:\s*\[.*)?$/);
+                  const label = fieldMatch ? fieldMatch[1] : msg.body;
+                  const resolvedTag = msg.body.match(/\[(Approved|Declined[^\]]*|Cancelled[^\]]*)\]/);
+                  return (
+                    <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                      <div className="max-w-[85%] rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700">Profile edit requested</p>
+                        <p className="mt-0.5 text-xs font-medium text-[#1C1B1A]">Field: {label}</p>
+                        {resolvedTag && (
+                          <p className="mt-0.5 text-[10px] text-amber-800">{resolvedTag[1]}</p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setReviewingEditId(msg.edit_request_id!)}
+                          className="mt-2 inline-block rounded-lg bg-[#FE6E3E] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#E55A2B]"
+                        >
+                          View Change
+                        </button>
+                        <p className="mt-1 text-[9px] text-gray-400">
+                          {new Date(msg.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
                 return (
                   <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[80%] rounded-2xl px-3 py-2 ${isMe ? "bg-[#FE6E3E] text-white" : "bg-gray-100 text-[#1C1B1A]"}`}>
@@ -201,6 +231,16 @@ export default function MessageSidebar({ threads, candidateMap, token, isMobileF
             )}
           </div>
         </>
+      )}
+      {reviewingEditId && (
+        <ReviewModal
+          editRequestId={reviewingEditId}
+          onClose={() => setReviewingEditId(null)}
+          onResolved={() => {
+            setReviewingEditId(null);
+            if (activeThread) openThread(activeThread);
+          }}
+        />
       )}
     </div>
   );

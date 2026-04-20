@@ -12,7 +12,6 @@ interface MatchResult {
   role_category: string;
   hourly_rate: number;
   english_written_tier: string | null;
-  speaking_level: string | null;
   bio: string | null;
   profile_photo_url: string | null;
   reputation_tier: string | null;
@@ -177,11 +176,6 @@ function MatchPageContent() {
                     {c.english_written_tier && (
                       <span className="rounded-full bg-background px-2 py-0.5 text-[11px] font-medium text-text-secondary">
                         {c.english_written_tier.charAt(0).toUpperCase() + c.english_written_tier.slice(1)}
-                      </span>
-                    )}
-                    {c.speaking_level && (
-                      <span className="rounded-full bg-background px-2 py-0.5 text-[11px] font-medium text-text-secondary">
-                        {c.speaking_level.charAt(0).toUpperCase() + c.speaking_level.slice(1)}
                       </span>
                     )}
                   </div>

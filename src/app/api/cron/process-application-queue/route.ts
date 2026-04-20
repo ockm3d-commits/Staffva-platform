@@ -177,8 +177,7 @@ async function processApplication(
     time_zone: appData.time_zone as string,
     linkedin_url: (appData.linkedin_url as string) || null,
     bio: (appData.bio as string) || null,
-    us_client_experience: appData.us_client_experience as string,
-    us_client_description: (appData.us_client_description as string) || null,
+    us_client_experience: (appData.us_client_experience as string | null) ?? null,
     has_college_degree: appData.has_college_degree as boolean,
     custom_role_description: (appData.custom_role_description as string) || null,
     role_category_custom: appData.role_category === "Other" ? ((appData.custom_role_description as string) || null) : null,
@@ -275,6 +274,7 @@ async function processApplication(
       .from("candidates")
       .update({
         assigned_recruiter: assignedRecruiterId ?? MANAR_RECRUITING_MANAGER_ID,
+        assigned_recruiter_at: new Date().toISOString(),
         assignment_pending_review: pendingReview,
       })
       .eq("id", candidate.id);

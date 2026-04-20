@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
   // Fetch messages
   const { data: messages, error } = await admin
     .from("recruiter_messages")
-    .select("id, recruiter_id, candidate_id, sender_role, body, created_at, read_at")
+    .select("id, recruiter_id, candidate_id, sender_role, body, created_at, read_at, message_type, edit_request_id")
     .eq("recruiter_id", recruiterId!)
     .eq("candidate_id", candidateId!)
     .order("created_at", { ascending: true });

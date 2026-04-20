@@ -49,13 +49,11 @@ export interface CandidateData {
   time_zone: string;
   linkedin_url: string;
   bio: string;
-  us_client_experience: string;
-  us_client_description: string;
+  us_client_experience: string | null;
   english_mc_score: number | null;
   english_comprehension_score: number | null;
   english_percentile: number | null;
   english_written_tier: string | null;
-  speaking_level: string | null;
   admin_status: string;
   id_verification_status: string;
   voice_recording_1_url: string | null;
@@ -444,7 +442,6 @@ export default function ApplyPage() {
             hourly_rate: candidateData.hourly_rate,
             bio: candidateData.bio ?? undefined,
             english_written_tier: candidateData.english_written_tier ?? undefined,
-            speaking_level: candidateData.speaking_level ?? undefined,
             skills: candidateData.skills || [],
             tools: candidateData.tools || [],
           }}

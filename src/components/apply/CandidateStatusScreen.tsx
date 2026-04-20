@@ -31,10 +31,10 @@ const STATUS_CONFIG: Record<string, {
   },
   profile_review: {
     icon: "check",
-    iconBg: "bg-blue-100",
-    iconColor: "text-blue-600",
+    iconBg: "bg-yellow-100",
+    iconColor: "text-yellow-600",
     title: "Profile Under Review",
-    message: "Your Talent Specialist is reviewing your profile. You will be notified once your profile goes live.",
+    message: "Your second interview is complete. Our team is doing a final profile review — we'll email you within 2 business days.",
   },
   pending_2nd_interview: {
     icon: "check",
@@ -47,8 +47,15 @@ const STATUS_CONFIG: Record<string, {
     icon: "check",
     iconBg: "bg-yellow-100",
     iconColor: "text-yellow-600",
-    title: "Pending Review",
-    message: "Your second interview is complete. Your profile is now being reviewed by your Talent Specialist.",
+    title: "Profile Under Review",
+    message: "Your second interview is complete. Our team is doing a final profile review — we'll email you within 2 business days.",
+  },
+  pending_speaking_review: {
+    icon: "check",
+    iconBg: "bg-blue-100",
+    iconColor: "text-blue-600",
+    title: "Pending 2nd Interview",
+    message: "You have passed the first interview. Your second interview will be scheduled soon.",
   },
   rejected: {
     icon: "x",

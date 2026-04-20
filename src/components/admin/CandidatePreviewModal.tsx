@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import AudioPlayer from "@/components/AudioPlayer";
+import { hasUsExperience } from "@/lib/usExperienceLabels";
 
 const TIER_CONFIG: Record<string, { label: string; bg: string }> = {
   exceptional: { label: "Exceptional", bg: "bg-emerald-600" },
@@ -9,19 +10,29 @@ const TIER_CONFIG: Record<string, { label: string; bg: string }> = {
   professional: { label: "Professional", bg: "bg-gray-500" },
 };
 
-const SPEAKING_CONFIG: Record<string, { label: string; bg: string }> = {
-  fluent: { label: "Fluent", bg: "bg-emerald-600" },
-  proficient: { label: "Proficient", bg: "bg-blue-600" },
-  conversational: { label: "Conversational", bg: "bg-amber-600" },
-  developing: { label: "Developing", bg: "bg-gray-500" },
-};
-
 const US_EXP_LABELS: Record<string, string> = {
+  // New (post-Phase-2B) values
+  less_than_6_months: "Less than 6 months US client experience",
+  "6_months_to_1_year": "6 months to 1 year US client experience",
+  "1_to_2_years": "1 to 2 years US client experience",
+  "2_to_5_years": "2 to 5 years US client experience",
+  "5_plus_years": "5+ years US client experience",
+  international_only: "International clients only",
+  none: "No prior international client experience",
+  // Legacy values — kept until migration backfills existing rows
   full_time: "Full-time US client experience",
   part_time_contract: "Part-time / contract US experience",
-  international_only: "International client experience",
-  none: "No prior US client experience",
 };
+
+const US_EXP_EDIT_OPTIONS: { value: string; label: string }[] = [
+  { value: "less_than_6_months", label: "Less than 6 months" },
+  { value: "6_months_to_1_year", label: "6 months to 1 year" },
+  { value: "1_to_2_years", label: "1 to 2 years" },
+  { value: "2_to_5_years", label: "2 to 5 years" },
+  { value: "5_plus_years", label: "5+ years" },
+  { value: "international_only", label: "International clients only" },
+  { value: "none", label: "First international role" },
+];
 
 interface Candidate {
   id: string;
@@ -38,9 +49,7 @@ interface Candidate {
   tools: string[];
   work_experience: { company_name?: string; role_title: string; industry: string; duration: string; description: string }[];
   english_written_tier: string;
-  speaking_level: string;
-  us_client_experience: string;
-  us_client_description: string;
+  us_client_experience: string | null;
   voice_recording_1_url: string;
   voice_recording_2_url: string;
   resume_url: string;
@@ -65,29 +74,47 @@ interface Props {
   candidate: Candidate;
   onClose: () => void;
   onAction: (candidateId: string, action: "approve" | "reject" | "revision_required") => void;
-  speakingLevel: string;
-  onSpeakingLevelChange: (level: string) => void;
   revisionNote: string;
   onRevisionNoteChange: (note: string) => void;
   actionLoading: boolean;
   showActions: boolean;
   token?: string;
+  onCandidateUpdated?: () => void;
 }
 
 export default function CandidatePreviewModal({
   candidate: c,
   onClose,
   onAction,
-  speakingLevel,
-  onSpeakingLevelChange,
   revisionNote,
   onRevisionNoteChange,
   actionLoading,
   showActions,
   token,
+  onCandidateUpdated,
 }: Props) {
   const [showRevisionForm, setShowRevisionForm] = useState(false);
   const [reassignLog, setReassignLog] = useState<ReassignLogEntry[]>([]);
+  const [editingUsExperience, setEditingUsExperience] = useState(false);
+  const [usExperienceDraft, setUsExperienceDraft] = useState<string>(c.us_client_experience || "");
+  const [usExperienceSaving, setUsExperienceSaving] = useState(false);
+  const [usExperienceLocal, setUsExperienceLocal] = useState<string | null>(c.us_client_experience);
+
+  async function handleSaveUsExperience() {
+    if (!token || !usExperienceDraft) return;
+    setUsExperienceSaving(true);
+    const res = await fetch("/api/admin/candidates/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ candidate_id: c.id, us_client_experience: usExperienceDraft }),
+    });
+    setUsExperienceSaving(false);
+    if (res.ok) {
+      setUsExperienceLocal(usExperienceDraft);
+      setEditingUsExperience(false);
+      onCandidateUpdated?.();
+    }
+  }
 
   useEffect(() => {
     if (!token || !c?.id) return;
@@ -100,8 +127,7 @@ export default function CandidatePreviewModal({
   }, [token, c?.id]);
 
   const tier = c.english_written_tier ? TIER_CONFIG[c.english_written_tier] : null;
-  const speaking = c.speaking_level ? SPEAKING_CONFIG[c.speaking_level] : null;
-  const hasUSExperience = c.us_client_experience === "full_time" || c.us_client_experience === "part_time_contract";
+  const hasUSExperience = hasUsExperience(usExperienceLocal);
   const tools: string[] = c.tools || [];
   const workExp = c.work_experience || [];
 
@@ -153,11 +179,6 @@ export default function CandidatePreviewModal({
                     {tier && (
                       <span className={`rounded-full px-3 py-1 text-xs font-semibold text-white ${tier.bg}`}>
                         English: {tier.label}
-                      </span>
-                    )}
-                    {speaking && (
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold text-white ${speaking.bg}`}>
-                        Speaking: {speaking.label}
                       </span>
                     )}
                     {hasUSExperience && (
@@ -244,16 +265,53 @@ export default function CandidatePreviewModal({
                     <p className="text-xs text-text/40">Experience</p>
                     <p className="mt-0.5 text-sm font-medium text-text">{c.years_experience}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-text/40">US Client Experience</p>
-                    <p className="mt-0.5 text-sm font-medium text-text">{US_EXP_LABELS[c.us_client_experience] || "Not specified"}</p>
-                  </div>
-                  {c.us_client_description && (
-                    <div className="col-span-2">
-                      <p className="text-xs text-text/40">US Work Description</p>
-                      <p className="mt-0.5 text-sm text-text/70">{c.us_client_description}</p>
+                  <div className="col-span-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-text/40">US Client Experience</p>
+                      {!editingUsExperience && token && (
+                        <button
+                          type="button"
+                          onClick={() => { setUsExperienceDraft(usExperienceLocal || ""); setEditingUsExperience(true); }}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          Edit
+                        </button>
+                      )}
                     </div>
-                  )}
+                    {!editingUsExperience ? (
+                      <p className="mt-0.5 text-sm font-medium text-text">
+                        {(usExperienceLocal && US_EXP_LABELS[usExperienceLocal]) || "Not specified"}
+                      </p>
+                    ) : (
+                      <div className="mt-1 flex items-center gap-2">
+                        <select
+                          value={usExperienceDraft}
+                          onChange={(e) => setUsExperienceDraft(e.target.value)}
+                          className="flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="">Select...</option>
+                          {US_EXP_EDIT_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleSaveUsExperience}
+                          disabled={usExperienceSaving || !usExperienceDraft}
+                          className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
+                        >
+                          {usExperienceSaving ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingUsExperience(false)}
+                          className="rounded-md border border-gray-300 px-3 py-1.5 text-xs text-text/60 hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <p className="text-xs text-text/40">Email</p>
                     <p className="mt-0.5 text-sm font-medium text-text">{c.email}</p>
@@ -281,13 +339,13 @@ export default function CandidatePreviewModal({
                     </div>
                   </>
                 )}
-                {hasUSExperience && (
+                {hasUSExperience && usExperienceLocal && (
                   <>
                     <div className="border-t border-gray-100" />
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-text/40">US Experience</span>
                       <span className="text-xs font-medium text-green-600">
-                        {c.us_client_experience === "full_time" ? "Full-time" : "Part-time/Contract"}
+                        {US_EXP_LABELS[usExperienceLocal] || "Yes"}
                       </span>
                     </div>
                   </>
@@ -314,12 +372,6 @@ export default function CandidatePreviewModal({
                   <svg className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
-                  <p className="text-xs text-text/60">Speaking level verified by human reviewer</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <svg className="w-4 h-4 mt-0.5 text-primary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
                   <p className="text-xs text-text/60">Payments protected by escrow</p>
                 </div>
               </div>
@@ -332,23 +384,9 @@ export default function CandidatePreviewModal({
           <div className="sticky bottom-0 rounded-b-2xl border-t border-gray-200 bg-white px-8 py-4">
             <div className="space-y-3">
               <div className="flex items-end gap-3 flex-wrap">
-                <div className="flex-1 min-w-[180px]">
-                  <label className="block text-xs font-medium text-text/60 mb-1">Speaking Level</label>
-                  <select
-                    value={speakingLevel}
-                    onChange={(e) => onSpeakingLevelChange(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-text focus:border-primary focus:outline-none"
-                  >
-                    <option value="">Select level...</option>
-                    <option value="fluent">Fluent</option>
-                    <option value="proficient">Proficient</option>
-                    <option value="conversational">Conversational</option>
-                    <option value="developing">Developing</option>
-                  </select>
-                </div>
                 <button
                   onClick={() => onAction(c.id, "approve")}
-                  disabled={actionLoading || !speakingLevel}
+                  disabled={actionLoading}
                   className="rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50"
                 >
                   {actionLoading ? "..." : "Approve"}

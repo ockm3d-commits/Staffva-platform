@@ -117,7 +117,7 @@ export async function createCalendarWatch(recruiterId: string): Promise<string> 
 // Event processing — called from the webhook handler for each changed event
 // ---------------------------------------------------------------------------
 
-interface CalendarEvent {
+export interface CalendarEvent {
   id: string;
   status?: string;
   summary?: string;
@@ -126,32 +126,145 @@ interface CalendarEvent {
   attendees?: { email?: string; displayName?: string; organizer?: boolean; self?: boolean }[];
 }
 
-function extractAttendeeName(event: CalendarEvent): string | null {
+// ---------------------------------------------------------------------------
+// Match-hardening (per Scope v6.6 Section 11E) — the new-booking branch must
+// reject on any of five safeguards. The pure decision function below is what
+// the tests exercise; processCalendarEvent wires Supabase I/O around it.
+// ---------------------------------------------------------------------------
+
+export type UnmatchReason =
+  | "no_identifying_email"
+  | "ambiguous_match"
+  | "event_before_assignment"
+  | "existing_booking_collision"
+  | "status_not_eligible_for_overwrite"
+  | "event_not_confirmed";
+
+export interface CandidateMatchRow {
+  id: string;
+  email: string;
+  created_at: string;
+  ai_interview_completed_at: string | null;
+  assigned_recruiter_at: string | null;
+  second_interview_status: string | null;
+  google_calendar_event_id: string | null;
+}
+
+export type MatchDecision =
+  | { kind: "match"; candidateId: string; candidateEmail: string; usedCreatedAtFloor: boolean }
+  | { kind: "unmatched"; reason: UnmatchReason; attendeeEmail: string | null };
+
+// Returns the attendee emails on `event` that are NOT organizer/self and whose
+// domain is NOT in `internalDomains`. Lowercased. Used for both the
+// internal-only pre-filter and the downstream candidates.email lookup.
+export function extractExternalAttendees(
+  event: CalendarEvent,
+  internalDomains: Set<string>,
+): string[] {
+  if (!event.attendees?.length) return [];
+  const out: string[] = [];
+  for (const a of event.attendees) {
+    if (!a.email) continue;
+    if (a.organizer || a.self) continue;
+    const domain = a.email.split("@")[1]?.toLowerCase();
+    if (!domain) continue;
+    if (internalDomains.has(domain)) continue;
+    out.push(a.email.toLowerCase());
+  }
+  return out;
+}
+
+// Human-readable name for calendar_unmatched_bookings.attendee_name (operator
+// triage column). Best-effort; returns null when nothing usable.
+export function extractAttendeeName(event: CalendarEvent): string | null {
   if (event.attendees?.length) {
     const guest = event.attendees.find((a) => !a.organizer && !a.self);
     if (guest?.displayName) return guest.displayName.trim();
   }
-
   if (event.description) {
-    const match = event.description.match(/^Name:\s*(.+)/im);
-    if (match) return match[1].trim();
+    const m = event.description.match(/^Name:\s*(.+)/im);
+    if (m) return m[1].trim();
   }
-
   if (event.summary) {
-    return event.summary
-      .replace(/^(Meeting with|Appointment:|Interview with|Booking with)\s*/i, "")
-      .trim() || null;
+    return event.summary.replace(/^(Meeting with|Appointment:|Interview with|Booking with)\s*/i, "").trim() || null;
   }
-
   return null;
 }
 
-function splitName(name: string): { firstName: string; lastName: string } {
-  const parts = name.trim().split(/\s+/);
-  return {
-    firstName: parts[0],
-    lastName: parts.length > 1 ? parts[parts.length - 1] : parts[0],
-  };
+// Pure decision function — given an event and the candidate rows whose email
+// matches one of the event's external attendees (already filtered by
+// assigned_recruiter = this recruiter), decide whether to link, and if not,
+// which unmatch reason to record. No I/O; safe to unit-test directly.
+export function decideMatchOutcome(params: {
+  event: CalendarEvent;
+  eventStart: string | null;
+  externalEmails: string[];
+  candidateMatches: CandidateMatchRow[];
+}): MatchDecision {
+  const { event, eventStart, externalEmails, candidateMatches } = params;
+  const firstExternal = externalEmails[0] ?? null;
+
+  // Safeguard E — event must be confirmed
+  if (event.status && event.status !== "confirmed") {
+    return { kind: "unmatched", reason: "event_not_confirmed", attendeeEmail: firstExternal };
+  }
+
+  // Safeguard A — email-based identity
+  if (candidateMatches.length === 0) {
+    return { kind: "unmatched", reason: "no_identifying_email", attendeeEmail: firstExternal };
+  }
+  if (candidateMatches.length > 1) {
+    return { kind: "unmatched", reason: "ambiguous_match", attendeeEmail: firstExternal };
+  }
+
+  const c = candidateMatches[0];
+
+  // Safeguard B — event cannot predate assignment floor
+  //   floor = assigned_recruiter_at -> ai_interview_completed_at -> created_at
+  const floorIso = c.assigned_recruiter_at ?? c.ai_interview_completed_at ?? c.created_at;
+  const usedCreatedAtFloor = !c.assigned_recruiter_at && !c.ai_interview_completed_at;
+  if (eventStart && floorIso) {
+    const eventMs = new Date(eventStart).getTime();
+    const floorMs = new Date(floorIso).getTime();
+    if (Number.isFinite(eventMs) && Number.isFinite(floorMs) && eventMs < floorMs) {
+      return { kind: "unmatched", reason: "event_before_assignment", attendeeEmail: c.email };
+    }
+  }
+
+  // Safeguard C — no silent overwrite of a different existing linkage
+  if (c.google_calendar_event_id && c.google_calendar_event_id !== event.id) {
+    return { kind: "unmatched", reason: "existing_booking_collision", attendeeEmail: c.email };
+  }
+
+  // Safeguard D — status must be 'none' or NULL
+  if (c.second_interview_status && c.second_interview_status !== "none") {
+    return { kind: "unmatched", reason: "status_not_eligible_for_overwrite", attendeeEmail: c.email };
+  }
+
+  return { kind: "match", candidateId: c.id, candidateEmail: c.email, usedCreatedAtFloor };
+}
+
+export async function recordUnmatched(
+  supabase: ReturnType<typeof getAdminClient>,
+  recruiterId: string,
+  event: CalendarEvent,
+  eventStart: string | null,
+  reason: UnmatchReason,
+  attendeeEmail: string | null,
+): Promise<void> {
+  await supabase
+    .from("calendar_unmatched_bookings")
+    .upsert(
+      {
+        recruiter_id: recruiterId,
+        event_id: event.id,
+        event_start: eventStart,
+        attendee_name: extractAttendeeName(event),
+        attendee_email: attendeeEmail,
+        unmatch_reason: reason,
+      },
+      { onConflict: "recruiter_id,event_id", ignoreDuplicates: true },
+    );
 }
 
 function formatDateForEmail(iso: string | undefined): string {
@@ -272,47 +385,80 @@ export async function processCalendarEvent(
     }
   }
 
-  // --- New booking: try to match to a candidate ---
-  const attendeeName = extractAttendeeName(event);
-  if (!attendeeName) {
-    await supabase.from("calendar_unmatched_bookings").insert({
-      recruiter_id: recruiterId,
-      event_id: event.id,
-      event_start: eventStart,
-      attendee_name: null,
-    });
-    console.log("[GOOGLE CALENDAR] Unmatched booking — no attendee name found");
+  // --- New booking: email-scoped hardened match (5 safeguards) ---
+
+  // Refinement 2 — internal-only pre-filter. Pull the recruiter's email once
+  // so we can treat their own domain + @staffva.com as "internal". Any event
+  // whose attendees are entirely within that set is skipped with NO row
+  // written to calendar_unmatched_bookings (prevents "Team Morning Huddle"
+  // style logspam seen in prod — 4000 of 4003 rows pre-migration).
+  const { data: recruiterProfile } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("id", recruiterId)
+    .single();
+  const internalDomains = new Set<string>(["staffva.com"]);
+  const recruiterDomain = recruiterProfile?.email?.split("@")[1]?.toLowerCase();
+  if (recruiterDomain) internalDomains.add(recruiterDomain);
+
+  const externalEmails = extractExternalAttendees(event, internalDomains);
+  if (externalEmails.length === 0) {
+    console.debug(
+      `[GOOGLE CALENDAR] Skipping internal-only event ${event.id} — no external attendees`
+    );
     return;
   }
 
-  const { firstName, lastName } = splitName(attendeeName);
-
-  const { data: matches } = await supabase
+  // Pull candidate rows for Safeguard A evaluation, scoped to this recruiter.
+  const { data: candidateMatches } = await supabase
     .from("candidates")
-    .select("id, display_name, full_name, second_interview_status")
-    .eq("assigned_recruiter", recruiterId)
-    .ilike("full_name", `%${firstName}%`)
-    .ilike("full_name", `%${lastName}%`);
+    .select(
+      "id, email, created_at, ai_interview_completed_at, assigned_recruiter_at, second_interview_status, google_calendar_event_id, display_name, full_name"
+    )
+    .in("email", externalEmails)
+    .eq("assigned_recruiter", recruiterId);
 
-  if (matches?.length === 1) {
-    const matched = matches[0];
-    await supabase
-      .from("candidates")
-      .update({
-        second_interview_status: "scheduled",
-        second_interview_scheduled_at: eventStart,
-        google_calendar_event_id: event.id,
-      })
-      .eq("id", matched.id);
+  const decision = decideMatchOutcome({
+    event,
+    eventStart,
+    externalEmails,
+    candidateMatches: (candidateMatches ?? []) as CandidateMatchRow[],
+  });
 
-    console.log(`[GOOGLE CALENDAR] Matched booking to candidate ${matched.display_name || matched.full_name}`);
-  } else {
-    await supabase.from("calendar_unmatched_bookings").insert({
-      recruiter_id: recruiterId,
-      event_id: event.id,
-      event_start: eventStart,
-      attendee_name: attendeeName,
-    });
-    console.log(`[GOOGLE CALENDAR] Unmatched booking — stored for manual review (name: ${attendeeName}, matches: ${matches?.length ?? 0})`);
+  if (decision.kind === "unmatched") {
+    await recordUnmatched(supabase, recruiterId, event, eventStart, decision.reason, decision.attendeeEmail);
+    console.log(
+      `[GOOGLE CALENDAR] Unmatched booking — event=${event.id} reason=${decision.reason} email=${decision.attendeeEmail ?? "<none>"}`
+    );
+    return;
   }
+
+  // decision.kind === "match" — all safeguards passed.
+  if (decision.usedCreatedAtFloor) {
+    console.warn(
+      `[GOOGLE CALENDAR] Safeguard B floor fell back to candidates.created_at for legacy candidate ${decision.candidateId} — assigned_recruiter_at and ai_interview_completed_at both NULL`
+    );
+  }
+
+  await supabase
+    .from("candidates")
+    .update({
+      second_interview_status: "scheduled",
+      second_interview_scheduled_at: eventStart,
+      google_calendar_event_id: event.id,
+    })
+    .eq("id", decision.candidateId);
+
+  // If this event previously sat in calendar_unmatched_bookings (e.g. failed
+  // Safeguard A before the candidate was assigned), drop the stale row now
+  // that the linkage has been written.
+  await supabase
+    .from("calendar_unmatched_bookings")
+    .delete()
+    .eq("recruiter_id", recruiterId)
+    .eq("event_id", event.id);
+
+  console.log(
+    `[GOOGLE CALENDAR] Matched booking ${event.id} to candidate ${decision.candidateId} (${decision.candidateEmail})`
+  );
 }

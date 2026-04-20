@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
   // 1. Update candidate assignment
   const { error: updateErr } = await supabase
     .from("candidates")
-    .update({ assigned_recruiter: newRecruiterId })
+    .update({ assigned_recruiter: newRecruiterId, assigned_recruiter_at: new Date().toISOString() })
     .eq("id", candidateId);
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 

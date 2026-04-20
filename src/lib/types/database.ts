@@ -6,17 +6,22 @@
 
 export type UserRole = "candidate" | "client" | "admin" | "recruiter" | "recruiting_manager";
 
+// Union of legacy + new values during the migration window. After Phase 2B
+// migration, the legacy values (full_time, part_time_contract) can be dropped.
 export type USExperience =
   | "full_time"
   | "part_time_contract"
+  | "less_than_6_months"
+  | "6_months_to_1_year"
+  | "1_to_2_years"
+  | "2_to_5_years"
+  | "5_plus_years"
   | "international_only"
   | "none";
 
-export type AdminStatus = "active" | "pending_2nd_interview" | "pending_review" | "profile_review" | "approved" | "rejected";
+export type AdminStatus = "pending_2nd_interview" | "pending_speaking_review" | "pending_review" | "ai_interview_failed" | "approved";
 
 export type EnglishWrittenTier = "exceptional" | "proficient" | "competent";
-
-export type SpeakingLevel = "basic" | "conversational" | "proficient" | "fluent";
 
 export type AvailabilityStatus =
   | "available_now"
@@ -102,16 +107,14 @@ export interface Candidate {
   linkedin_url: string | null;
   bio: string | null;
 
-  // US experience
-  us_client_experience: USExperience;
-  us_client_description: string | null;
+  // US experience (nullable: hard gate routes candidates with NULL to /apply/us-experience)
+  us_client_experience: USExperience | null;
 
   // English test
   english_mc_score: number | null;
   english_comprehension_score: number | null;
   english_percentile: number | null;
   english_written_tier: EnglishWrittenTier | null;
-  speaking_level: SpeakingLevel | null;
 
   // Recordings
   voice_recording_1_url: string | null;

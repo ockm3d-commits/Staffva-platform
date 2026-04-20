@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
         .from("candidates")
         .update({
           assigned_recruiter: assignedRecruiterId,
+          assigned_recruiter_at: new Date().toISOString(),
           assignment_pending_review: pendingReview,
         })
         .eq("id", candidate_id);
