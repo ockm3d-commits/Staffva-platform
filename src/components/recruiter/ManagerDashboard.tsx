@@ -184,6 +184,16 @@ export default function ManagerDashboard() {
   const [assigning, setAssigning] = useState(false);
   const [expandedReassignId, setExpandedReassignId] = useState<string | null>(null);
   const [reassignPickedId, setReassignPickedId] = useState("");
+  const [pendingEditCount, setPendingEditCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/recruiter/edit-requests")
+      .then((r) => (r.ok ? r.json() : { requests: [] }))
+      .then((body) => { if (!cancelled) setPendingEditCount((body.requests ?? []).length); })
+      .catch(() => { /* silent */ });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (!loading) return;
@@ -786,7 +796,14 @@ export default function ManagerDashboard() {
           {/* ── All my candidates ── */}
           <section>
             <div className="flex items-center justify-between mb-3 gap-3">
-              <h2 className="text-sm font-semibold text-[#1C1B1A]">All My Candidates</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-[#1C1B1A]">All My Candidates</h2>
+                {pendingEditCount > 0 && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                    {pendingEditCount} pending edit{pendingEditCount === 1 ? "" : "s"}
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
                 value={tsSearch}
