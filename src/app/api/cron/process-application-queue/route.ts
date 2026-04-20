@@ -274,6 +274,7 @@ async function processApplication(
       .from("candidates")
       .update({
         assigned_recruiter: assignedRecruiterId ?? MANAR_RECRUITING_MANAGER_ID,
+        assigned_recruiter_at: new Date().toISOString(),
         assignment_pending_review: pendingReview,
       })
       .eq("id", candidate.id);
