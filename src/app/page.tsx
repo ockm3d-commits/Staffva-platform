@@ -52,6 +52,7 @@ interface LandingCandidate {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   skills: any;
   voice_recording_1_url: string | null;
+  profile_photo_url: string | null;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -105,13 +106,23 @@ export default async function Home() {
   const { data } = await supabase
     .from('candidates')
     .select(
-      'id, display_name, full_name, country, role_category, hourly_rate, committed_hours, skills, voice_recording_1_url'
+      'id, display_name, full_name, country, role_category, hourly_rate, committed_hours, skills, voice_recording_1_url, profile_photo_url'
     )
     .eq('admin_status', 'approved')
     .order('created_at', { ascending: false })
     .limit(6);
 
   const candidates: LandingCandidate[] = data || [];
+
+  const { data: voiceData } = await supabase
+    .from('candidates')
+    .select('id, display_name, full_name, role_category, country, profile_photo_url, voice_recording_1_url')
+    .eq('admin_status', 'approved')
+    .not('voice_recording_1_url', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(4);
+
+  const voiceCandidates = voiceData || [];
 
   return (
     <div className={`${styles.landingRoot} ${dmSans.variable} ${dmSerifDisplay.variable}`}>
@@ -268,11 +279,20 @@ export default async function Home() {
                 const hasVoice = !!c.voice_recording_1_url;
 
                 return (
-                  <div className="talent-card" key={c.id}>
+                  <Link href={`/candidate/${c.id}`} className="talent-card" key={c.id} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                     <div className="talent-card-top">
-                      <div className="talent-avatar" style={{ background: getAvatarColor(idx) }}>
-                        <span>{initials}</span>
-                      </div>
+                      {c.profile_photo_url ? (
+                        <img
+                          src={c.profile_photo_url}
+                          alt={name}
+                          className="talent-avatar"
+                          style={{ objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <div className="talent-avatar" style={{ background: getAvatarColor(idx) }}>
+                          <span>{initials}</span>
+                        </div>
+                      )}
                       <div className="talent-availability" style={{ color: avail.color }}>
                         <span className="avail-dot" style={{ background: avail.dotBg }}></span>
                         {avail.label}
@@ -315,9 +335,9 @@ export default async function Home() {
                           </svg>
                         </div>
                       </div>
-                      <a href={`/candidate/${c.id}`} className="talent-view">View →</a>
+                      <span className="talent-view">View →</span>
                     </div>
-                  </div>
+                  </Link>
                 );
               })
             )}
@@ -423,7 +443,7 @@ export default async function Home() {
       </section>
 
       {/* ── VOICE MOMENT (client component) ── */}
-      <VoiceMoment />
+      <VoiceMoment candidates={voiceCandidates} />
 
       {/* ── PAYMENT SECTION ── */}
       <section className="payment-section">
