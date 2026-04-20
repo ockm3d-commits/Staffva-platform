@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { hasUsExperience } from "@/lib/usExperienceLabels";
 
 interface MatchedCandidate {
   id: string;
@@ -12,7 +13,7 @@ interface MatchedCandidate {
   role_category: string;
   hourly_rate: number;
   english_written_tier: string;
-  us_client_experience: string;
+  us_client_experience: string | null;
   availability_status: string;
   total_earnings_usd: number;
   bio: string;
@@ -129,7 +130,7 @@ function ShortlistContent() {
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {candidate.english_written_tier && <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${tierColor(candidate.english_written_tier)}`}>{candidate.english_written_tier}</span>}
-                    {(candidate.us_client_experience === "full_time" || candidate.us_client_experience === "part_time_contract") && <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">US Experience</span>}
+                    {hasUsExperience(candidate.us_client_experience) && <span className="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">US Experience</span>}
                     {candidate.total_earnings_usd > 0 && <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600">${candidate.total_earnings_usd.toLocaleString()} earned</span>}
                   </div>
                   {candidate.bio && <p className="mt-2 text-sm text-gray-600 line-clamp-2">{candidate.bio}</p>}
