@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     const { data: candidate } = await supabase
       .from("candidates")
-      .select("role_category, email, display_name, full_name")
+      .select("role_category, email, display_name, full_name, assigned_recruiter")
       .eq("id", candidateId)
       .single();
 
@@ -114,8 +114,11 @@ export async function POST(req: NextRequest) {
     }
 
     // ─── Pass branch ───────────────────────────────────────────────────────
-    // Auto-assign recruiter based on role_category
-    if (candidate?.role_category) {
+    // Preserve recruiter continuity on retake re-pass: candidates demoted by migration 00083 retain their original recruiter across the demote → retake → re-pass cycle. Auto-assignment only fires for candidates with no prior recruiter.
+    if (candidate?.assigned_recruiter) {
+      console.log("[AI Interview Webhook] Preserving existing recruiter assignment:", candidate.assigned_recruiter, "for candidate:", candidateId, "(retake re-pass — migration 00083 remediation)");
+    } else if (candidate?.role_category) {
+      // Auto-assign recruiter based on role_category
       const { data: assignment } = await supabase
         .from("recruiter_assignments")
         .select("recruiter_id")
